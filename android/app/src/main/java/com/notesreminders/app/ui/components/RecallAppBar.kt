@@ -37,6 +37,7 @@ fun RecallScreenHeader(
     subtitle: String,
     isSyncing: Boolean,
     syncHint: String?,
+    hasPendingSync: Boolean,
     onSync: () -> Unit,
     onSignOut: () -> Unit,
 ) {

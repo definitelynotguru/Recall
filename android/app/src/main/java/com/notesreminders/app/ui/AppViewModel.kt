@@ -201,8 +201,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         fireAtIso: String,
         timezone: String,
         repeatRule: String?,
-        onDone: (suspend () -> Unit)? = null,
         autoSync: Boolean = true,
+        onDone: (suspend () -> Unit)? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.addReminder(noteId, fireAtIso, timezone, repeatRule)
@@ -218,8 +218,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         fireAtIso: String,
         timezone: String,
         repeatRule: String?,
-        onDone: (suspend () -> Unit)? = null,
         autoSync: Boolean = true,
+        onDone: (suspend () -> Unit)? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.updateReminder(reminderId, fireAtIso, timezone, repeatRule)
@@ -232,8 +232,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteReminder(
         reminderId: String,
-        onDone: (suspend () -> Unit)? = null,
         autoSync: Boolean = true,
+        onDone: (suspend () -> Unit)? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.deleteReminder(reminderId)

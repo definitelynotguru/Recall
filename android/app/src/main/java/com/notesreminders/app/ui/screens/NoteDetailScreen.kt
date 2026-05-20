@@ -403,7 +403,6 @@ fun NoteDetailScreen(
                                     d.fireAt,
                                     zone.id,
                                     d.repeatRule,
-                                    onDone = null,
                                     autoSync = false,
                                 )
                             }
