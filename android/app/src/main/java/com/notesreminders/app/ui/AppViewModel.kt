@@ -199,4 +199,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             onDone?.invoke()
         }
     }
+
+    fun updateReminder(
+        reminderId: String,
+        fireAtIso: String,
+        timezone: String,
+        repeatRule: String?,
+        onDone: (suspend () -> Unit)? = null,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.updateReminder(reminderId, fireAtIso, timezone, repeatRule)
+            onDone?.invoke()
+        }
+    }
+
+    fun deleteReminder(reminderId: String, onDone: (suspend () -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.deleteReminder(reminderId)
+            onDone?.invoke()
+        }
+    }
 }

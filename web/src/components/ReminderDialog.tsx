@@ -1,22 +1,55 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, X } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { Bell, Trash, X } from "@phosphor-icons/react";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 
 type Props = {
   noteId: string;
   open: boolean;
   onClose: () => void;
-  onSaved: (reminder: ApiReminder) => void;
+  onSaved: () => void;
+  reminder?: ApiReminder | null;
 };
 
-export function ReminderDialog({ noteId, open, onClose, onSaved }: Props) {
+function fireAtToLocalFields(fireAt: string) {
+  const d = new Date(fireAt);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+export function ReminderDialog({
+  noteId,
+  open,
+  onClose,
+  onSaved,
+  reminder,
+}: Props) {
+  const isEdit = Boolean(reminder);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("09:00");
   const [repeat, setRepeat] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setError("");
+    if (reminder) {
+      const { date: d, time: t } = fireAtToLocalFields(reminder.fire_at);
+      setDate(d);
+      setTime(t);
+      setRepeat(reminder.repeat_rule ?? "");
+    } else {
+      setDate("");
+      setTime("09:00");
+      setRepeat("");
+    }
+  }, [open, reminder]);
 
   if (!open) return null;
 
@@ -31,23 +64,47 @@ export function ReminderDialog({ noteId, open, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       const local = new Date(`${date}T${time}:00`);
-      const data = await apiFetch<{ reminder: ApiReminder }>(
-        `/notes/${noteId}/reminders`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            fire_at: local.toISOString(),
-            timezone: tz,
-            repeat_rule: repeat || null,
-          }),
-        },
-      );
-      onSaved(data.reminder);
+      const payload = {
+        fire_at: local.toISOString(),
+        timezone: tz,
+        repeat_rule: repeat || null,
+      };
+      if (isEdit && reminder) {
+        await apiFetch<{ reminder: ApiReminder }>(`/reminders/${reminder.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiFetch<{ reminder: ApiReminder }>(
+          `/notes/${noteId}/reminders`,
+          {
+            method: "POST",
+            body: JSON.stringify(payload),
+          },
+        );
+      }
+      onSaved();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!reminder) return;
+    if (!confirm("Delete this reminder?")) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await apiFetch(`/reminders/${reminder.id}`, { method: "DELETE" });
+      onSaved();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -74,7 +131,7 @@ export function ReminderDialog({ noteId, open, onClose, onSaved }: Props) {
                 letterSpacing: "-0.02em",
               }}
             >
-              Schedule nudge
+              {isEdit ? "Edit reminder" : "Schedule nudge"}
             </h2>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--parchment-muted)" }}>
               Android delivers the notification
@@ -123,6 +180,18 @@ export function ReminderDialog({ noteId, open, onClose, onSaved }: Props) {
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="dialog-actions">
+          {isEdit && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleDelete}
+              disabled={deleting || saving}
+              style={{ marginRight: "auto", color: "var(--error, #e57373)" }}
+            >
+              <Trash size={18} />
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
@@ -130,9 +199,9 @@ export function ReminderDialog({ noteId, open, onClose, onSaved }: Props) {
             type="button"
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || deleting}
           >
-            {saving ? "Saving…" : "Set reminder"}
+            {saving ? "Saving…" : isEdit ? "Save changes" : "Set reminder"}
           </button>
         </div>
       </div>

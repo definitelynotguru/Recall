@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Eye, FloppyDisk, Trash } from "@phosphor-icons/react";
+import { ArrowLeft, Eye, FloppyDisk, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
@@ -18,6 +18,7 @@ export default function NoteDetailPage() {
   const [preview, setPreview] = useState(false);
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +52,22 @@ export default function NoteDetailPage() {
     if (!confirm("Delete this note and its reminders?")) return;
     await apiFetch(`/notes/${id}`, { method: "DELETE" });
     router.push("/notes");
+  };
+
+  const openCreateDialog = () => {
+    setEditingReminder(null);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (reminder: ApiReminder) => {
+    setEditingReminder(reminder);
+    setDialogOpen(true);
+  };
+
+  const deleteReminder = async (reminderId: string) => {
+    if (!confirm("Delete this reminder?")) return;
+    await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
+    await load();
   };
 
   if (loading) {
@@ -118,32 +135,59 @@ export default function NoteDetailPage() {
         </span>
       </div>
 
-      <button type="button" className="btn btn-primary" onClick={() => setDialogOpen(true)}>
+      <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
         Add reminder
       </button>
 
       <div style={{ marginTop: 20 }}>
-        {reminders.map((r) => (
-          <div
-            key={r.id}
-            className="timeline-item"
-            style={{ cursor: "default", marginBottom: 8 }}
-          >
-            <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
-            {r.repeat_rule && (
-              <span className="chip" style={{ marginTop: 8 }}>
-                {r.repeat_rule}
-              </span>
-            )}
-          </div>
-        ))}
+        {reminders.length === 0 ? (
+          <p style={{ color: "var(--parchment-muted)", fontSize: "0.9rem" }}>
+            No reminders on this note yet.
+          </p>
+        ) : (
+          reminders.map((r) => (
+            <div key={r.id} className="reminder-row">
+              <div>
+                <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
+                {r.repeat_rule && (
+                  <span className="chip" style={{ marginTop: 8, display: "inline-block" }}>
+                    {r.repeat_rule}
+                  </span>
+                )}
+              </div>
+              <div className="reminder-row-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => openEditDialog(r)}
+                  aria-label="Edit reminder"
+                >
+                  <PencilSimple size={16} />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => deleteReminder(r.id)}
+                  aria-label="Delete reminder"
+                >
+                  <Trash size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <ReminderDialog
         noteId={id}
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => {
+          setDialogOpen(false);
+          setEditingReminder(null);
+        }}
         onSaved={() => load()}
+        reminder={editingReminder}
       />
     </RequireAuth>
   );

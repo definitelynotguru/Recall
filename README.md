@@ -93,7 +93,9 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 ### Deploy web (Vercel)
 
-1. Import the `web/` directory as a Vercel project.
+**Production:** https://recall-aevum-s-projects1.vercel.app
+
+1. Vercel project name: **recall** (root directory: `web` in project settings).
 2. Add the same environment variables as `.env.local`.
 3. Run `npm run db:push` against production Neon once before first deploy.
 

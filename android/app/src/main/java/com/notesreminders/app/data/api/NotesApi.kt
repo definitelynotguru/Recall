@@ -53,6 +53,15 @@ interface NotesApi {
         @Body body: SnoozeRequest,
     ): Map<String, ReminderDto>
 
+    @PATCH("reminders/{id}")
+    suspend fun updateReminder(
+        @Path("id") id: String,
+        @Body body: Map<String, Any?>,
+    ): Map<String, ReminderDto>
+
+    @DELETE("reminders/{id}")
+    suspend fun deleteReminder(@Path("id") id: String): Map<String, Boolean>
+
     @POST("sync")
     suspend fun sync(@Body body: SyncRequest): SyncResponse
 }

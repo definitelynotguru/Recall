@@ -324,6 +324,43 @@ a:hover {
   color: var(--parchment-muted);
 }
 
+.reminder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ink-border);
+  background: color-mix(in srgb, var(--ink-surface) 60%, transparent);
+}
+
+.reminder-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.timeline-item-with-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline-item-with-actions .timeline-item-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* Notes list */
 .note-row {
   display: grid;

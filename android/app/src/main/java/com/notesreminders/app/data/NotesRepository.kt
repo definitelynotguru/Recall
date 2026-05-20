@@ -114,5 +114,38 @@ class NotesRepository(
         return reminder
     }
 
+    suspend fun updateReminder(
+        id: String,
+        fireAtIso: String,
+        timezone: String,
+        repeatRule: String?,
+    ): ReminderEntity? {
+        val existing = db.reminderDao().getById(id) ?: return null
+        reconciler.cancelAlarm(id)
+        val updated = existing.copy(
+            fireAt = fireAtIso,
+            timezone = timezone,
+            repeatRule = repeatRule,
+            updatedAt = Instant.now().toString(),
+            isDirty = true,
+        )
+        db.reminderDao().upsert(updated)
+        return updated
+    }
+
+    suspend fun deleteReminder(id: String) {
+        val existing = db.reminderDao().getById(id) ?: return
+        reconciler.cancelAlarm(id)
+        val now = Instant.now().toString()
+        db.reminderDao().upsert(
+            existing.copy(
+                deletedAt = now,
+                updatedAt = now,
+                status = "cancelled",
+                isDirty = true,
+            ),
+        )
+    }
+
     suspend fun syncNow(): Result<Unit> = syncRepository.sync()
 }
