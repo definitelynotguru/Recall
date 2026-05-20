@@ -59,41 +59,39 @@ export default function TodayPage() {
   const renderItem = (r: ApiReminder, index: number) => (
     <div
       key={r.id}
-      className="timeline-item-with-actions"
+      className="timeline-item timeline-item-with-actions"
       style={{ "--i": index } as React.CSSProperties}
     >
-      <Link href={`/notes/${r.note_id}`} className="timeline-item timeline-item-link">
-        <h3>{noteTitle(r.note_id)}</h3>
-        <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
-        {r.repeat_rule && (
-          <span className="chip" style={{ marginTop: 8 }}>
-            {r.repeat_rule}
-          </span>
-        )}
-      </Link>
-      <div className="timeline-item-actions">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={(e) => {
-            e.preventDefault();
-            openEdit(r);
-          }}
-          aria-label="Edit reminder"
-        >
-          <PencilSimple size={16} />
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={(e) => {
-            e.preventDefault();
-            deleteReminder(r.id);
-          }}
-          aria-label="Delete reminder"
-        >
-          <Trash size={16} />
-        </button>
+      <div className="timeline-item-body">
+        <Link href={`/notes/${r.note_id}`} className="timeline-item-link">
+          <h3>{noteTitle(r.note_id)}</h3>
+          <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
+          {r.repeat_rule && (
+            <span className="chip" style={{ marginTop: 8 }}>
+              {r.repeat_rule}
+            </span>
+          )}
+        </Link>
+        <div className="timeline-item-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => openEdit(r)}
+            aria-label="Edit reminder"
+          >
+            <PencilSimple size={16} />
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => deleteReminder(r.id)}
+            aria-label="Delete reminder"
+          >
+            <Trash size={16} />
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   );

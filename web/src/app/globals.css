@@ -344,20 +344,31 @@ a:hover {
 }
 
 .timeline-item-with-actions {
+  display: block;
+}
+
+.timeline-item-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .timeline-item-with-actions .timeline-item-link {
   flex: 1;
   min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.timeline-item-with-actions .timeline-item-link:hover {
+  color: var(--copper);
 }
 
 .timeline-item-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
