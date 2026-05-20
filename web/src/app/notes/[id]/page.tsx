@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Eye, FloppyDisk, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useAuth } from "@/components/AuthProvider";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
 import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
@@ -21,20 +22,34 @@ export default function NoteDetailPage() {
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const { loading: authLoading } = useAuth();
 
   const load = async () => {
-    const res = await apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(
-      `/notes/${id}`,
-    );
-    setTitle(res.note.title);
-    setBody(res.note.body);
-    setReminders(res.reminders.filter((r) => r.status === "active"));
-    setLoading(false);
+    setLoadError("");
+    try {
+      const res = await apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(
+        `/notes/${id}`,
+      );
+      setTitle(res.note.title);
+      setBody(res.note.body);
+      setReminders(res.reminders.filter((r) => r.status === "active"));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load note";
+      setLoadError(message);
+      if (message.toLowerCase().includes("unauthorized")) {
+        router.replace("/login");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    setLoading(true);
     load();
-  }, [id]);
+  }, [id, authLoading]);
 
   const save = async () => {
     setSaving(true);
@@ -70,11 +85,28 @@ export default function NoteDetailPage() {
     await load();
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <RequireAuth>
         <div className="skeleton" style={{ height: 120 }} />
         <div className="skeleton" />
+      </RequireAuth>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <RequireAuth>
+        <div className="empty-state">
+          <p>{loadError}</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => router.push("/notes")}
+          >
+            Back to notes
+          </button>
+        </div>
       </RequireAuth>
     );
   }

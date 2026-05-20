@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Plus } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { apiFetch, ApiNote } from "@/lib/api-client";
 
 export default function NotesPage() {
+  const router = useRouter();
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -32,7 +34,7 @@ export default function NotesPage() {
           body: "",
         }),
       });
-      window.location.href = `/notes/${res.note.id}`;
+      router.push(`/notes/${res.note.id}`);
     } finally {
       setCreating(false);
     }

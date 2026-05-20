@@ -3,10 +3,20 @@ const API_BASE =
     ? "/api/v1"
     : `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/v1`;
 
-let accessToken: string | null = null;
+const TOKEN_KEY = "recall_access_token";
+
+function readStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
+let accessToken: string | null = readStoredToken();
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  if (typeof window === "undefined") return;
+  if (token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
 }
 
 export function getAccessToken() {
@@ -22,10 +32,7 @@ async function refreshAccessToken(): Promise<string | null> {
   });
   if (!res.ok) return null;
   const data = await res.json();
-  accessToken = data.access_token;
-  if (data.refresh_token) {
-    // cookie set by server for web
-  }
+  setAccessToken(data.access_token);
   return accessToken;
 }
 
@@ -47,7 +54,7 @@ export async function apiFetch<T>(
     credentials: "include",
   });
 
-  if (res.status === 401 && accessToken) {
+  if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.Authorization = `Bearer ${newToken}`;
