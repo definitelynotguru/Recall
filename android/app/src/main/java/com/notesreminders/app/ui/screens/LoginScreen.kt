@@ -58,7 +58,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
             .padding(28.dp),
     ) {
         Text(
-            "Recall"
+            "Recall",
             style = MaterialTheme.typography.displayLarge,
             color = RecallColors.Parchment,
         )
@@ -125,7 +125,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                 ),
             ) {
                 Text(
-                    if (isRegister) "Create account" else "Open Recall"
+                    if (isRegister) "Create account" else "Open Recall",
                     fontWeight = FontWeight.SemiBold,
                 )
             }
