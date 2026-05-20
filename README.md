@@ -89,6 +89,8 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 4. Run on a device or emulator (JDK 17+).
 
+**Install without Android Studio:** GitHub Actions builds `recall-1.0.0-debug.apk` — see [android/README.md](android/README.md#build-an-apk). Set `api_base_url` when running the workflow if you are not using the emulator default.
+
 ### Deploy web (Vercel)
 
 1. Import the `web/` directory as a Vercel project.
