@@ -1,11 +1,14 @@
 package com.notesreminders.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -44,9 +48,11 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
         focusedTextColor = RecallColors.Parchment,
         unfocusedTextColor = RecallColors.Parchment,
         cursorColor = RecallColors.Copper,
+        focusedLabelColor = RecallColors.ParchmentMuted,
+        unfocusedLabelColor = RecallColors.ParchmentMuted,
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
@@ -54,88 +60,101 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                     listOf(RecallColors.InkElevated, RecallColors.Ink),
                 ),
             )
-            .verticalScroll(rememberScrollState())
-            .padding(28.dp),
+            .imePadding(),
     ) {
-        Text(
-            "Recall",
-            style = MaterialTheme.typography.displayLarge,
-            color = RecallColors.Parchment,
-        )
-        Text(
-            "Notes that remember",
-            style = MaterialTheme.typography.bodyLarge,
-            color = RecallColors.ParchmentMuted,
-        )
-        Spacer(Modifier.height(40.dp))
-
-        RecallPanel {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
             Text(
-                if (isRegister) "Create vault" else "Welcome back",
-                style = MaterialTheme.typography.headlineMedium,
+                "Recall",
+                style = MaterialTheme.typography.displayLarge,
                 color = RecallColors.Parchment,
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Notes that remember",
+                style = MaterialTheme.typography.bodyLarge,
+                color = RecallColors.ParchmentMuted,
+            )
+            Spacer(Modifier.height(28.dp))
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = fieldColors,
-                singleLine = true,
-            )
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = fieldColors,
-                singleLine = true,
-            )
-            if (isRegister) {
-                Spacer(Modifier.height(12.dp))
+            RecallPanel {
+                Text(
+                    if (isRegister) "Create vault" else "Welcome back",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = RecallColors.Parchment,
+                )
+                Spacer(Modifier.height(20.dp))
+
                 OutlinedTextField(
-                    value = registerSecret,
-                    onValueChange = { registerSecret = it },
-                    label = { Text("Registration secret") },
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = fieldColors,
                     singleLine = true,
                 )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = fieldColors,
+                    singleLine = true,
+                )
+                if (isRegister) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = registerSecret,
+                        onValueChange = { registerSecret = it },
+                        label = { Text("Registration secret") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = fieldColors,
+                        singleLine = true,
+                    )
+                }
+                error?.let {
+                    Spacer(Modifier.height(12.dp))
+                    Text(it, color = RecallColors.Error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = {
+                        if (isRegister) {
+                            viewModel.register(email, password, registerSecret, onLoggedIn)
+                        } else {
+                            viewModel.login(email, password, onLoggedIn)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RecallColors.Copper,
+                        contentColor = RecallColors.Ink,
+                    ),
+                ) {
+                    Text(
+                        if (isRegister) "Create account" else "Open Recall",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
-            error?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, color = RecallColors.Error, style = MaterialTheme.typography.bodySmall)
-            }
-            Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = {
-                    if (isRegister) {
-                        viewModel.register(email, password, registerSecret, onLoggedIn)
-                    } else {
-                        viewModel.login(email, password, onLoggedIn)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RecallColors.Copper,
-                    contentColor = RecallColors.Ink,
-                ),
+
+            Spacer(Modifier.height(16.dp))
+
+            TextButton(
+                onClick = { isRegister = !isRegister },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             ) {
                 Text(
-                    if (isRegister) "Create account" else "Open Recall",
-                    fontWeight = FontWeight.SemiBold,
+                    if (isRegister) "Have an account? Sign in" else "Need an account? Register",
+                    color = RecallColors.ParchmentMuted,
                 )
             }
-        }
-
-        TextButton(onClick = { isRegister = !isRegister }) {
-            Text(
-                if (isRegister) "Have an account? Sign in" else "Need an account? Register",
-                color = RecallColors.ParchmentMuted,
-            )
         }
     }
 }
