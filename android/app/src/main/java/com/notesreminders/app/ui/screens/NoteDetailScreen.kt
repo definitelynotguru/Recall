@@ -19,6 +19,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +48,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.notesreminders.app.data.local.ReminderEntity
+import com.notesreminders.app.reminders.DetectedReminder
+import com.notesreminders.app.reminders.ReminderDetect
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.theme.RecallColors
@@ -71,6 +75,10 @@ fun NoteDetailScreen(
     var reminderDate by remember(noteId) { mutableStateOf(LocalDate.now().toString()) }
     var reminderTime by remember(noteId) { mutableStateOf("09:00") }
     var repeatRule by remember(noteId) { mutableStateOf("") }
+    var showDetectDialog by remember(noteId) { mutableStateOf(false) }
+    var detectedList by remember(noteId) { mutableStateOf<List<DetectedReminder>>(emptyList()) }
+    var selectedDetected by remember(noteId) { mutableStateOf<Set<String>>(emptySet()) }
+    var fetchingReminders by remember(noteId) { mutableStateOf(false) }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -237,14 +245,34 @@ fun NoteDetailScreen(
             )
         }
         Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = { openCreateDialog() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = RecallColors.Copper,
-                contentColor = RecallColors.Ink,
-            ),
-        ) {
-            Text("Add reminder")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = { openCreateDialog() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RecallColors.Copper,
+                    contentColor = RecallColors.Ink,
+                ),
+            ) {
+                Text("Add reminder")
+            }
+            Button(
+                onClick = {
+                    viewModel.flushNoteSave(noteId, title, body)
+                    val existing = reminders.map { it.fireAt to it.repeatRule }
+                    val found = ReminderDetect.detect(title, body)
+                        .filter { d -> !ReminderDetect.isDuplicate(d, existing) }
+                    detectedList = found
+                    selectedDetected = found.map { it.id }.toSet()
+                    showDetectDialog = true
+                },
+                enabled = !fetchingReminders,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RecallColors.InkSurface,
+                    contentColor = RecallColors.Copper,
+                ),
+            ) {
+                Text(if (fetchingReminders) "Scanning…" else "Fetch reminders")
+            }
         }
 
         reminders.filter { it.status == "active" }.forEach { r ->
@@ -293,6 +321,94 @@ fun NoteDetailScreen(
                 }
             }
         }
+    }
+
+    if (showDetectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetectDialog = false },
+            containerColor = RecallColors.InkSurface,
+            title = {
+                Text("Detected reminders", color = RecallColors.Parchment)
+            },
+            text = {
+                Column {
+                    if (detectedList.isEmpty()) {
+                        Text(
+                            "No dates found. Try Day/Month/Year/Time fields or text like \"22 Oct 2026 at 3pm\". Mention birthday for yearly repeats.",
+                            color = RecallColors.ParchmentMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        detectedList.forEach { d ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Checkbox(
+                                    checked = selectedDetected.contains(d.id),
+                                    onCheckedChange = { checked ->
+                                        selectedDetected = if (checked) {
+                                            selectedDetected + d.id
+                                        } else {
+                                            selectedDetected - d.id
+                                        }
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = RecallColors.Copper,
+                                        checkmarkColor = RecallColors.Ink,
+                                    ),
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(d.label, color = RecallColors.Parchment)
+                                    Text(
+                                        formatFireAt(d.fireAt),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = RecallColors.ParchmentMuted,
+                                    )
+                                    Text(
+                                        (d.repeatRule ?: "once").uppercase(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = RecallColors.Copper,
+                                    )
+                                    Text(
+                                        d.reason,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = RecallColors.ParchmentMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (detectedList.isNotEmpty()) {
+                    TextButton(
+                        onClick = {
+                            fetchingReminders = true
+                            val zone = ZoneId.systemDefault()
+                            val picks = detectedList.filter { selectedDetected.contains(it.id) }
+                            showDetectDialog = false
+                            picks.forEach { d ->
+                                viewModel.addReminder(noteId, d.fireAt, zone.id, d.repeatRule)
+                            }
+                            fetchingReminders = false
+                            refreshReminders()
+                        },
+                        enabled = selectedDetected.isNotEmpty(),
+                    ) {
+                        Text("Add selected", color = RecallColors.Copper)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDetectDialog = false }) {
+                    Text("Cancel", color = RecallColors.ParchmentMuted)
+                }
+            },
+        )
     }
 
     if (showReminderDialog) {

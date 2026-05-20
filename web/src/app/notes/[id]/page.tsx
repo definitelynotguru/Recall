@@ -2,12 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Eye, FloppyDisk, PencilSimple, Trash } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  Eye,
+  FloppyDisk,
+  PencilSimple,
+  Sparkle,
+  Trash,
+} from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
+import { DetectedRemindersDialog } from "@/components/DetectedRemindersDialog";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
 import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
+import {
+  detectRemindersInNote,
+  DetectedReminder,
+  isDuplicateOfExisting,
+} from "@/lib/reminder-detect";
 import { formatFireAt } from "@/lib/reminder-utils";
 
 export default function NoteDetailPage() {
@@ -23,6 +36,9 @@ export default function NoteDetailPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [detectOpen, setDetectOpen] = useState(false);
+  const [detected, setDetected] = useState<DetectedReminder[]>([]);
+  const [fetching, setFetching] = useState(false);
   const { loading: authLoading } = useAuth();
 
   const load = async () => {
@@ -82,6 +98,35 @@ export default function NoteDetailPage() {
   const deleteReminder = async (reminderId: string) => {
     if (!confirm("Delete this reminder?")) return;
     await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
+    await load();
+  };
+
+  const fetchReminders = async () => {
+    setFetching(true);
+    try {
+      await save();
+      const found = detectRemindersInNote(title, body).filter(
+        (d) => !isDuplicateOfExisting(d, reminders),
+      );
+      setDetected(found);
+      setDetectOpen(true);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const addDetectedReminders = async (selected: DetectedReminder[]) => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    for (const d of selected) {
+      await apiFetch<{ reminder: ApiReminder }>(`/notes/${id}/reminders`, {
+        method: "POST",
+        body: JSON.stringify({
+          fire_at: d.fireAt,
+          timezone: tz,
+          repeat_rule: d.repeatRule,
+        }),
+      });
+    }
     await load();
   };
 
@@ -167,9 +212,20 @@ export default function NoteDetailPage() {
         </span>
       </div>
 
-      <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
-        Add reminder
-      </button>
+      <div className="reminder-actions-row">
+        <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
+          Add reminder
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={fetchReminders}
+          disabled={fetching}
+        >
+          <Sparkle size={18} weight="duotone" />
+          {fetching ? "Scanning…" : "Fetch reminders"}
+        </button>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         {reminders.length === 0 ? (
@@ -220,6 +276,13 @@ export default function NoteDetailPage() {
         }}
         onSaved={() => load()}
         reminder={editingReminder}
+      />
+
+      <DetectedRemindersDialog
+        open={detectOpen}
+        suggestions={detected}
+        onClose={() => setDetectOpen(false)}
+        onAdd={addDetectedReminders}
       />
     </RequireAuth>
   );
