@@ -25,7 +25,7 @@ Kotlin + Jetpack Compose client. **All reminders fire as local notifications her
 Every push to `android/` on `main` builds a debug APK. You can also run it manually:
 
 1. GitHub → **Actions** → **Build Recall APK** → **Run workflow**
-2. Optional: set `api_base_url` to your deployed API (e.g. `https://your-app.vercel.app/api/v1`)
+2. Optional: set `api_base_url` to your deployed API (e.g. `https://recall-aevum-s-projects1.vercel.app/api/v1`)
 3. Download **recall-debug-apk** from the run’s **Artifacts**
 
 ### Local (Android Studio)
@@ -40,6 +40,16 @@ cp local.properties.example local.properties
 Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 Install on a device: enable “Install unknown apps”, then `adb install -r app-debug.apk`.
+
+**MIUI / Redmi:** If the package installer crashes, use the latest APK from Actions (icons + manifest fixes). Try **Files** app or `adb install -r` instead of the stock installer.
+
+### Regenerate launcher icons
+
+```bash
+RECALL_LOGO_ASSETS=/path/to/recall_logo_assets ./scripts/generate-icons.sh
+```
+
+Source SVGs are also in `android/branding/`.
 
 ## Permissions
 

@@ -6,7 +6,7 @@ on:
       api_base_url:
         description: API URL baked into the APK (BuildConfig)
         required: false
-        default: http://10.0.2.2:3000/api/v1
+        default: https://recall-aevum-s-projects1.vercel.app/api/v1
   push:
     branches: [main]
     paths:
@@ -30,7 +30,7 @@ jobs:
         working-directory: android
         run: |
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
-          echo "API_BASE_URL=${{ inputs.api_base_url || 'http://10.0.2.2:3000/api/v1' }}" >> local.properties
+          echo "API_BASE_URL=${{ inputs.api_base_url || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}" >> local.properties
 
       - name: Assemble debug APK
         working-directory: android

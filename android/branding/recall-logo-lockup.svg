@@ -1,0 +1,62 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Recall logo lockup</title>
+  <desc id="desc">Recall wordmark with a warm ink and copper note-reminder mark.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="72%" cy="18%" r="72%">
+      <stop offset="0%" stop-color="#2F2119"/>
+      <stop offset="47%" stop-color="#1A1814"/>
+      <stop offset="100%" stop-color="#0F0E0C"/>
+    </radialGradient>
+    <linearGradient id="copper" x1="54" y1="51" x2="304" y2="315" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E4A27A"/>
+      <stop offset="45%" stop-color="#C17F59"/>
+      <stop offset="100%" stop-color="#8E4F35"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="132" y1="84" x2="242" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF6E8"/>
+      <stop offset="100%" stop-color="#D9D1C2"/>
+    </linearGradient>
+    <filter id="softShadow" x="60" y="38" width="270" height="292" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="copperGlow" x="32" y="24" width="312" height="312" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.756  0 1 0 0 0.498  0 0 1 0 0.349  0 0 0 0.55 0"/>
+      <feBlend in2="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="360" rx="40" fill="#0F0E0C"/>
+  <circle cx="1014" cy="-18" r="220" fill="#C17F59" fill-opacity="0.12"/>
+
+  <g transform="translate(48 40)">
+    <rect x="0" y="0" width="280" height="280" rx="72" fill="url(#bgGlow)"/>
+    <rect x="8" y="8" width="264" height="264" rx="64" stroke="#E8E4DC" stroke-opacity="0.06" stroke-width="2"/>
+    <g filter="url(#copperGlow)">
+      <circle cx="140" cy="140" r="91" stroke="url(#copper)" stroke-width="15" stroke-linecap="round"
+              stroke-dasharray="424 64" transform="rotate(-38 140 140)"/>
+      <circle cx="208" cy="77" r="13" fill="url(#copper)"/>
+    </g>
+    <g filter="url(#softShadow)">
+      <path d="M88 63C88 55.268 94.268 49 102 49H170L211 90V218C211 225.732 204.732 232 197 232H102C94.268 232 88 225.732 88 218V63Z" fill="url(#paper)"/>
+      <path d="M170 49V83C170 90.732 176.268 97 184 97H211L170 49Z" fill="#C17F59" fill-opacity="0.28"/>
+      <path d="M170 49V83C170 90.732 176.268 97 184 97H211" stroke="#0F0E0C" stroke-opacity="0.13" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M88 63C88 55.268 94.268 49 102 49H170L211 90V218C211 225.732 204.732 232 197 232H102C94.268 232 88 225.732 88 218V63Z" stroke="#0F0E0C" stroke-opacity="0.12" stroke-width="3"/>
+    </g>
+    <path d="M115 119H175" stroke="#0F0E0C" stroke-opacity="0.72" stroke-width="10" stroke-linecap="round"/>
+    <path d="M115 151H188" stroke="#0F0E0C" stroke-opacity="0.45" stroke-width="10" stroke-linecap="round"/>
+    <path d="M115 183H161" stroke="#0F0E0C" stroke-opacity="0.27" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="188" cy="151" r="7" fill="url(#copper)"/>
+    <path d="M188 151V126M188 151L207 167" stroke="#0F0E0C" stroke-opacity="0.68" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="382" y="168" fill="#E8E4DC"
+        font-family="Syne, Source Sans 3, Inter, Arial, sans-serif"
+        font-size="92" font-weight="800" letter-spacing="-5">Recall</text>
+  <text x="687" y="168" fill="#C17F59"
+        font-family="Syne, Source Sans 3, Inter, Arial, sans-serif"
+        font-size="92" font-weight="800" letter-spacing="-5">.</text>
+  <text x="389" y="216" fill="#9A9488"
+        font-family="Source Sans 3, Inter, Arial, sans-serif"
+        font-size="28" font-weight="500" letter-spacing="0.2">Notes that remember for you</text>
+</svg>

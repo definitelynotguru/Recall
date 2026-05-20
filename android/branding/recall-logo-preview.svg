@@ -1,0 +1,24 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="900" fill="#0F0E0C"/>
+  <circle cx="1116" cy="107" r="360" fill="#C17F59" fill-opacity="0.13"/>
+  <circle cx="108" cy="812" r="260" fill="#C17F59" fill-opacity="0.07"/>
+  <text x="96" y="116" fill="#9A9488" font-family="IBM Plex Mono, monospace" font-size="26" letter-spacing="4">RECALL BRAND CONCEPT</text>
+  <text x="96" y="186" fill="#E8E4DC" font-family="Syne, Source Sans 3, Arial, sans-serif" font-size="62" font-weight="800" letter-spacing="-2">Warm, calm, reminder-first.</text>
+  <g transform="translate(96 262)">
+    <rect width="1208" height="360" rx="36" fill="#1A1814" stroke="#E8E4DC" stroke-opacity="0.08"/>
+    <image href="recall-logo-lockup.svg" x="0" y="0" width="1200" height="360"/>
+  </g>
+  <g transform="translate(96 688)">
+    <rect width="112" height="112" rx="28" fill="#1A1814"/>
+    <image href="recall-logo-mark.svg" x="0" y="0" width="112" height="112"/>
+    <text x="150" y="46" fill="#E8E4DC" font-family="Source Sans 3, Arial, sans-serif" font-size="29" font-weight="700">Mark</text>
+    <text x="150" y="84" fill="#9A9488" font-family="Source Sans 3, Arial, sans-serif" font-size="25">note + reminder orbit + timeline dot</text>
+  </g>
+  <g transform="translate(720 704)">
+    <circle cx="15" cy="15" r="15" fill="#0F0E0C" stroke="#E8E4DC" stroke-opacity="0.10"/>
+    <circle cx="72" cy="15" r="15" fill="#1A1814"/>
+    <circle cx="129" cy="15" r="15" fill="#E8E4DC"/>
+    <circle cx="186" cy="15" r="15" fill="#C17F59"/>
+    <text x="0" y="72" fill="#9A9488" font-family="IBM Plex Mono, monospace" font-size="18" letter-spacing="2">#0F0E0C  #1A1814  #E8E4DC  #C17F59</text>
+  </g>
+</svg>

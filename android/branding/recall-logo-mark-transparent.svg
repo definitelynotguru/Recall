@@ -1,0 +1,32 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Recall transparent mark</title>
+  <desc id="desc">A copper reminder ring around a parchment note.</desc>
+  <defs>
+    <linearGradient id="copper" x1="247" y1="170" x2="786" y2="861" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E4A27A"/>
+      <stop offset="45%" stop-color="#C17F59"/>
+      <stop offset="100%" stop-color="#8E4F35"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="329" y1="258" x2="706" y2="765" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF6E8"/>
+      <stop offset="100%" stop-color="#D9D1C2"/>
+    </linearGradient>
+    <filter id="softShadow" x="148" y="142" width="728" height="762" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <circle cx="512" cy="512" r="298" stroke="url(#copper)" stroke-width="44" stroke-linecap="round"
+          stroke-dasharray="1390 210" transform="rotate(-38 512 512)"/>
+  <circle cx="733" cy="306" r="38" fill="url(#copper)"/>
+  <g filter="url(#softShadow)">
+    <path d="M331 246C331 221.699 350.699 202 375 202H614L737 325V733C737 757.301 717.301 777 693 777H375C350.699 777 331 757.301 331 733V246Z" fill="url(#paper)"/>
+    <path d="M615 203V310C615 334.301 634.699 354 659 354H737L615 203Z" fill="#C17F59" fill-opacity="0.28"/>
+    <path d="M615 203V310C615 334.301 634.699 354 659 354H737" stroke="#0F0E0C" stroke-opacity="0.14" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M331 246C331 221.699 350.699 202 375 202H614L737 325V733C737 757.301 717.301 777 693 777H375C350.699 777 331 757.301 331 733V246Z" stroke="#0F0E0C" stroke-opacity="0.12" stroke-width="8"/>
+  </g>
+  <path d="M419 441H606" stroke="#0F0E0C" stroke-opacity="0.72" stroke-width="34" stroke-linecap="round"/>
+  <path d="M419 540H648" stroke="#0F0E0C" stroke-opacity="0.44" stroke-width="34" stroke-linecap="round"/>
+  <path d="M419 639H566" stroke="#0F0E0C" stroke-opacity="0.26" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="648" cy="540" r="23" fill="url(#copper)"/>
+  <path d="M648 540V464M648 540L704 588" stroke="#0F0E0C" stroke-opacity="0.68" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

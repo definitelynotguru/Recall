@@ -26,6 +26,10 @@ android {
         val apiBase = localProperties.getProperty("API_BASE_URL")
             ?: "http://10.0.2.2:3000/api/v1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildFeatures {
