@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
 import java.time.ZoneId
@@ -42,24 +43,24 @@ import java.time.format.DateTimeFormatter
 fun NotesListScreen(
     viewModel: AppViewModel,
     onOpenNote: (String) -> Unit,
+    onLogout: () -> Unit,
 ) {
     val notes by viewModel.notes.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
+    val syncHint by viewModel.syncHint.collectAsState()
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(16.dp))
-            Text(
-                "Notes",
-                style = MaterialTheme.typography.displayLarge,
-                color = RecallColors.Parchment,
+            RecallScreenHeader(
+                title = "Notes",
+                subtitle = "Edit here · tap Sync to pull from web",
+                isSyncing = syncing,
+                syncHint = syncHint,
+                onSync = { viewModel.syncNow() },
+                onSignOut = onLogout,
             )
-            Text(
-                "Markdown pages with phone reminders",
-                style = MaterialTheme.typography.bodyMedium,
-                color = RecallColors.ParchmentMuted,
-            )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
             PullToRefreshBox(
                 isRefreshing = syncing,

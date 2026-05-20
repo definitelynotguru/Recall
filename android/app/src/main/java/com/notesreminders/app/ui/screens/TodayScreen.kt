@@ -29,6 +29,7 @@ import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
+import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
 import java.time.ZoneId
@@ -38,24 +39,24 @@ import java.time.format.DateTimeFormatter
 fun TodayScreen(
     viewModel: AppViewModel,
     onOpenNote: (String) -> Unit,
+    onLogout: () -> Unit,
 ) {
     val notes by viewModel.notes.collectAsState()
     val reminders by viewModel.reminders.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
+    val syncHint by viewModel.syncHint.collectAsState()
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(16.dp))
-        Text(
-            "Today",
-            style = MaterialTheme.typography.displayLarge,
-            color = RecallColors.Parchment,
+        RecallScreenHeader(
+            title = "Today",
+            subtitle = "Upcoming nudges from your notes",
+            isSyncing = syncing,
+            syncHint = syncHint,
+            onSync = { viewModel.syncNow() },
+            onSignOut = onLogout,
         )
-        Text(
-            "Upcoming nudges from your notes",
-            style = MaterialTheme.typography.bodyMedium,
-            color = RecallColors.ParchmentMuted,
-        )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
         PullToRefreshBox(
             isRefreshing = syncing,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,20 +56,22 @@ fun NoteDetailScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit,
 ) {
-    var title by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
-    var preview by remember { mutableStateOf(false) }
-    var reminders by remember { mutableStateOf<List<ReminderEntity>>(emptyList()) }
-    var showReminderDialog by remember { mutableStateOf(false) }
-    var reminderDate by remember { mutableStateOf(LocalDate.now().toString()) }
-    var reminderTime by remember { mutableStateOf("09:00") }
-    var repeatRule by remember { mutableStateOf("") }
+    var title by remember(noteId) { mutableStateOf("") }
+    var body by remember(noteId) { mutableStateOf("") }
+    var preview by remember(noteId) { mutableStateOf(false) }
+    var reminders by remember(noteId) { mutableStateOf<List<ReminderEntity>>(emptyList()) }
+    var showReminderDialog by remember(noteId) { mutableStateOf(false) }
+    var reminderDate by remember(noteId) { mutableStateOf(LocalDate.now().toString()) }
+    var reminderTime by remember(noteId) { mutableStateOf("09:00") }
+    var repeatRule by remember(noteId) { mutableStateOf("") }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
         unfocusedBorderColor = RecallColors.BorderStrong,
         focusedTextColor = RecallColors.Parchment,
         unfocusedTextColor = RecallColors.Parchment,
+        focusedLabelColor = RecallColors.ParchmentMuted,
+        unfocusedLabelColor = RecallColors.ParchmentMuted,
     )
 
     LaunchedEffect(noteId) {
@@ -79,6 +83,12 @@ fun NoteDetailScreen(
         reminders = viewModel.getReminders(noteId)
     }
 
+    DisposableEffect(noteId, title, body) {
+        onDispose {
+            viewModel.flushNoteSave(noteId, title, body)
+        }
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -86,7 +96,10 @@ fun NoteDetailScreen(
             .padding(20.dp),
     ) {
         Row(Modifier.fillMaxWidth()) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = {
+                viewModel.flushNoteSave(noteId, title, body)
+                onBack()
+            }) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
@@ -94,27 +107,39 @@ fun NoteDetailScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
+            IconButton(onClick = { viewModel.syncNow() }) {
+                Icon(
+                    Icons.Outlined.Sync,
+                    contentDescription = "Sync",
+                    tint = RecallColors.Copper,
+                )
+            }
             TextButton(onClick = { preview = !preview }) {
                 Text(if (preview) "Edit" else "Preview", color = RecallColors.Copper)
             }
-            TextButton(onClick = {
-                viewModel.updateNote(noteId, title, body)
-                onBack()
-            }) {
-                Text("Save", color = RecallColors.Copper)
-            }
         }
+
+        Text(
+            "Saved on device · Sync uploads to web",
+            style = MaterialTheme.typography.bodySmall,
+            color = RecallColors.ParchmentMuted,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
 
         RecallPanel {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = {
+                    title = it
+                    viewModel.scheduleNoteSave(noteId, title, body)
+                },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = fieldColors,
                 textStyle = MaterialTheme.typography.headlineMedium.copy(
                     color = RecallColors.Parchment,
                 ),
+                singleLine = true,
             )
             Spacer(Modifier.height(16.dp))
             if (preview) {
@@ -122,11 +147,14 @@ fun NoteDetailScreen(
             } else {
                 OutlinedTextField(
                     value = body,
-                    onValueChange = { body = it },
+                    onValueChange = {
+                        body = it
+                        viewModel.scheduleNoteSave(noteId, title, body)
+                    },
                     label = { Text("Body — Markdown") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
+                        .height(220.dp),
                     colors = fieldColors,
                 )
             }
@@ -149,7 +177,7 @@ fun NoteDetailScreen(
             Icon(Icons.Default.Notifications, null, tint = RecallColors.Copper)
             Spacer(Modifier.width(12.dp))
             Text(
-                "Notifications fire on this device after sync.",
+                "Sync after adding reminders so alarms match the server.",
                 style = MaterialTheme.typography.bodySmall,
                 color = RecallColors.ParchmentMuted,
             )
@@ -241,10 +269,16 @@ fun NoteDetailScreen(
 @Composable
 private fun MarkdownPreview(markdown: String) {
     val context = LocalContext.current
-    val markwon = remember { Markwon.create(context) }
+    val markwon = remember(context) { Markwon.create(context) }
+    val rendered = remember(markdown) { markdown.ifBlank { "_Empty_" } }
     AndroidView(
-        factory = { ctx -> TextView(ctx).apply { setTextColor(0xFFE8E4DC.toInt()) } },
-        update = { tv -> markwon.setMarkdown(tv, markdown.ifBlank { "_Empty_" }) },
+        factory = { ctx ->
+            TextView(ctx).apply {
+                setTextColor(0xFFE8E4DC.toInt())
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+        },
+        update = { tv -> markwon.setMarkdown(tv, rendered) },
         modifier = Modifier.fillMaxWidth(),
     )
 }

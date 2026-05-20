@@ -1,6 +1,5 @@
 package com.notesreminders.app.data
 
-import com.notesreminders.app.data.api.NoteDto
 import com.notesreminders.app.data.api.NotesApi
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
@@ -28,6 +27,21 @@ class NotesRepository(
     suspend fun getRemindersForNote(noteId: String): List<ReminderEntity> =
         db.reminderDao().getByNoteId(noteId)
 
+    suspend fun prepareForUser(userId: String) {
+        val meta = db.syncMetaDao().get()
+        if (meta?.userId != null && meta.userId != userId) {
+            clearLocalData()
+        }
+    }
+
+    suspend fun clearLocalData() {
+        val reminders = db.reminderDao().getActive()
+        reminders.forEach { reconciler.cancelAlarm(it.id) }
+        db.reminderDao().clearAll()
+        db.noteDao().clearAll()
+        db.syncMetaDao().clearAll()
+    }
+
     suspend fun createNote(title: String, body: String): NoteEntity {
         val userId = tokenStore.userId ?: error("Not logged in")
         val now = Instant.now().toString()
@@ -43,20 +57,20 @@ class NotesRepository(
             isDirty = true,
         )
         db.noteDao().upsert(note)
-        syncRepository.sync()
         return note
     }
 
-    suspend fun updateNote(id: String, title: String, body: String) {
+    suspend fun saveNoteLocal(id: String, title: String, body: String) {
         val existing = db.noteDao().getById(id) ?: return
-        val updated = existing.copy(
-            title = title,
-            body = body,
-            updatedAt = Instant.now().toString(),
-            isDirty = true,
+        if (existing.title == title && existing.body == body) return
+        db.noteDao().upsert(
+            existing.copy(
+                title = title,
+                body = body,
+                updatedAt = Instant.now().toString(),
+                isDirty = true,
+            ),
         )
-        db.noteDao().upsert(updated)
-        syncRepository.sync()
     }
 
     suspend fun deleteNote(id: String) {
@@ -71,7 +85,6 @@ class NotesRepository(
                 r.copy(deletedAt = now, updatedAt = now, status = "cancelled", isDirty = true),
             )
         }
-        syncRepository.sync()
     }
 
     suspend fun addReminder(
@@ -98,10 +111,8 @@ class NotesRepository(
             isDirty = true,
         )
         db.reminderDao().upsert(reminder)
-        syncRepository.sync()
-        reconciler.reconcile()
         return reminder
     }
 
-    suspend fun syncNow() = syncRepository.sync()
+    suspend fun syncNow(): Result<Unit> = syncRepository.sync()
 }

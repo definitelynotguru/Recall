@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Note
 import androidx.compose.material3.Icon
@@ -142,18 +141,6 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
                             ),
                         )
                     }
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { viewModel.logout(onLogout) },
-                        icon = {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.Logout,
-                                contentDescription = "Logout",
-                                tint = RecallColors.ParchmentMuted,
-                            )
-                        },
-                        label = { Text("Out", color = RecallColors.ParchmentMuted) },
-                    )
                 }
             }
         },
@@ -166,14 +153,18 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
                 .background(RecallColors.Ink),
         ) {
             composable("today") {
-                TodayScreen(viewModel) { noteId ->
-                    nav.navigate("note/$noteId")
-                }
+                TodayScreen(
+                    viewModel = viewModel,
+                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onLogout = { viewModel.logout { onLogout() } },
+                )
             }
             composable("notes") {
-                NotesListScreen(viewModel) { noteId ->
-                    nav.navigate("note/$noteId")
-                }
+                NotesListScreen(
+                    viewModel = viewModel,
+                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onLogout = { viewModel.logout { onLogout() } },
+                )
             }
             composable("note/{id}") { entry ->
                 val id = entry.arguments?.getString("id") ?: return@composable
