@@ -5,6 +5,8 @@ const API_BASE =
 
 const TOKEN_KEY = "recall_access_token";
 
+export const AUTH_SESSION_EXPIRED = "recall:session-expired";
+
 function readStoredToken(): string | null {
   if (typeof window === "undefined") return null;
   return sessionStorage.getItem(TOKEN_KEY);
@@ -23,6 +25,29 @@ export function getAccessToken() {
   return accessToken;
 }
 
+function dispatchSessionExpired() {
+  if (typeof window === "undefined") return;
+  setAccessToken(null);
+  window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED));
+}
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof json.exp === "number" ? json.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+export function tokenExpiresWithinMinutes(token: string, minutes: number): boolean {
+  const exp = decodeJwtExp(token);
+  if (!exp) return false;
+  return exp * 1000 - Date.now() < minutes * 60_000;
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: "POST",
@@ -34,6 +59,14 @@ async function refreshAccessToken(): Promise<string | null> {
   const data = await res.json();
   setAccessToken(data.access_token);
   return accessToken;
+}
+
+export async function ensureFreshAccessToken(): Promise<boolean> {
+  const token = getAccessToken();
+  if (!token) return false;
+  if (!tokenExpiresWithinMinutes(token, 5)) return true;
+  const refreshed = await refreshAccessToken();
+  return Boolean(refreshed);
 }
 
 export async function apiFetch<T>(
@@ -63,11 +96,14 @@ export async function apiFetch<T>(
         headers,
         credentials: "include",
       });
+    } else {
+      dispatchSessionExpired();
     }
   }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) dispatchSessionExpired();
     throw new Error(data.error ?? `Request failed (${res.status})`);
   }
   return data as T;

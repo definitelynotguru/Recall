@@ -48,6 +48,7 @@ fun NotesListScreen(
     val notes by viewModel.notes.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
+    val hasPendingSync by viewModel.hasPendingSync.collectAsState()
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 20.dp)) {
@@ -57,6 +58,7 @@ fun NotesListScreen(
                 subtitle = "Edit here · tap Sync to pull from web",
                 isSyncing = syncing,
                 syncHint = syncHint,
+                hasPendingSync = hasPendingSync,
                 onSync = { viewModel.syncNow() },
                 onSignOut = onLogout,
             )

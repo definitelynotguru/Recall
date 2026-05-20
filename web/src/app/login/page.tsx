@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
   const { login, register, user, loading } = useAuth();
   const router = useRouter();
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    setSessionExpired(
+      new URLSearchParams(window.location.search).get("reason") ===
+        "session_expired",
+    );
+  }, []);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +84,12 @@ export default function LoginPage() {
           <p style={{ color: "var(--parchment-muted)", margin: "0 0 28px", fontSize: "0.9rem" }}>
             Syncs across web and your phone.
           </p>
+
+          {sessionExpired && (
+            <p className="error-text" style={{ marginBottom: 16 }}>
+              Your session expired. Please sign in again.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="field">

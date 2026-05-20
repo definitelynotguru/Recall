@@ -18,6 +18,7 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
 | Email + password auth (access + refresh JWT) | Yes | Yes |
 | Markdown notes | Yes | Yes |
 | Reminders (daily / weekly / monthly / yearly) | Yes | Yes |
+| **Fetch reminders** (auto-detect dates in notes) | Yes | Yes |
 | Today timeline (upcoming nudges) | Yes | Yes |
 | Offline notes + sync | Online-first | Yes (Room) |
 | Notifications | — | Yes |
@@ -89,7 +90,7 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 4. Run on a device or emulator (JDK 17+).
 
-**Install without Android Studio:** GitHub Actions builds `recall-1.0.0-debug.apk` — see [android/README.md](android/README.md#build-an-apk). Set `api_base_url` when running the workflow if you are not using the emulator default.
+**Install without Android Studio:** Download the latest debug APK from [GitHub Releases (v1.0.0-debug)](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk). CI rebuilds it on every `main` push that touches `android/`. See [android/README.md](android/README.md#build-an-apk).
 
 ### Deploy web (Vercel)
 
@@ -105,6 +106,8 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 .
 ├── android/          # Jetpack Compose app (notifications + sync)
 ├── web/              # Next.js app + API routes
+├── shared/           # Detection fixtures (canonical tests in web)
+├── plan.md           # Roadmap / implementation log
 ├── README.md
 └── TESTING.md        # Manual E2E checklist
 ```

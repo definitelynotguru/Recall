@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Note
+import androidx.compose.material.icons.outlined.Settings
+import com.notesreminders.app.ui.components.OnboardingDialog
+import com.notesreminders.app.ui.screens.SettingsScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -97,7 +100,9 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
         BottomTab("notes", "Notes", Icons.Outlined.Note),
+        BottomTab("settings", "Settings", Icons.Outlined.Settings),
     )
+    var showOnboarding by remember { mutableStateOf(!viewModel.userPrefs.onboardingDone) }
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in tabs.map { it.route }
@@ -166,6 +171,16 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
                     onLogout = { viewModel.logout { onLogout() } },
                 )
             }
+            composable("settings") {
+                SettingsScreen(
+                    viewModel = viewModel,
+                    onLogout = { viewModel.logout { onLogout() } },
+                    onReplayOnboarding = {
+                        viewModel.userPrefs.onboardingDone = false
+                        showOnboarding = true
+                    },
+                )
+            }
             composable("note/{id}") { entry ->
                 val id = entry.arguments?.getString("id") ?: return@composable
                 NoteDetailScreen(
@@ -176,4 +191,12 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
             }
         }
     }
+
+    OnboardingDialog(
+        open = showOnboarding,
+        onDismiss = {
+            viewModel.userPrefs.onboardingDone = true
+            showOnboarding = false
+        },
+    )
 }

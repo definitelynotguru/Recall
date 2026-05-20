@@ -3,6 +3,7 @@ package com.notesreminders.app
 import android.app.Application
 import androidx.room.Room
 import com.notesreminders.app.data.NotesRepository
+import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.ApiClient
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
@@ -16,10 +17,12 @@ class NotesApp : Application() {
     lateinit var api: com.notesreminders.app.data.api.NotesApi
     lateinit var syncRepository: SyncRepository
     lateinit var notesRepository: NotesRepository
+    lateinit var userPrefs: UserPrefs
 
     override fun onCreate() {
         super.onCreate()
         tokenStore = TokenStore(this)
+        userPrefs = UserPrefs(this)
         database = Room.databaseBuilder(this, AppDatabase::class.java, "notes.db")
             .fallbackToDestructiveMigration()
             .build()

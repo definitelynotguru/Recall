@@ -8,6 +8,7 @@ import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import java.time.Instant
 import java.util.UUID
 
@@ -21,6 +22,12 @@ class NotesRepository(
     fun observeNotes(): Flow<List<NoteEntity>> = db.noteDao().observeActive()
 
     fun observeReminders(): Flow<List<ReminderEntity>> = db.reminderDao().observeActive()
+
+    fun observeHasPendingSync(): Flow<Boolean> =
+        combine(
+            db.noteDao().observeDirtyCount(),
+            db.reminderDao().observeDirtyCount(),
+        ) { notes, reminders -> notes > 0 || reminders > 0 }
 
     suspend fun getNote(id: String): NoteEntity? = db.noteDao().getById(id)
 

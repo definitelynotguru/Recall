@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
+import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderDialog } from "@/components/ReminderDialog";
+import { pickNextReminder } from "@/lib/reminder-detect";
 import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
 import {
   groupRemindersByDay,
@@ -110,9 +112,12 @@ export default function TodayPage() {
 
   let idx = 0;
   const activeCount = reminders.filter((r) => r.status === "active").length;
+  const nextGlobal = pickNextReminder(reminders);
 
   return (
     <RequireAuth>
+      <NextNudgeCard reminder={nextGlobal} scope="global" />
+
       <header className="page-header">
         <h1>Today</h1>
         <p>

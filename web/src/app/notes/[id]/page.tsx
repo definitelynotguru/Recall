@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Eye,
-  FloppyDisk,
   PencilSimple,
   Sparkle,
   Trash,
@@ -15,13 +14,18 @@ import { useAuth } from "@/components/AuthProvider";
 import { DetectedRemindersDialog } from "@/components/DetectedRemindersDialog";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
+import { NextNudgeCard } from "@/components/NextNudgeCard";
+import { SyncHintBanner } from "@/components/SyncHintBanner";
 import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
 import {
   detectRemindersInNote,
   DetectedReminder,
   isDuplicateOfExisting,
+  pickNextReminder,
 } from "@/lib/reminder-detect";
 import { formatFireAt } from "@/lib/reminder-utils";
+import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
+import { loadUserPrefs } from "@/lib/user-prefs";
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -33,13 +37,14 @@ export default function NoteDetailPage() {
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [detectOpen, setDetectOpen] = useState(false);
   const [detected, setDetected] = useState<DetectedReminder[]>([]);
   const [fetching, setFetching] = useState(false);
+  const [showSyncBanner, setShowSyncBanner] = useState(false);
   const { loading: authLoading } = useAuth();
+  const { status: saveStatus, flush } = useDebouncedNoteSave(id, title, body);
 
   const load = async () => {
     setLoadError("");
@@ -54,7 +59,7 @@ export default function NoteDetailPage() {
       const message = e instanceof Error ? e.message : "Failed to load note";
       setLoadError(message);
       if (message.toLowerCase().includes("unauthorized")) {
-        router.replace("/login");
+        router.replace("/login?reason=session_expired");
       }
     } finally {
       setLoading(false);
@@ -67,15 +72,18 @@ export default function NoteDetailPage() {
     load();
   }, [id, authLoading]);
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await apiFetch(`/notes/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title, body }),
-      });
-    } finally {
-      setSaving(false);
+  const saveStatusLabel = () => {
+    switch (saveStatus) {
+      case "pending":
+        return "Unsaved changes…";
+      case "saving":
+        return "Saving…";
+      case "saved":
+        return "Saved";
+      case "error":
+        return "Save failed";
+      default:
+        return "";
     }
   };
 
@@ -99,15 +107,18 @@ export default function NoteDetailPage() {
     if (!confirm("Delete this reminder?")) return;
     await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
     await load();
+    setShowSyncBanner(true);
   };
 
   const fetchReminders = async () => {
     setFetching(true);
     try {
-      await save();
-      const found = detectRemindersInNote(title, body).filter(
-        (d) => !isDuplicateOfExisting(d, reminders),
-      );
+      await flush();
+      const prefs = loadUserPrefs();
+      const found = detectRemindersInNote(title, body, {
+        defaultHour: prefs.defaultReminderHour,
+        defaultMinute: prefs.defaultReminderMinute,
+      }).filter((d) => !isDuplicateOfExisting(d, reminders));
       setDetected(found);
       setDetectOpen(true);
     } finally {
@@ -128,7 +139,10 @@ export default function NoteDetailPage() {
       });
     }
     await load();
+    setShowSyncBanner(true);
   };
+
+  const nextReminder = pickNextReminder(reminders);
 
   if (authLoading || loading) {
     return (
@@ -167,10 +181,7 @@ export default function NoteDetailPage() {
           <Eye size={18} />
           {preview ? "Edit" : "Preview"}
         </button>
-        <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
-          <FloppyDisk size={18} weight="fill" />
-          {saving ? "Saving…" : "Save"}
-        </button>
+        <span className="save-status">{saveStatusLabel()}</span>
         <button type="button" className="btn btn-ghost" onClick={deleteNote}>
           <Trash size={18} />
         </button>
@@ -202,15 +213,13 @@ export default function NoteDetailPage() {
         )}
       </div>
 
+      <NextNudgeCard reminder={nextReminder} scope="note" />
+
       <header className="page-header" style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: "1.35rem" }}>Reminders</h1>
       </header>
 
-      <div className="hint-banner">
-        <span>
-          <strong>Android only.</strong> Notifications fire on your phone after sync.
-        </span>
-      </div>
+      {showSyncBanner && <SyncHintBanner />}
 
       <div className="reminder-actions-row">
         <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
@@ -274,7 +283,10 @@ export default function NoteDetailPage() {
           setDialogOpen(false);
           setEditingReminder(null);
         }}
-        onSaved={() => load()}
+        onSaved={() => {
+          load();
+          setShowSyncBanner(true);
+        }}
         reminder={editingReminder}
       />
 

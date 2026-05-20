@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.notesreminders.app.NotesApp
+import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.LoginRequest
 import com.notesreminders.app.data.api.RefreshRequest
 import com.notesreminders.app.data.api.RegisterRequest
@@ -44,6 +45,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.WhileSubscribed(5000),
         emptyList(),
     )
+
+    val hasPendingSync = app.notesRepository.observeHasPendingSync().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        false,
+    )
+
+    val userPrefs: UserPrefs = app.userPrefs
 
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
@@ -193,10 +202,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         timezone: String,
         repeatRule: String?,
         onDone: (suspend () -> Unit)? = null,
+        autoSync: Boolean = true,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.addReminder(noteId, fireAtIso, timezone, repeatRule)
             onDone?.invoke()
+            if (autoSync && userPrefs.autoSyncAfterReminder) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+            }
         }
     }
 
@@ -206,17 +219,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         timezone: String,
         repeatRule: String?,
         onDone: (suspend () -> Unit)? = null,
+        autoSync: Boolean = true,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.updateReminder(reminderId, fireAtIso, timezone, repeatRule)
             onDone?.invoke()
+            if (autoSync && userPrefs.autoSyncAfterReminder) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+            }
         }
     }
 
-    fun deleteReminder(reminderId: String, onDone: (suspend () -> Unit)? = null) {
+    fun deleteReminder(
+        reminderId: String,
+        onDone: (suspend () -> Unit)? = null,
+        autoSync: Boolean = true,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.deleteReminder(reminderId)
             onDone?.invoke()
+            if (autoSync && userPrefs.autoSyncAfterReminder) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+            }
         }
     }
 }

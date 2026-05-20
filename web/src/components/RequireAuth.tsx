@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { AppNav } from "./AppNav";
@@ -8,14 +8,16 @@ import { AppNav } from "./AppNav";
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
+      setRedirecting(true);
       router.replace("/login");
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading || redirecting || !user) {
     return (
       <div className="app-layout">
         <main className="main-content">

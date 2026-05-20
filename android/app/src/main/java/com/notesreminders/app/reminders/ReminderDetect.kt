@@ -13,6 +13,7 @@ data class DetectedReminder(
     val label: String,
     val reason: String,
     val source: String,
+    val priority: Int = 0,
 )
 
 object ReminderDetect {
@@ -48,20 +49,34 @@ object ReminderDetect {
         RegexOption.IGNORE_CASE,
     )
 
-    fun detect(title: String, body: String): List<DetectedReminder> {
-        val combined = listOf(title, body).filter { it.isNotBlank() }.joinToString("\n\n")
-        if (combined.isBlank()) return emptyList()
+    fun detect(
+        title: String,
+        body: String,
+        defaultHour: Int = 9,
+        defaultMinute: Int = 0,
+    ): List<DetectedReminder> {
+        val trimmedTitle = title.trim()
+        val trimmedBody = body.trim()
+        if (trimmedTitle.isBlank() && trimmedBody.isBlank()) return emptyList()
 
         val out = mutableListOf<DetectedReminder>()
         val seen = mutableSetOf<String>()
-        parseStructured(combined, title, out, seen)
-        scanPatterns(combined, title, out, seen)
+        val defaults = defaultHour to defaultMinute
 
-        val zone = ZoneId.systemDefault()
+        if (trimmedTitle.isNotBlank()) {
+            parseTitleLine(trimmedTitle, out, seen, defaults)
+            scanPatterns(trimmedTitle, trimmedTitle, out, seen, defaults, priorityBoost = 15)
+        }
+        if (trimmedBody.isNotBlank()) {
+            parseStructured(trimmedBody, trimmedTitle, out, seen, defaults)
+            scanPatterns(trimmedBody, trimmedTitle, out, seen, defaults, priorityBoost = 0)
+        }
+
         val cutoff = java.time.Instant.now().minusSeconds(86_400)
         return out
             .filter { java.time.Instant.parse(it.fireAt).isAfter(cutoff) }
-            .sortedBy { it.fireAt }
+            .sortedByDescending { it.priority }
+            .take(5)
     }
 
     fun isDuplicate(
@@ -98,11 +113,29 @@ object ReminderDetect {
         return null to "One-time reminder"
     }
 
+    private fun parseTitleLine(
+        title: String,
+        out: MutableList<DetectedReminder>,
+        seen: MutableSet<String>,
+        defaults: Pair<Int, Int>,
+    ) {
+        val sep = Regex("""^(.+?)\s*(?:—|-|\|)\s*(.+)$""").find(title) ?: return
+        val label = sep.groupValues[1].trim()
+        val datePart = sep.groupValues[2].trim()
+        val inner = mutableListOf<DetectedReminder>()
+        val innerSeen = mutableSetOf<String>()
+        scanPatterns(datePart, label, inner, innerSeen, defaults, priorityBoost = 25)
+        inner.forEach { r ->
+            if (seen.add(r.id)) out.add(r.copy(label = label, priority = r.priority + 5))
+        }
+    }
+
     private fun parseStructured(
         text: String,
         title: String,
         out: MutableList<DetectedReminder>,
         seen: MutableSet<String>,
+        defaults: Pair<Int, Int>,
     ) {
         text.split(Regex("\n{2,}")).forEach { block ->
             val dayM = Regex("""(?:^|\n)\s*(?:day|date)\s*[:=]\s*(\d{1,2})""", RegexOption.IGNORE_CASE)
@@ -122,9 +155,9 @@ object ReminderDetect {
             val (repeat, reason) = inferRepeat(block, title)
             push(
                 out, seen, year, month, day,
-                time?.first ?: 9, time?.second ?: 0,
+                time?.first, time?.second,
                 title.ifBlank { "Reminder · $day/$month/$year" },
-                reason, block.trim(), repeat,
+                reason, block.trim(), repeat, 20, defaults,
             )
         }
     }
@@ -134,6 +167,8 @@ object ReminderDetect {
         title: String,
         out: MutableList<DetectedReminder>,
         seen: MutableSet<String>,
+        defaults: Pair<Int, Int>,
+        priorityBoost: Int = 0,
     ) {
         Regex("""\b(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?""", RegexOption.IGNORE_CASE)
             .findAll(text).forEach { m ->
@@ -142,9 +177,9 @@ object ReminderDetect {
                 push(
                     out, seen,
                     m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt(),
-                    m.groupValues[4].toIntOrNull() ?: 9,
-                    m.groupValues[5].toIntOrNull() ?: 0,
-                    title.ifBlank { m.value }, reason, m.value, repeat,
+                    m.groupValues[4].toIntOrNull(),
+                    m.groupValues[5].toIntOrNull(),
+                    title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
                 )
             }
 
@@ -159,8 +194,8 @@ object ReminderDetect {
             push(
                 out, seen,
                 resolveYear(m.groupValues[3].toInt()), month, m.groupValues[1].toInt(),
-                time?.first ?: 9, time?.second ?: 0,
-                title.ifBlank { m.value }, reason, m.value, repeat,
+                time?.first, time?.second,
+                title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
             )
         }
 
@@ -175,8 +210,8 @@ object ReminderDetect {
             push(
                 out, seen,
                 resolveYear(m.groupValues[3].toInt()), month, m.groupValues[2].toInt(),
-                time?.first ?: 9, time?.second ?: 0,
-                title.ifBlank { m.value }, reason, m.value, repeat,
+                time?.first, time?.second,
+                title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
             )
         }
     }
@@ -187,31 +222,39 @@ object ReminderDetect {
         year: Int,
         month: Int,
         day: Int,
-        hour: Int,
-        minute: Int,
+        hour: Int?,
+        minute: Int?,
         label: String,
         reason: String,
         source: String,
         repeat: String?,
+        priority: Int,
+        defaults: Pair<Int, Int>,
     ) {
+        val usedDefault = hour == null
+        val h = hour ?: defaults.first
+        val min = minute ?: defaults.second
         if (month !in 1..12 || day !in 1..31) return
         val zone = ZoneId.systemDefault()
         val ldt = try {
-            LocalDateTime.of(LocalDate.of(year, month, day), LocalTime.of(hour.coerceIn(0, 23), minute.coerceIn(0, 59)))
+            LocalDateTime.of(LocalDate.of(year, month, day), LocalTime.of(h.coerceIn(0, 23), min.coerceIn(0, 59)))
         } catch (_: Exception) {
             return
         }
         val fireAt = ldt.atZone(zone).toInstant().toString()
-        val id = "$year-$month-$day-$hour$minute-${repeat ?: "once"}"
+        val id = "$year-$month-$day-$h$min-${repeat ?: "once"}"
         if (!seen.add(id)) return
+        var finalReason = reason
+        if (usedDefault) finalReason += " · No time found — using default"
         out.add(
             DetectedReminder(
                 id = id,
                 fireAt = fireAt,
                 repeatRule = repeat,
                 label = label,
-                reason = reason,
+                reason = finalReason,
                 source = source.take(120),
+                priority = priority,
             ),
         )
     }

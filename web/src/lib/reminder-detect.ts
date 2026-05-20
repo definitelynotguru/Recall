@@ -1,4 +1,11 @@
+import { loadUserPrefs } from "./user-prefs";
+
 export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
+
+export type DetectOptions = {
+  defaultHour?: number;
+  defaultMinute?: number;
+};
 
 export type DetectedReminder = {
   id: string;
@@ -7,33 +14,15 @@ export type DetectedReminder = {
   label: string;
   reason: string;
   source: string;
+  priority: number;
+  usedDefaultTime: boolean;
 };
 
 const MONTHS: Record<string, number> = {
-  january: 1,
-  jan: 1,
-  february: 2,
-  feb: 2,
-  march: 3,
-  mar: 3,
-  april: 4,
-  apr: 4,
-  may: 5,
-  june: 6,
-  jun: 6,
-  july: 7,
-  jul: 7,
-  august: 8,
-  aug: 8,
-  september: 9,
-  sep: 9,
-  sept: 9,
-  october: 10,
-  oct: 10,
-  november: 11,
-  nov: 11,
-  december: 12,
-  dec: 12,
+  january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
+  april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7,
+  august: 8, aug: 8, september: 9, sep: 9, sept: 9, october: 10, oct: 10,
+  november: 11, nov: 11, december: 12, dec: 12,
 };
 
 const YEARLY_KEYWORDS =
@@ -43,6 +32,9 @@ const MONTHLY_KEYWORDS =
 const WEEKLY_KEYWORDS =
   /\b(weekly|every\s+week|each\s+week|week\s+on)\b/i;
 const DAILY_KEYWORDS = /\b(daily|every\s+day|each\s+day|morning\s+routine)\b/i;
+
+const VERSION_LIKE = /\b\d+\.\d+(\.\d+)?\b/;
+const MAX_SUGGESTIONS = 5;
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -122,6 +114,15 @@ function contextAround(text: string, index: number, radius = 120): string {
   return text.slice(start, end);
 }
 
+function isLikelyFalsePositive(match: string, context: string): boolean {
+  if (VERSION_LIKE.test(match) && !/\b(19|20)\d{2}\b/.test(match)) return true;
+  if (/\b\d{10,}\b/.test(match)) return true;
+  if (/\breleased in\b/i.test(context) && !/\b(at|on|by)\b/i.test(context)) {
+    return true;
+  }
+  return false;
+}
+
 function makeId(
   year: number,
   month: number,
@@ -146,31 +147,67 @@ function pushCandidate(
     reason: string;
     source: string;
     repeatRule: RepeatRule;
+    priority: number;
+    defaultHour: number;
+    defaultMinute: number;
   },
 ) {
-  const hour = opts.hour ?? 9;
-  const minute = opts.minute ?? 0;
+  const usedDefaultTime = opts.hour === undefined;
+  const hour = opts.hour ?? opts.defaultHour;
+  const minute = opts.minute ?? opts.defaultMinute;
   const fireAt = toIso(opts.year, opts.month, opts.day, hour, minute);
   if (!fireAt) return;
   const id = makeId(opts.year, opts.month, opts.day, hour, minute, opts.repeatRule);
   if (seen.has(id)) return;
   seen.add(id);
+  let reason = opts.reason;
+  if (usedDefaultTime) {
+    reason += ` · No time found — default ${formatDefaultTime(hour, minute)}`;
+  }
   out.push({
     id,
     fireAt,
     repeatRule: opts.repeatRule,
     label: opts.label,
-    reason: opts.reason,
+    reason,
     source: opts.source.trim().slice(0, 120),
+    priority: opts.priority,
+    usedDefaultTime,
   });
 }
 
-/** Parse blocks like "Day: 22\\nMonth: October\\nYear: 2026\\nTime: 3pm" */
+function formatDefaultTime(hour: number, minute: number) {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function parseTitleLine(
+  title: string,
+  out: DetectedReminder[],
+  seen: Set<string>,
+  defaults: { defaultHour: number; defaultMinute: number },
+) {
+  const sep = title.match(/^(.+?)\s*(?:—|-|\|)\s*(.+)$/);
+  if (!sep) return;
+  const label = sep[1].trim();
+  const datePart = sep[2].trim();
+  const inner: DetectedReminder[] = [];
+  const innerSeen = new Set<string>();
+  scanDatePatterns(datePart, label, inner, innerSeen, defaults, 25);
+  inner.forEach((r) => {
+    if (seen.has(r.id)) return;
+    seen.add(r.id);
+    out.push({ ...r, label, priority: r.priority + 5 });
+  });
+}
+
 function parseStructuredFields(
   text: string,
   title: string,
   out: DetectedReminder[],
   seen: Set<string>,
+  defaults: { defaultHour: number; defaultMinute: number },
 ) {
   const blocks = text.split(/\n{2,}/);
   for (const block of blocks) {
@@ -188,11 +225,7 @@ function parseStructuredFields(
     if (!month || day < 1 || day > 31) continue;
 
     const time = timeM ? parseTimeToken(timeM[1]) : null;
-    const ctx = block;
-    const { repeatRule, reason } = inferRepeat(ctx, title);
-    const label =
-      title.trim() ||
-      `Reminder · ${pad(day)}/${pad(month)}/${year}`;
+    const { repeatRule, reason } = inferRepeat(block, title);
 
     pushCandidate(out, seen, {
       year,
@@ -200,10 +233,12 @@ function parseStructuredFields(
       day,
       hour: time?.hour,
       minute: time?.minute,
-      label,
+      label: title.trim() || `Reminder · ${pad(day)}/${pad(month)}/${year}`,
       reason,
       source: block.trim(),
       repeatRule,
+      priority: 20,
+      ...defaults,
     });
   }
 }
@@ -213,6 +248,8 @@ function scanDatePatterns(
   title: string,
   out: DetectedReminder[],
   seen: Set<string>,
+  defaults: { defaultHour: number; defaultMinute: number },
+  priorityBoost = 0,
 ) {
   const patterns: {
     re: RegExp;
@@ -253,13 +290,7 @@ function scanDatePatterns(
           m[4] && m[5]
             ? parseTimeToken(`${m[4]}:${m[5]}${m[6] ? ` ${m[6]}` : ""}`)
             : null;
-        return {
-          year: y,
-          month,
-          day,
-          hour: time?.hour,
-          minute: time?.minute,
-        };
+        return { year: y, month, day, hour: time?.hour, minute: time?.minute };
       },
     },
     {
@@ -296,86 +327,59 @@ function scanDatePatterns(
 
   for (const { re, pick } of patterns) {
     for (const m of text.matchAll(re)) {
+      const ctx = contextAround(text, m.index ?? 0);
+      if (isLikelyFalsePositive(m[0], ctx)) continue;
       const parts = pick(m);
       if (!parts || parts.month < 1 || parts.month > 12) continue;
       if (parts.day < 1 || parts.day > 31) continue;
-      const ctx = contextAround(text, m.index ?? 0);
       const { repeatRule, reason } = inferRepeat(ctx, title);
-      const label = title.trim() || m[0].trim();
       pushCandidate(out, seen, {
         ...parts,
-        label,
+        label: title.trim() || m[0].trim(),
         reason,
         source: m[0],
         repeatRule,
+        priority: 10 + priorityBoost,
+        ...defaults,
       });
     }
-  }
-
-  const timeOnly = /\b(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/gi;
-  for (const m of text.matchAll(timeOnly)) {
-    const parsed = parseTimeToken(m[1]);
-    if (!parsed) continue;
-    const ctx = contextAround(text, m.index ?? 0);
-    const dateInCtx = ctx.match(
-      /(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\s+(\d{2,4})|(\d{4})-(\d{1,2})-(\d{1,2})/i,
-    );
-    if (!dateInCtx) continue;
-    let parts: {
-      year: number;
-      month: number;
-      day: number;
-      hour?: number;
-      minute?: number;
-    } | null = null;
-    if (dateInCtx[1]) {
-      const month = monthFromToken(dateInCtx[2]);
-      if (!month) continue;
-      parts = {
-        year: resolveYear(Number(dateInCtx[3])),
-        month,
-        day: Number(dateInCtx[1]),
-        hour: parsed.hour,
-        minute: parsed.minute,
-      };
-    } else if (dateInCtx[4]) {
-      parts = {
-        year: Number(dateInCtx[4]),
-        month: Number(dateInCtx[5]),
-        day: Number(dateInCtx[6]),
-        hour: parsed.hour,
-        minute: parsed.minute,
-      };
-    }
-    if (!parts) continue;
-    const { repeatRule, reason } = inferRepeat(ctx, title);
-    pushCandidate(out, seen, {
-      ...parts,
-      label: title.trim() || "Timed reminder",
-      reason,
-      source: m[0],
-      repeatRule,
-    });
   }
 }
 
 export function detectRemindersInNote(
   title: string,
   body: string,
+  options?: DetectOptions,
 ): DetectedReminder[] {
-  const combined = `${title}\n\n${body}`.trim();
-  if (!combined) return [];
+  const prefs = loadUserPrefs();
+  const defaults = {
+    defaultHour: options?.defaultHour ?? prefs.defaultReminderHour,
+    defaultMinute: options?.defaultMinute ?? prefs.defaultReminderMinute,
+  };
+
+  const trimmedTitle = title.trim();
+  const trimmedBody = body.trim();
+  if (!trimmedTitle && !trimmedBody) return [];
 
   const out: DetectedReminder[] = [];
   const seen = new Set<string>();
 
-  parseStructuredFields(combined, title, out, seen);
-  scanDatePatterns(combined, title, out, seen);
+  if (trimmedTitle) {
+    parseTitleLine(trimmedTitle, out, seen, defaults);
+    scanDatePatterns(trimmedTitle, trimmedTitle, out, seen, defaults, 15);
+  }
+
+  const bodyText = trimmedBody || `${trimmedTitle}\n\n${trimmedBody}`;
+  parseStructuredFields(bodyText, trimmedTitle, out, seen, defaults);
+  if (trimmedBody) {
+    scanDatePatterns(trimmedBody, trimmedTitle, out, seen, defaults, 0);
+  }
 
   const now = Date.now();
   return out
     .filter((r) => new Date(r.fireAt).getTime() > now - 86_400_000)
-    .sort((a, b) => a.fireAt.localeCompare(b.fireAt));
+    .sort((a, b) => b.priority - a.priority || a.fireAt.localeCompare(b.fireAt))
+    .slice(0, MAX_SUGGESTIONS);
 }
 
 export function formatRepeatLabel(repeat: RepeatRule): string {
@@ -390,6 +394,8 @@ export function isDuplicateOfExisting(
   const d = new Date(detected.fireAt);
   return existing.some((e) => {
     const ex = new Date(e.fire_at);
+    const sameRepeat =
+      (detected.repeatRule ?? "") === (e.repeat_rule ?? "");
     if (detected.repeatRule === "yearly" && e.repeat_rule === "yearly") {
       return (
         d.getMonth() === ex.getMonth() &&
@@ -397,6 +403,23 @@ export function isDuplicateOfExisting(
         Math.abs(d.getHours() - ex.getHours()) < 2
       );
     }
+    if (sameRepeat) {
+      return (
+        d.getFullYear() === ex.getFullYear() &&
+        d.getMonth() === ex.getMonth() &&
+        d.getDate() === ex.getDate()
+      );
+    }
     return Math.abs(d.getTime() - ex.getTime()) < 3_600_000;
   });
+}
+
+export function pickNextReminder<T extends { fire_at: string; status: string }>(
+  reminders: T[],
+): T | null {
+  const active = reminders
+    .filter((r) => r.status === "active")
+    .sort((a, b) => a.fire_at.localeCompare(b.fire_at));
+  const now = Date.now();
+  return active.find((r) => new Date(r.fire_at).getTime() >= now) ?? active[0] ?? null;
 }

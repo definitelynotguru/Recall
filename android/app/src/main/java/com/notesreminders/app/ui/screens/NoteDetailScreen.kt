@@ -259,7 +259,13 @@ fun NoteDetailScreen(
                 onClick = {
                     viewModel.flushNoteSave(noteId, title, body)
                     val existing = reminders.map { it.fireAt to it.repeatRule }
-                    val found = ReminderDetect.detect(title, body)
+                    val prefs = viewModel.userPrefs
+                    val found = ReminderDetect.detect(
+                        title,
+                        body,
+                        prefs.defaultReminderHour,
+                        prefs.defaultReminderMinute,
+                    )
                         .filter { d -> !ReminderDetect.isDuplicate(d, existing) }
                     detectedList = found
                     selectedDetected = found.map { it.id }.toSet()
@@ -392,7 +398,17 @@ fun NoteDetailScreen(
                             val picks = detectedList.filter { selectedDetected.contains(it.id) }
                             showDetectDialog = false
                             picks.forEach { d ->
-                                viewModel.addReminder(noteId, d.fireAt, zone.id, d.repeatRule)
+                                viewModel.addReminder(
+                                    noteId,
+                                    d.fireAt,
+                                    zone.id,
+                                    d.repeatRule,
+                                    onDone = null,
+                                    autoSync = false,
+                                )
+                            }
+                            if (viewModel.userPrefs.autoSyncAfterReminder) {
+                                viewModel.syncNow(showSuccess = true)
                             }
                             fetchingReminders = false
                             refreshReminders()

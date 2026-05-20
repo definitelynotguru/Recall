@@ -18,6 +18,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE isDirty = 1")
     suspend fun getDirty(): List<NoteEntity>
 
+    @Query("SELECT COUNT(*) FROM notes WHERE isDirty = 1")
+    fun observeDirtyCount(): Flow<Int>
+
     @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): NoteEntity?
 

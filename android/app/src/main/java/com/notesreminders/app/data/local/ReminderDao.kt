@@ -22,6 +22,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE isDirty = 1")
     suspend fun getDirty(): List<ReminderEntity>
 
+    @Query("SELECT COUNT(*) FROM reminders WHERE isDirty = 1")
+    fun observeDirtyCount(): Flow<Int>
+
     @Query("SELECT * FROM reminders WHERE noteId = :noteId AND deletedAt IS NULL")
     suspend fun getByNoteId(noteId: String): List<ReminderEntity>
 

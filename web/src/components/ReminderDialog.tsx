@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bell, Trash, X } from "@phosphor-icons/react";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
+import { loadUserPrefs } from "@/lib/user-prefs";
 
 type Props = {
   noteId: string;
@@ -45,8 +46,10 @@ export function ReminderDialog({
       setTime(t);
       setRepeat(reminder.repeat_rule ?? "");
     } else {
+      const prefs = loadUserPrefs();
+      const pad = (n: number) => String(n).padStart(2, "0");
       setDate("");
-      setTime("09:00");
+      setTime(`${pad(prefs.defaultReminderHour)}:${pad(prefs.defaultReminderMinute)}`);
       setRepeat("");
     }
   }, [open, reminder]);

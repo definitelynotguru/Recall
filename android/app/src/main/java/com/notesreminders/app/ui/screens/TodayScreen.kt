@@ -59,6 +59,7 @@ fun TodayScreen(
     val reminders by viewModel.reminders.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
+    val hasPendingSync by viewModel.hasPendingSync.collectAsState()
 
     var showReminderDialog by remember { mutableStateOf(false) }
     var editingReminder by remember { mutableStateOf<ReminderEntity?>(null) }
@@ -107,6 +108,7 @@ fun TodayScreen(
             subtitle = "Upcoming nudges from your notes",
             isSyncing = syncing,
             syncHint = syncHint,
+            hasPendingSync = hasPendingSync,
             onSync = { viewModel.syncNow() },
             onSignOut = onLogout,
         )
