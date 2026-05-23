@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { deviceSyncState } from "@/lib/db/schema";
 import { processSync } from "@/lib/sync";
+import { syncSchema } from "@/lib/sync-schema";
 import {
   requireAuth,
   jsonResponse,
@@ -10,38 +11,6 @@ import {
   toApiNote,
   toApiReminder,
 } from "@/lib/api-utils";
-import { eq, and } from "drizzle-orm";
-
-const syncSchema = z.object({
-  device_id: z.string().min(1),
-  last_sync_at: z.string(),
-  notes: z.array(
-    z.object({
-      id: z.string().uuid(),
-      title: z.string(),
-      body: z.string(),
-      status: z.string(),
-      created_at: z.string(),
-      updated_at: z.string(),
-      deleted_at: z.string().nullable(),
-    }),
-  ),
-  reminders: z.array(
-    z.object({
-      id: z.string().uuid(),
-      note_id: z.string().uuid(),
-      fire_at: z.string(),
-      timezone: z.string(),
-      repeat_rule: z.string().nullable(),
-      intensity: z.string(),
-      status: z.string(),
-      completed_at: z.string().nullable(),
-      created_at: z.string(),
-      updated_at: z.string(),
-      deleted_at: z.string().nullable(),
-    }),
-  ),
-});
 
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request);
@@ -50,7 +19,19 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof syncSchema>;
   try {
     body = syncSchema.parse(await request.json());
-  } catch {
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return jsonResponse(
+        {
+          error: "Invalid sync payload",
+          issues: err.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+        400,
+      );
+    }
     return errorResponse("Invalid request", 400);
   }
 

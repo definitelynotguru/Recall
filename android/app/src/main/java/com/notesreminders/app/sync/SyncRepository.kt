@@ -6,10 +6,8 @@ import com.notesreminders.app.data.api.SyncRequest
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.data.local.SyncMetaEntity
-import com.notesreminders.app.data.toDto
 import com.notesreminders.app.data.toEntity
 import com.notesreminders.app.reminders.ReminderReconciler
-import java.time.Instant
 import java.util.UUID
 
 class SyncRepository(
@@ -26,15 +24,27 @@ class SyncRepository(
         val deviceId = meta?.deviceId ?: UUID.randomUUID().toString()
         val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
 
-        val dirtyNotes = db.noteDao().getDirty().map { it.toDto() }
-        val dirtyReminders = db.reminderDao().getDirty().map { it.toDto() }
+        val dirtyNotes = db.noteDao().getDirty()
+        val dirtyReminders = db.reminderDao().getDirty()
+        val knownNoteIds = db.noteDao().getAllIds().toSet()
+
+        val sanitized = SyncPayloadSanitizer.sanitize(
+            dirtyNotes,
+            dirtyReminders,
+            knownNoteIds,
+        )
+
+        SyncDiagnostics.lastWarnings = sanitized.warnings
+        SyncDiagnostics.lastSanitizedNoteCount = sanitized.notes.size
+        SyncDiagnostics.lastSanitizedReminderCount = sanitized.reminders.size
+        SyncDiagnostics.lastError = null
 
         val response = api.sync(
             SyncRequest(
                 device_id = deviceId,
                 last_sync_at = lastSync,
-                notes = dirtyNotes,
-                reminders = dirtyReminders,
+                notes = sanitized.notes,
+                reminders = sanitized.reminders,
             ),
         )
 
@@ -53,6 +63,8 @@ class SyncRepository(
         )
 
         reconciler.reconcile()
+    }.onFailure {
+        SyncDiagnostics.lastError = it.message
     }
 
     fun getDeviceId(): String {

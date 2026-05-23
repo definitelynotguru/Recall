@@ -69,4 +69,16 @@ data class SyncResponse(
 
 data class SnoozeRequest(val fire_at: String)
 
+data class DebugReportRequest(
+    val device_id: String,
+    val app_version: String,
+    val api_base_url: String,
+    val payload: Map<String, Any?>,
+)
+
+data class DebugReportResponse(
+    val id: String,
+    val created_at: String,
+)
+
 data class ErrorResponse(val error: String?)

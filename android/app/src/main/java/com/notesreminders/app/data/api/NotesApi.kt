@@ -64,4 +64,7 @@ interface NotesApi {
 
     @POST("sync")
     suspend fun sync(@Body body: SyncRequest): SyncResponse
+
+    @POST("debug/report")
+    suspend fun submitDebugReport(@Body body: DebugReportRequest): DebugReportResponse
 }

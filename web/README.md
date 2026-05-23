@@ -23,6 +23,6 @@ Copy `.env.example` to `.env.local`. See the [root README](../README.md) for var
 | `/today` | Upcoming reminders timeline |
 | `/notes` | Note list |
 | `/notes/[id]` | Markdown editor + reminders |
-| `/settings` | Backup export |
+| `/settings` | Backup import/export, debug reports |
 
 API lives under `/api/v1/*`.

@@ -5,9 +5,15 @@ Run with web (`cd web && npm run dev`) and Android app pointed at dev API.
 ## Automated
 
 ```bash
-cd web && npm test          # reminder detect + sync merge LWW
-cd android && ./gradlew :app:testDebugUnitTest   # token refresh policy
+cd web && npm test          # reminder detect, sync schema, sync merge LWW
+cd android && ./gradlew :app:testDebugUnitTest   # token policy + sync sanitizer
 ```
+
+## Sync / debug (Android)
+
+13. **Sync after sanitize:** Create note online → edit → sync succeeds; header shows synced time.
+14. **Debug report:** Android Settings → Send debug report → web Settings → Debug reports lists entry with JSON.
+15. **Sync 400 surfaced:** If sync fails, hint shows server validation path (not only "HTTP 400").
 
 ## Sync (online)
 

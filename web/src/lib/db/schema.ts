@@ -5,6 +5,7 @@ import {
   timestamp,
   index,
   primaryKey,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -68,6 +69,24 @@ export const deviceSyncState = pgTable(
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.deviceId] })],
+);
+
+export const debugReports = pgTable(
+  "debug_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceId: text("device_id").notNull().default(""),
+    appVersion: text("app_version").notNull().default(""),
+    apiBaseUrl: text("api_base_url").notNull().default(""),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("debug_reports_user_created").on(t.userId, t.createdAt)],
 );
 
 export const refreshTokens = pgTable(

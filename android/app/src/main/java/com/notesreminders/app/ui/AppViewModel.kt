@@ -10,6 +10,9 @@ import com.notesreminders.app.data.api.RefreshRequest
 import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
+import com.notesreminders.app.data.api.ApiErrorParser
+import com.notesreminders.app.debug.DebugReportCollector
+import com.notesreminders.app.sync.SyncDiagnostics
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
 import kotlinx.coroutines.Dispatchers
@@ -167,7 +170,37 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         null
                     }
                 },
-                onFailure = { "Sync failed: ${it.message ?: "check connection"}" },
+                onFailure = { err ->
+                    val msg = ApiErrorParser.syncFailureMessage(err)
+                    val skipped = SyncDiagnostics.lastWarnings.size
+                    if (skipped > 0) {
+                        "$msg · Skipped $skipped invalid local item(s) — Settings → Send debug report"
+                    } else {
+                        msg
+                    }
+                },
+            )
+        }
+    }
+
+    fun sendDebugReport(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val payload = DebugReportCollector.collect(
+                        app,
+                        lastSyncHint = _syncHint.value,
+                    )
+                    app.api.submitDebugReport(payload)
+                }
+            }
+            onResult(
+                result.fold(
+                    onSuccess = { "Report sent · id ${it.id.take(8)}…" },
+                    onFailure = {
+                        "Failed to send report: ${it.message ?: "unknown error"}"
+                    },
+                ),
             )
         }
     }

@@ -19,6 +19,17 @@ export default function SettingsPage() {
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<UserPrefs>(loadUserPrefs());
   const [copied, setCopied] = useState(false);
+  type DebugReportRow = {
+    id: string;
+    created_at: string;
+    device_id: string;
+    app_version: string;
+    summary: string;
+    payload: unknown;
+  };
+  const [debugReports, setDebugReports] = useState<DebugReportRow[]>([]);
+  const [debugLoading, setDebugLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const tz =
     typeof window !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -27,6 +38,25 @@ export default function SettingsPage() {
   useEffect(() => {
     saveUserPrefs(prefs);
   }, [prefs]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch<{ reports: DebugReportRow[] }>(
+          "/debug/reports?limit=20",
+        );
+        if (!cancelled) setDebugReports(res.reports);
+      } catch {
+        if (!cancelled) setDebugReports([]);
+      } finally {
+        if (!cancelled) setDebugLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const buildBundle = async () => {
     const notesRes = await apiFetch<{ notes: ApiNote[] }>("/notes");
@@ -196,6 +226,91 @@ export default function SettingsPage() {
           >
             {importMsg}
           </p>
+        )}
+      </div>
+
+      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
+        <h2 className="settings-heading">Debug reports</h2>
+        <p className="settings-muted">
+          Reports sent from Android Settings → Send debug report (sync errors, dirty
+          counts, no tokens).
+        </p>
+        {debugLoading ? (
+          <p className="settings-muted">Loading…</p>
+        ) : debugReports.length === 0 ? (
+          <p className="settings-muted">No reports yet.</p>
+        ) : (
+          <ul className="detected-reminder-list" style={{ marginTop: 12 }}>
+            {debugReports.map((r) => (
+              <li key={r.id} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <strong style={{ fontSize: "0.85rem" }}>
+                      {new Date(r.created_at).toLocaleString()}
+                    </strong>
+                    <span
+                      className="timeline-meta"
+                      style={{ display: "block", marginTop: 4 }}
+                    >
+                      {r.app_version || "app"} · {r.device_id.slice(0, 8)}…
+                    </span>
+                    <span
+                      className="timeline-meta"
+                      style={{ display: "block", marginTop: 4 }}
+                    >
+                      {r.summary}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                      onClick={() =>
+                        setExpandedId(expandedId === r.id ? null : r.id)
+                      }
+                    >
+                      {expandedId === r.id ? "Hide" : "View JSON"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                      onClick={() =>
+                        navigator.clipboard.writeText(
+                          JSON.stringify(r.payload, null, 2),
+                        )
+                      }
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                {expandedId === r.id && (
+                  <pre
+                    style={{
+                      marginTop: 10,
+                      padding: 12,
+                      background: "var(--ink-elevated)",
+                      borderRadius: 8,
+                      fontSize: "0.72rem",
+                      overflow: "auto",
+                      maxHeight: 320,
+                    }}
+                  >
+                    {JSON.stringify(r.payload, null, 2)}
+                  </pre>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

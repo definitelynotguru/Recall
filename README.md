@@ -2,12 +2,14 @@
 
 **Recall** is a personal notes app where reminders are first-class: write on the web, get notified on Android. One calm workspace for Markdown notes, timed nudges, and cross-device sync — no AI, no clutter.
 
+**Production:** https://recall-aevum-s-projects1.vercel.app
+
 ## Why Recall
 
 Most notes apps treat reminders as an afterthought. Recall is built around a simple loop:
 
 1. **Write** a note (Markdown on web and Android).
-2. **Attach** a reminder (date, time, optional repeat).
+2. **Attach** a reminder (date, time, optional repeat) — or use **Fetch reminders** to detect dates in text.
 3. **Sync** to the server.
 4. **Notify** on your phone only — the web app never sends push notifications.
 
@@ -16,14 +18,15 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
 | Feature | Web | Android |
 |---------|-----|---------|
 | Email + password auth (access + refresh JWT) | Yes | Yes |
-| Markdown notes | Yes | Yes |
+| Markdown notes + debounced autosave | Yes | Yes (local debounced save) |
 | Reminders (daily / weekly / monthly / yearly) | Yes | Yes |
-| **Fetch reminders** (auto-detect dates in notes) | Yes | Yes |
-| Today timeline (upcoming nudges) | Yes | Yes |
-| Offline notes + sync | Online-first | Yes (Room) |
-| Notifications | — | Yes |
-| Snooze / complete from notification shade | — | Yes |
-| JSON backup export | Yes | — |
+| **Fetch reminders** (dates, relative phrases, Likely/Maybe confidence) | Yes | Yes |
+| Today timeline + next-nudge preview | Yes | Yes |
+| Offline notes (stay signed in, sync when online) | Online-first | Yes (Room) |
+| Notifications + snooze / complete from shade | — | Yes |
+| Tap notification → open note | — | Yes |
+| JSON backup export / import | Yes | — |
+| Debug reports (Android → server → web Settings) | View | Send |
 
 ## Architecture
 
@@ -37,9 +40,9 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
                                              (notifications)
 ```
 
-- **Monorepo:** `web/` (Next.js 16) + `android/` (Kotlin, minSdk 26)
-- **Sync:** `POST /api/v1/sync` with last-write-wins and soft-delete tombstones
-- **Auth:** bcrypt passwords, 15-minute access JWT, 90-day rotating refresh tokens
+- **Monorepo:** `web/` (Next.js 16) + `android/` (Kotlin, minSdk 26) + `shared/` (detection fixtures)
+- **Sync:** `POST /api/v1/sync` — dirty upload, LWW merge, full active catalog in response
+- **Auth:** bcrypt, 15-minute access JWT, 90-day rotating refresh (network errors do not log you out on Android)
 
 ## Quick start
 
@@ -47,36 +50,30 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
 
 - Node.js 20+
 - A [Neon](https://neon.tech) Postgres database
-- Android Studio (for the mobile app)
+- Android Studio or JDK 17+ (for the mobile app)
 
 ### Web
 
 ```bash
 cd web
 cp .env.example .env.local
-```
+# Set DATABASE_URL, JWT_SECRET, REFRESH_PEPPER, REGISTER_SECRET, NEXT_PUBLIC_APP_URL
 
-Set in `.env.local`:
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | Neon pooled connection string |
-| `JWT_SECRET` | At least 32 random characters |
-| `REFRESH_PEPPER` | At least 32 random characters |
-| `REGISTER_SECRET` | Secret required to register (solo use) |
-| `NEXT_PUBLIC_APP_URL` | e.g. `http://localhost:3000` |
-
-```bash
 npm install
-npm run db:push
+npm run db:push    # applies schema (including debug_reports)
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
+```bash
+npm test           # Vitest: reminder detect, sync schema, sync merge
+npm run build
+```
+
 ### Android
 
-1. Open `android/` in Android Studio.
+1. Open `android/` in Android Studio (or use CLI with JDK 17).
 2. Copy `android/local.properties.example` to `android/local.properties`.
 3. Set your API URL:
 
@@ -84,47 +81,57 @@ Open [http://localhost:3000](http://localhost:3000).
 # Emulator → host machine
 API_BASE_URL=http://10.0.2.2:3000/api/v1
 
-# Physical device → your LAN IP
-# API_BASE_URL=http://192.168.x.x:3000/api/v1
+# Physical device → your LAN IP or production
+# API_BASE_URL=https://recall-aevum-s-projects1.vercel.app/api/v1
 ```
 
-4. Run on a device or emulator (JDK 17+).
+4. Run on a device or emulator.
 
-**Install without Android Studio:** Download the latest debug APK from [GitHub Releases (v1.0.0-debug)](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk). CI rebuilds it on every `main` push that touches `android/`. See [android/README.md](android/README.md#build-an-apk).
+**APK:** [GitHub Releases v1.0.0-debug](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk) — rebuilt on `main` when `android/**` changes. See [android/README.md](android/README.md).
 
 ### Deploy web (Vercel)
 
-**Production:** https://recall-aevum-s-projects1.vercel.app
-
-1. Vercel project name: **recall** (root directory: `web` in project settings).
-2. Add the same environment variables as `.env.local`.
-3. Run `npm run db:push` against production Neon once before first deploy.
+1. Project root directory: `web`.
+2. Add the same env vars as `.env.local`.
+3. After deploy, run `npm run db:push` against production Neon when the schema changes (e.g. `debug_reports` table).
 
 ## Project structure
 
 ```
 .
-├── android/          # Jetpack Compose app (notifications + sync)
-├── web/              # Next.js app + API routes
-├── shared/           # Detection fixtures (canonical tests in web)
+├── android/          # Jetpack Compose app (notifications, offline sync)
+├── web/              # Next.js app + API routes (/api/v1/*)
+├── shared/           # Detection fixtures (Vitest in web)
 ├── plan.md           # Roadmap / implementation log
-├── README.md
-└── TESTING.md        # Manual E2E checklist
+├── TESTING.md        # Manual E2E checklist
+└── README.md
 ```
 
 ## API overview
 
 Base path: `/api/v1`
 
-- `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
-- `GET|POST /notes`, `GET|PATCH|DELETE /notes/:id`
-- `POST /notes/:id/reminders`
-- `POST /reminders/:id/complete`, `/reminders/:id/snooze`
-- `POST /sync` — primary Android sync endpoint
+| Area | Endpoints |
+|------|-----------|
+| Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout` · `GET /auth/me` |
+| Notes | `GET|POST /notes`, `GET|PATCH|DELETE /notes/:id` |
+| Reminders | `POST /notes/:id/reminders`, `PATCH|DELETE /reminders/:id`, `/complete`, `/snooze` |
+| Sync | `POST /sync` — primary Android sync |
+| Debug | `POST /debug/report`, `GET /debug/reports?limit=20` |
+
+## Troubleshooting sync (Android)
+
+If sync shows **HTTP 400**:
+
+1. The server returns validation details (invalid UUID, empty `fire_at`, etc.).
+2. Android **sanitizes** dirty rows before upload (drops invalid/orphan items).
+3. Open **Settings → Send debug report**, then on web **Settings → Debug reports** to inspect payload (no tokens stored).
+
+Ensure `API_BASE_URL` in `local.properties` matches your deployed API (trailing path `/api/v1`).
 
 ## Design
 
-Warm **ink + copper** palette, Syne + Source Sans 3 on web, timeline-first Today view, sidebar navigation. Preview mockups: `web/public/ui-preview.html`.
+Warm **ink + copper** palette, Syne + Source Sans 3 on web, timeline-first Today view. Preview: `web/public/ui-preview.html`.
 
 ## License
 
@@ -132,4 +139,4 @@ Personal project — all rights reserved unless you add a license file.
 
 ## Author
 
-Built for solo, daily use. Issues and PRs welcome if you fork or extend.
+Built for solo, daily use. Repo: [definitelynotguru/Recall](https://github.com/definitelynotguru/Recall).
