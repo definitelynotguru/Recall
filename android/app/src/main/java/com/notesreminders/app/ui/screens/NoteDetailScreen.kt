@@ -268,7 +268,10 @@ fun NoteDetailScreen(
                     )
                         .filter { d -> !ReminderDetect.isDuplicate(d, existing) }
                     detectedList = found
-                    selectedDetected = found.map { it.id }.toSet()
+                    selectedDetected = found
+                        .filter { it.confidence == "high" }
+                        .map { it.id }
+                        .toSet()
                     showDetectDialog = true
                 },
                 enabled = !fetchingReminders,
@@ -374,7 +377,7 @@ fun NoteDetailScreen(
                                         color = RecallColors.ParchmentMuted,
                                     )
                                     Text(
-                                        (d.repeatRule ?: "once").uppercase(),
+                                        "${(d.repeatRule ?: "once").uppercase()} · ${if (d.confidence == "high") "Likely" else "Maybe"}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = RecallColors.Copper,
                                     )

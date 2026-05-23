@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkle, X } from "@phosphor-icons/react";
 import {
   DetectedReminder,
+  formatConfidenceLabel,
   formatRepeatLabel,
 } from "@/lib/reminder-detect";
 import { formatFireAt } from "@/lib/reminder-utils";
@@ -28,7 +29,9 @@ export function DetectedRemindersDialog({
   useEffect(() => {
     if (!open) return;
     setError("");
-    setSelected(new Set(suggestions.map((s) => s.id)));
+    setSelected(
+      new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
+    );
   }, [open, suggestions]);
 
   if (!open) return null;
@@ -100,8 +103,9 @@ export function DetectedRemindersDialog({
           <p style={{ color: "var(--parchment-muted)", margin: "0 0 20px" }}>
             No dates or times found. Try lines like{" "}
             <code style={{ fontSize: "0.8rem" }}>Day: 22 · Month: October · Year: 2026</code>{" "}
-            or <code style={{ fontSize: "0.8rem" }}>22 Oct 2026 at 3pm</code>, and mention
-            &quot;birthday&quot; for yearly repeats.
+            or <code style={{ fontSize: "0.8rem" }}>tomorrow at 9am</code> /{" "}
+            <code style={{ fontSize: "0.8rem" }}>next Friday at 2pm</code>. Likely matches are
+            pre-selected; review Maybe suggestions.
           </p>
         ) : (
           <ul className="detected-reminder-list">
@@ -118,8 +122,18 @@ export function DetectedRemindersDialog({
                     <span className="timeline-meta" style={{ display: "block", marginTop: 4 }}>
                       {formatFireAt(s.fireAt)}
                     </span>
-                    <span className="chip" style={{ marginTop: 8 }}>
-                      {formatRepeatLabel(s.repeatRule)}
+                    <span style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                      <span className="chip">{formatRepeatLabel(s.repeatRule)}</span>
+                      <span
+                        className="chip"
+                        style={
+                          s.confidence === "maybe"
+                            ? { opacity: 0.85, borderStyle: "dashed" }
+                            : undefined
+                        }
+                      >
+                        {formatConfidenceLabel(s.confidence)}
+                      </span>
                     </span>
                     <p
                       style={{

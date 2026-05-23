@@ -3,25 +3,29 @@
     "title": "Tanishka's Birthday",
     "body": "Day: 22\nMonth: October\nYear: 2026\nTime: 9:00 AM",
     "expectCount": 1,
-    "expectRepeat": "yearly"
+    "expectRepeat": "yearly",
+    "expectConfidence": "high"
   },
   {
     "title": "Meeting",
     "body": "22 Oct 2026 at 3pm - weekly standup",
     "expectCount": 1,
-    "expectRepeat": "weekly"
+    "expectRepeat": "weekly",
+    "expectConfidence": "high"
   },
   {
     "title": "Release",
     "body": "Ship on 2026-12-01",
     "expectCount": 1,
-    "expectRepeat": null
+    "expectRepeat": null,
+    "expectConfidence": "maybe"
   },
   {
     "title": "Team sync — 21 May 2026 10:00",
     "body": "",
     "expectCount": 1,
-    "expectRepeat": null
+    "expectRepeat": null,
+    "expectConfidence": "high"
   },
   {
     "title": "App",
@@ -33,6 +37,35 @@
     "title": "Daily standup",
     "body": "Every day at 9am starting 2026-06-01",
     "expectCount": 1,
-    "expectRepeat": "daily"
+    "expectRepeat": "daily",
+    "expectConfidence": "maybe"
+  },
+  {
+    "title": "Call mom",
+    "body": "tomorrow at 9am",
+    "expectCount": 1,
+    "expectRepeat": null,
+    "expectConfidence": "high"
+  },
+  {
+    "title": "Deadline",
+    "body": "in 3 days at 5pm",
+    "expectCount": 1,
+    "expectRepeat": null,
+    "expectConfidence": "high"
+  },
+  {
+    "title": "Standup",
+    "body": "next Friday at 10am - weekly",
+    "expectCount": 1,
+    "expectRepeat": "weekly",
+    "expectConfidence": "high"
+  },
+  {
+    "title": "Review",
+    "body": "today",
+    "expectCount": 1,
+    "expectRepeat": null,
+    "expectConfidence": "maybe"
   }
 ]

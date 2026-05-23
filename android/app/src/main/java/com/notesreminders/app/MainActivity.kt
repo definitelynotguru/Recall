@@ -3,6 +3,7 @@ package com.notesreminders.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,11 +26,13 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.notesreminders.app.reminders.ReminderReceiver
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.components.OfflineSyncBanner
 import androidx.compose.ui.Modifier
@@ -55,20 +58,28 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { }
 
+    private val pendingNoteId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermission()
+        pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
 
         setContent {
             NotesTheme {
                 val viewModel: AppViewModel = viewModel()
                 var loggedIn by remember { mutableStateOf(viewModel.isLoggedIn) }
+                val launchNoteId = pendingNoteId.value
 
                 if (!loggedIn) {
                     LoginScreen(viewModel) { loggedIn = true }
                 } else {
-                    MainShell(viewModel) { loggedIn = false }
+                    MainShell(
+                        viewModel = viewModel,
+                        launchNoteId = launchNoteId,
+                        onNoteOpened = { pendingNoteId.value = null },
+                    ) { loggedIn = false }
                 }
             }
         }
@@ -77,6 +88,12 @@ class MainActivity : ComponentActivity() {
         if (app.tokenStore.isLoggedIn() && app.networkMonitor.currentIsOnline()) {
             SyncWorker.runOnce(this)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
     }
 
     private fun requestNotificationPermission() {
@@ -99,9 +116,21 @@ private data class BottomTab(
 )
 
 @Composable
-private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
+private fun MainShell(
+    viewModel: AppViewModel,
+    launchNoteId: String?,
+    onNoteOpened: () -> Unit,
+    onLogout: () -> Unit,
+) {
     val isOnline by viewModel.isOnline.collectAsState()
     val nav = rememberNavController()
+
+    LaunchedEffect(launchNoteId) {
+        if (!launchNoteId.isNullOrBlank()) {
+            nav.navigate("note/$launchNoteId") { launchSingleTop = true }
+            onNoteOpened()
+        }
+    }
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
         BottomTab("notes", "Notes", Icons.Outlined.Note),

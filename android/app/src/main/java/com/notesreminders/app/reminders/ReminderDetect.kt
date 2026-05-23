@@ -1,9 +1,11 @@
 package com.notesreminders.app.reminders
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 data class DetectedReminder(
@@ -14,6 +16,7 @@ data class DetectedReminder(
     val reason: String,
     val source: String,
     val priority: Int = 0,
+    val confidence: String = "high",
 )
 
 object ReminderDetect {
@@ -30,6 +33,17 @@ object ReminderDetect {
         "october" to 10, "oct" to 10,
         "november" to 11, "nov" to 11,
         "december" to 12, "dec" to 12,
+    )
+
+    private val weekdays = mapOf(
+        "sunday" to DayOfWeek.SUNDAY, "sun" to DayOfWeek.SUNDAY,
+        "monday" to DayOfWeek.MONDAY, "mon" to DayOfWeek.MONDAY,
+        "tuesday" to DayOfWeek.TUESDAY, "tue" to DayOfWeek.TUESDAY, "tues" to DayOfWeek.TUESDAY,
+        "wednesday" to DayOfWeek.WEDNESDAY, "wed" to DayOfWeek.WEDNESDAY,
+        "thursday" to DayOfWeek.THURSDAY, "thu" to DayOfWeek.THURSDAY,
+        "thur" to DayOfWeek.THURSDAY, "thurs" to DayOfWeek.THURSDAY,
+        "friday" to DayOfWeek.FRIDAY, "fri" to DayOfWeek.FRIDAY,
+        "saturday" to DayOfWeek.SATURDAY, "sat" to DayOfWeek.SATURDAY,
     )
 
     private val yearlyKw = Regex(
@@ -62,6 +76,7 @@ object ReminderDetect {
         val out = mutableListOf<DetectedReminder>()
         val seen = mutableSetOf<String>()
         val defaults = defaultHour to defaultMinute
+        val combined = listOf(trimmedTitle, trimmedBody).filter { it.isNotBlank() }.joinToString("\n")
 
         if (trimmedTitle.isNotBlank()) {
             parseTitleLine(trimmedTitle, out, seen, defaults)
@@ -70,6 +85,9 @@ object ReminderDetect {
         if (trimmedBody.isNotBlank()) {
             parseStructured(trimmedBody, trimmedTitle, out, seen, defaults)
             scanPatterns(trimmedBody, trimmedTitle, out, seen, defaults, priorityBoost = 0)
+        }
+        if (combined.isNotBlank()) {
+            scanRelative(combined, trimmedTitle, out, seen, defaults)
         }
 
         val cutoff = java.time.Instant.now().minusSeconds(86_400)
@@ -158,8 +176,88 @@ object ReminderDetect {
                 time?.first, time?.second,
                 title.ifBlank { "Reminder · $day/$month/$year" },
                 reason, block.trim(), repeat, 20, defaults,
+                confidence = if (time == null) "maybe" else "high",
             )
         }
+    }
+
+    private fun timeFromGroups(groups: List<String>): Pair<Int, Int>? {
+        for (g in groups) {
+            if (g.isBlank()) continue
+            parseTime(g)?.let { return it }
+        }
+        return null
+    }
+
+    private fun scanRelative(
+        text: String,
+        title: String,
+        out: MutableList<DetectedReminder>,
+        seen: MutableSet<String>,
+        defaults: Pair<Int, Int>,
+    ) {
+        val base = LocalDate.now()
+
+        Regex("""\btomorrow(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?""", RegexOption.IGNORE_CASE)
+            .findAll(text).forEach { m ->
+                val time = timeFromGroups(m.groupValues.drop(1))
+                emitRelative(text, out, seen, title, m, base.plusDays(1), time, "Relative date: tomorrow", defaults)
+            }
+
+        Regex("""\btoday(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?""", RegexOption.IGNORE_CASE)
+            .findAll(text).forEach { m ->
+                val time = timeFromGroups(m.groupValues.drop(1))
+                emitRelative(text, out, seen, title, m, base, time, "Relative date: today", defaults)
+            }
+
+        Regex("""\bin\s+(\d{1,2})\s+days?(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?""", RegexOption.IGNORE_CASE)
+            .findAll(text).forEach { m ->
+                val days = m.groupValues[1].toLongOrNull() ?: return@forEach
+                val time = timeFromGroups(listOf(m.groupValues.getOrElse(2) { "" }))
+                emitRelative(text, out, seen, title, m, base.plusDays(days), time, "Relative date: in N days", defaults)
+            }
+
+        Regex(
+            """\bnext\s+(sunday|sun|monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat)(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?""",
+            RegexOption.IGNORE_CASE,
+        ).findAll(text).forEach { m ->
+            val dow = weekdays[m.groupValues[1].lowercase(Locale.US)] ?: return@forEach
+            val time = timeFromGroups(listOf(m.groupValues.getOrElse(2) { "" }))
+            emitRelative(
+                text, out, seen, title, m,
+                base.with(TemporalAdjusters.next(dow)),
+                time,
+                "Relative date: next weekday",
+                defaults,
+            )
+        }
+    }
+
+    private fun emitRelative(
+        text: String,
+        out: MutableList<DetectedReminder>,
+        seen: MutableSet<String>,
+        title: String,
+        m: MatchResult,
+        date: LocalDate,
+        time: Pair<Int, Int>?,
+        labelReason: String,
+        defaults: Pair<Int, Int>,
+    ) {
+        val ctx = contextAround(text, m.range.first)
+        val (repeat, repeatReason) = inferRepeat(ctx, title)
+        push(
+            out, seen,
+            date.year, date.monthValue, date.dayOfMonth,
+            time?.first, time?.second,
+            title.ifBlank { m.value },
+            "$labelReason · $repeatReason",
+            m.value,
+            repeat,
+            8,
+            defaults,
+            confidence = if (time != null) "high" else "maybe",
+        )
     }
 
     private fun scanPatterns(
@@ -230,6 +328,7 @@ object ReminderDetect {
         repeat: String?,
         priority: Int,
         defaults: Pair<Int, Int>,
+        confidence: String = "high",
     ) {
         val usedDefault = hour == null
         val h = hour ?: defaults.first
@@ -246,6 +345,7 @@ object ReminderDetect {
         if (!seen.add(id)) return
         var finalReason = reason
         if (usedDefault) finalReason += " · No time found — using default"
+        val conf = if (usedDefault) "maybe" else confidence
         out.add(
             DetectedReminder(
                 id = id,
@@ -255,6 +355,7 @@ object ReminderDetect {
                 reason = finalReason,
                 source = source.take(120),
                 priority = priority,
+                confidence = conf,
             ),
         )
     }

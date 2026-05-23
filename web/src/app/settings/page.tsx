@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DownloadSimple, Copy } from "@phosphor-icons/react";
+import { DownloadSimple, Copy, UploadSimple } from "@phosphor-icons/react";
+import { importBackup, parseBackupJson } from "@/lib/backup-import";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
 import { apiFetch, ApiNote } from "@/lib/api-client";
@@ -14,6 +15,8 @@ import {
 export default function SettingsPage() {
   const { replayOnboarding } = useAuth();
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<UserPrefs>(loadUserPrefs());
   const [copied, setCopied] = useState(false);
   const tz =
@@ -129,14 +132,17 @@ export default function SettingsPage() {
       </div>
 
       <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Export vault</h2>
-        <p className="settings-muted">Download or copy all notes and reminders as JSON.</p>
+        <h2 className="settings-heading">Backup & restore</h2>
+        <p className="settings-muted">
+          Export or import all notes and reminders as JSON. Import merges by id (updates
+          existing, adds new).
+        </p>
         <div className="reminder-actions-row">
           <button
             type="button"
             className="btn btn-primary"
             onClick={exportJson}
-            disabled={exporting}
+            disabled={exporting || importing}
           >
             <DownloadSimple size={18} />
             {exporting ? "Working…" : "Download backup"}
@@ -145,12 +151,52 @@ export default function SettingsPage() {
             type="button"
             className="btn btn-secondary"
             onClick={copyJson}
-            disabled={exporting}
+            disabled={exporting || importing}
           >
             <Copy size={18} />
             {copied ? "Copied" : "Copy to clipboard"}
           </button>
+          <label className="btn btn-secondary" style={{ cursor: "pointer" }}>
+            <UploadSimple size={18} />
+            {importing ? "Importing…" : "Import JSON"}
+            <input
+              type="file"
+              accept="application/json,.json"
+              hidden
+              disabled={importing || exporting}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                setImporting(true);
+                setImportMsg(null);
+                try {
+                  const text = await file.text();
+                  const bundle = parseBackupJson(text);
+                  const result = await importBackup(bundle);
+                  setImportMsg(
+                    `Imported ${result.notes} notes and ${result.reminders} reminders.`,
+                  );
+                } catch (err) {
+                  setImportMsg(
+                    err instanceof Error ? err.message : "Import failed",
+                  );
+                } finally {
+                  setImporting(false);
+                }
+              }}
+            />
+          </label>
         </div>
+        {importMsg && (
+          <p
+            className="settings-muted"
+            style={{ marginTop: 12, marginBottom: 0 }}
+            role="status"
+          >
+            {importMsg}
+          </p>
+        )}
       </div>
 
       <div className="panel panel-pad" style={{ marginBottom: 20 }}>

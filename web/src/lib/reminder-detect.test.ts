@@ -15,16 +15,28 @@ describe("detectRemindersInNote", () => {
     vi.useRealTimers();
   });
 
-  it.each(fixtures as { title: string; body: string; expectCount: number; expectRepeat: string | null }[])(
+  it.each(
+    fixtures as {
+      title: string;
+      body: string;
+      expectCount: number;
+      expectRepeat?: string | null;
+      expectConfidence?: "high" | "maybe";
+    }[],
+  )(
     "fixture: $title",
-    ({ title, body, expectCount, expectRepeat }) => {
+    ({ title, body, expectCount, expectRepeat, expectConfidence }) => {
       const found = detectRemindersInNote(title, body, {
         defaultHour: 9,
         defaultMinute: 0,
+        referenceDate: FIXTURE_REFERENCE_DATE,
       });
       expect(found.length).toBe(expectCount);
       if (expectCount > 0 && expectRepeat !== undefined) {
         expect(found[0].repeatRule).toBe(expectRepeat);
+      }
+      if (expectCount > 0 && expectConfidence) {
+        expect(found[0].confidence).toBe(expectConfidence);
       }
     },
   );

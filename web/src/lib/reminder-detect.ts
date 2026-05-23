@@ -2,9 +2,13 @@ import { loadUserPrefs } from "./user-prefs";
 
 export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
 
+export type DetectConfidence = "high" | "maybe";
+
 export type DetectOptions = {
   defaultHour?: number;
   defaultMinute?: number;
+  /** Pin “now” for tests (relative phrases use local calendar). */
+  referenceDate?: Date;
 };
 
 export type DetectedReminder = {
@@ -16,6 +20,7 @@ export type DetectedReminder = {
   source: string;
   priority: number;
   usedDefaultTime: boolean;
+  confidence: DetectConfidence;
 };
 
 const MONTHS: Record<string, number> = {
@@ -150,6 +155,7 @@ function pushCandidate(
     priority: number;
     defaultHour: number;
     defaultMinute: number;
+    confidence?: DetectConfidence;
   },
 ) {
   const usedDefaultTime = opts.hour === undefined;
@@ -164,6 +170,8 @@ function pushCandidate(
   if (usedDefaultTime) {
     reason += ` · No time found — default ${formatDefaultTime(hour, minute)}`;
   }
+  const confidence: DetectConfidence =
+    opts.confidence ?? (usedDefaultTime ? "maybe" : "high");
   out.push({
     id,
     fireAt,
@@ -173,7 +181,111 @@ function pushCandidate(
     source: opts.source.trim().slice(0, 120),
     priority: opts.priority,
     usedDefaultTime,
+    confidence,
   });
+}
+
+const WEEKDAYS: Record<string, number> = {
+  sunday: 0, sun: 0,
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4, thur: 4, thurs: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+};
+
+function addCalendarDays(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function nextWeekday(base: Date, targetDow: number): Date {
+  const d = new Date(base);
+  d.setHours(0, 0, 0, 0);
+  const current = d.getDay();
+  let delta = (targetDow - current + 7) % 7;
+  if (delta === 0) delta = 7;
+  d.setDate(d.getDate() + delta);
+  return d;
+}
+
+function scanRelativeDates(
+  text: string,
+  title: string,
+  out: DetectedReminder[],
+  seen: Set<string>,
+  defaults: { defaultHour: number; defaultMinute: number },
+  reference: Date,
+) {
+  const base = new Date(reference);
+  base.setHours(0, 0, 0, 0);
+
+  const relativePatterns: {
+    re: RegExp;
+    resolve: (m: RegExpMatchArray) => { date: Date; timeRaw?: string } | null;
+    reason: string;
+  }[] = [
+    {
+      re: /\btomorrow(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?/gi,
+      resolve: (m) => ({
+        date: addCalendarDays(base, 1),
+        timeRaw: m[1],
+      }),
+      reason: "Relative date: tomorrow",
+    },
+    {
+      re: /\btoday(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?/gi,
+      resolve: (m) => ({
+        date: new Date(base),
+        timeRaw: m[1],
+      }),
+      reason: "Relative date: today",
+    },
+    {
+      re: /\bin\s+(\d{1,2})\s+days?(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?/gi,
+      resolve: (m) => ({
+        date: addCalendarDays(base, Number(m[1])),
+        timeRaw: m[2],
+      }),
+      reason: "Relative date: in N days",
+    },
+    {
+      re: /\bnext\s+(sunday|sun|monday|mon|tuesday|tue|tues|wednesday|wed|thursday|thu|thur|thurs|friday|fri|saturday|sat)(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?/gi,
+      resolve: (m) => {
+        const dow = WEEKDAYS[m[1].toLowerCase()];
+        if (dow === undefined) return null;
+        return { date: nextWeekday(base, dow), timeRaw: m[2] };
+      },
+      reason: "Relative date: next weekday",
+    },
+  ];
+
+  for (const { re, resolve, reason } of relativePatterns) {
+    for (const m of text.matchAll(re)) {
+      const ctx = contextAround(text, m.index ?? 0);
+      if (isLikelyFalsePositive(m[0], ctx)) continue;
+      const parts = resolve(m);
+      if (!parts) continue;
+      const time = parts.timeRaw ? parseTimeToken(parts.timeRaw) : null;
+      const { repeatRule, reason: repeatReason } = inferRepeat(ctx, title);
+      pushCandidate(out, seen, {
+        year: parts.date.getFullYear(),
+        month: parts.date.getMonth() + 1,
+        day: parts.date.getDate(),
+        hour: time?.hour,
+        minute: time?.minute,
+        label: title.trim() || m[0].trim(),
+        reason: `${reason} · ${repeatReason}`,
+        source: m[0],
+        repeatRule,
+        priority: 8,
+        confidence: time ? "high" : "maybe",
+        ...defaults,
+      });
+    }
+  }
 }
 
 function formatDefaultTime(hour: number, minute: number) {
@@ -364,6 +476,9 @@ export function detectRemindersInNote(
   const out: DetectedReminder[] = [];
   const seen = new Set<string>();
 
+  const reference = options?.referenceDate ?? new Date();
+  const combined = [trimmedTitle, trimmedBody].filter(Boolean).join("\n");
+
   if (trimmedTitle) {
     parseTitleLine(trimmedTitle, out, seen, defaults);
     scanDatePatterns(trimmedTitle, trimmedTitle, out, seen, defaults, 15);
@@ -374,12 +489,19 @@ export function detectRemindersInNote(
   if (trimmedBody) {
     scanDatePatterns(trimmedBody, trimmedTitle, out, seen, defaults, 0);
   }
+  if (combined) {
+    scanRelativeDates(combined, trimmedTitle, out, seen, defaults, reference);
+  }
 
-  const now = Date.now();
+  const now = reference.getTime();
   return out
     .filter((r) => new Date(r.fireAt).getTime() > now - 86_400_000)
     .sort((a, b) => b.priority - a.priority || a.fireAt.localeCompare(b.fireAt))
     .slice(0, MAX_SUGGESTIONS);
+}
+
+export function formatConfidenceLabel(c: DetectConfidence): string {
+  return c === "high" ? "Likely" : "Maybe";
 }
 
 export function formatRepeatLabel(repeat: RepeatRule): string {
