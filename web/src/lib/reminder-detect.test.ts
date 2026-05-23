@@ -1,8 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fixtures from "../../../shared/fixtures.json";
 import { detectRemindersInNote } from "./reminder-detect";
 
+/** Fixed "today" so fixture dates (e.g. May 2026) stay in the future. */
+const FIXTURE_REFERENCE_DATE = new Date("2026-05-01T12:00:00Z");
+
 describe("detectRemindersInNote", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FIXTURE_REFERENCE_DATE);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it.each(fixtures as { title: string; body: string; expectCount: number; expectRepeat: string | null }[])(
     "fixture: $title",
     ({ title, body, expectCount, expectRepeat }) => {
