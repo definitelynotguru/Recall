@@ -11,6 +11,7 @@ import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.sync.SyncWorker
+import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -50,6 +51,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         false,
+    )
+
+    val isOnline = app.networkMonitor.isOnline.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        app.networkMonitor.currentIsOnline(),
     )
 
     val userPrefs: UserPrefs = app.userPrefs
@@ -131,10 +138,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun syncNow(showSuccess: Boolean = true) {
         if (_isSyncing.value) return
+        if (!app.networkMonitor.currentIsOnline()) {
+            _syncHint.value = OFFLINE_SYNC_MESSAGE
+            return
+        }
         viewModelScope.launch {
             noteSaveJob?.let { job ->
                 job.cancel()
                 job.join()
+            }
+            if (!app.networkMonitor.currentIsOnline()) {
+                _syncHint.value = OFFLINE_SYNC_MESSAGE
+                return@launch
             }
             _isSyncing.value = true
             _syncHint.value = "Syncing…"

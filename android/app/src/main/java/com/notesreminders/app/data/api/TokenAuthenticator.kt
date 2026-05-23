@@ -23,8 +23,10 @@ class TokenAuthenticator(
                 response.request.newBuilder()
                     .header("Authorization", "Bearer ${result.access_token}")
                     .build()
-            } catch (_: Exception) {
-                tokenStore.clear()
+            } catch (e: Exception) {
+                if (TokenRefreshPolicy.shouldClearTokensOnRefreshFailure(e)) {
+                    tokenStore.clear()
+                }
                 null
             }
         }

@@ -1,35 +1,16 @@
 import { db } from "./db";
 import { notes, reminders } from "./db/schema";
 import { eq, and, isNull } from "drizzle-orm";
+import {
+  resolveNoteMerge,
+  resolveReminderMerge,
+  type SyncNoteInput,
+  type SyncReminderInput,
+} from "./sync-merge";
 
-type SyncNote = {
-  id: string;
-  title: string;
-  body: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-};
+export type { SyncNoteInput as SyncNote, SyncReminderInput as SyncReminder };
 
-type SyncReminder = {
-  id: string;
-  note_id: string;
-  fire_at: string;
-  timezone: string;
-  repeat_rule: string | null;
-  intensity: string;
-  status: string;
-  completed_at: string | null;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-};
-
-async function mergeNote(
-  userId: string,
-  client: SyncNote,
-): Promise<void> {
+async function mergeNote(userId: string, client: SyncNoteInput): Promise<void> {
   const [existing] = await db
     .select()
     .from(notes)
@@ -37,6 +18,9 @@ async function mergeNote(
     .limit(1);
 
   const clientUpdated = new Date(client.updated_at);
+  const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
+  if (action === "skip") return;
+
   const row = {
     id: client.id,
     userId,
@@ -48,19 +32,17 @@ async function mergeNote(
     deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,
   };
 
-  if (!existing) {
+  if (action === "insert") {
     await db.insert(notes).values(row);
     return;
   }
 
-  if (clientUpdated > existing.updatedAt) {
-    await db.update(notes).set(row).where(eq(notes.id, client.id));
-  }
+  await db.update(notes).set(row).where(eq(notes.id, client.id));
 }
 
 async function mergeReminder(
   userId: string,
-  client: SyncReminder,
+  client: SyncReminderInput,
 ): Promise<void> {
   const [existing] = await db
     .select()
@@ -69,6 +51,9 @@ async function mergeReminder(
     .limit(1);
 
   const clientUpdated = new Date(client.updated_at);
+  const action = resolveReminderMerge(existing?.updatedAt, clientUpdated);
+  if (action === "skip") return;
+
   const row = {
     id: client.id,
     userId,
@@ -86,20 +71,18 @@ async function mergeReminder(
     deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,
   };
 
-  if (!existing) {
+  if (action === "insert") {
     await db.insert(reminders).values(row);
     return;
   }
 
-  if (clientUpdated > existing.updatedAt) {
-    await db.update(reminders).set(row).where(eq(reminders.id, client.id));
-  }
+  await db.update(reminders).set(row).where(eq(reminders.id, client.id));
 }
 
 export async function processSync(
   userId: string,
-  incomingNotes: SyncNote[],
-  incomingReminders: SyncReminder[],
+  incomingNotes: SyncNoteInput[],
+  incomingReminders: SyncReminderInput[],
 ) {
   for (const n of incomingNotes) {
     await mergeNote(userId, n);

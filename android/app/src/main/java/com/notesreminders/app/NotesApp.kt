@@ -7,6 +7,7 @@ import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.ApiClient
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
+import com.notesreminders.app.net.NetworkMonitor
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
 import com.notesreminders.app.sync.SyncWorker
@@ -18,6 +19,7 @@ class NotesApp : Application() {
     lateinit var syncRepository: SyncRepository
     lateinit var notesRepository: NotesRepository
     lateinit var userPrefs: UserPrefs
+    lateinit var networkMonitor: NetworkMonitor
 
     override fun onCreate() {
         super.onCreate()
@@ -36,6 +38,14 @@ class NotesApp : Application() {
             syncRepository,
             reconciler,
         )
+        networkMonitor = NetworkMonitor(this).apply {
+            onReconnect = {
+                if (tokenStore.isLoggedIn()) {
+                    SyncWorker.runOnce(this@NotesApp)
+                }
+            }
+            start()
+        }
         if (tokenStore.isLoggedIn()) {
             SyncWorker.schedule(this)
         }

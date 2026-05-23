@@ -1,8 +1,11 @@
 package com.notesreminders.app.sync
 
 import android.content.Context
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -17,6 +20,7 @@ class SyncWorker(
     override suspend fun doWork(): Result {
         val app = applicationContext as NotesApp
         if (!app.tokenStore.isLoggedIn()) return Result.success()
+        if (!app.networkMonitor.currentIsOnline()) return Result.success()
         return app.syncRepository.sync()
             .fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
     }
@@ -24,8 +28,14 @@ class SyncWorker(
     companion object {
         private const val WORK_NAME = "notes_sync"
 
+        private fun networkConstraints(): Constraints =
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<SyncWorker>(30, TimeUnit.MINUTES)
+                .setConstraints(networkConstraints())
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
@@ -35,7 +45,9 @@ class SyncWorker(
         }
 
         fun runOnce(context: Context) {
-            val request = androidx.work.OneTimeWorkRequestBuilder<SyncWorker>().build()
+            val request = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setConstraints(networkConstraints())
+                .build()
             WorkManager.getInstance(context).enqueue(request)
         }
     }

@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
@@ -24,10 +25,13 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import com.notesreminders.app.ui.components.OfflineSyncBanner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
@@ -70,7 +74,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val app = application as NotesApp
-        if (app.tokenStore.isLoggedIn()) {
+        if (app.tokenStore.isLoggedIn() && app.networkMonitor.currentIsOnline()) {
             SyncWorker.runOnce(this)
         }
     }
@@ -96,6 +100,7 @@ private data class BottomTab(
 
 @Composable
 private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
+    val isOnline by viewModel.isOnline.collectAsState()
     val nav = rememberNavController()
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
@@ -150,13 +155,21 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = nav,
-            startDestination = "today",
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .background(RecallColors.Ink),
         ) {
+            if (!isOnline) {
+                OfflineSyncBanner(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            NavHost(
+                navController = nav,
+                startDestination = "today",
+                modifier = Modifier.weight(1f),
+            ) {
             composable("today") {
                 TodayScreen(
                     viewModel = viewModel,
@@ -188,6 +201,7 @@ private fun MainShell(viewModel: AppViewModel, onLogout: () -> Unit) {
                     viewModel = viewModel,
                     onBack = { nav.popBackStack() },
                 )
+            }
             }
         }
     }

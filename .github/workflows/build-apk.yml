@@ -35,6 +35,10 @@ jobs:
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           echo "API_BASE_URL=${{ inputs.api_base_url || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}" >> local.properties
 
+      - name: Unit tests
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew :app:testDebugUnitTest --no-daemon
+
       - name: Assemble debug APK
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
