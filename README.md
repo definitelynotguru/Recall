@@ -27,6 +27,7 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
 | Tap notification → open note | — | Yes |
 | JSON backup export / import | Yes | — |
 | Debug reports (Android → server → web Settings) | View | Send |
+| In-app APK update (Settings → Update) | — | Yes |
 
 ## Architecture
 
@@ -87,7 +88,7 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 4. Run on a device or emulator.
 
-**APK:** [GitHub Releases v1.0.0-debug](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk) — rebuilt on `main` when `android/**` changes. See [android/README.md](android/README.md).
+**APK:** [GitHub Releases v1.0.0-debug](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk) — rebuilt on `main` when `android/**` changes. After first install, use **Settings → Update** to install newer builds without uninstalling. See [android/README.md](android/README.md).
 
 ### Deploy web (Vercel)
 

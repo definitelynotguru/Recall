@@ -42,6 +42,14 @@ describe("syncSchema", () => {
     expect(syncSchema.safeParse(validPayload()).success).toBe(true);
   });
 
+  it("accepts omitted deleted_at (Android Gson null omit)", () => {
+    const raw = validPayload();
+    const { deleted_at: _, ...noteWithoutDeleted } = raw.notes[0];
+    raw.notes[0] = noteWithoutDeleted as (typeof raw.notes)[0];
+    const parsed = syncSchema.parse(raw);
+    expect(parsed.notes[0].deleted_at).toBeNull();
+  });
+
   it("strips unknown keys like user_id", () => {
     const raw = {
       ...validPayload(),

@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -25,7 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.notesreminders.app.BuildConfig
+import android.app.Activity
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
@@ -45,6 +51,9 @@ fun SettingsScreen(
     val zone = ZoneId.systemDefault().id
     var debugMessage by remember { mutableStateOf<String?>(null) }
     var sendingDebug by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
+    var updating by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? Activity
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -71,7 +80,59 @@ fun SettingsScreen(
             onSync = { viewModel.syncNow() },
             onSignOut = onLogout,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
+        RecallPanel {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Recall ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = RecallColors.Parchment,
+                    )
+                    Text(
+                        "Install over current app",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                }
+                Button(
+                    onClick = {
+                        val act = activity ?: return@Button
+                        if (updating) return@Button
+                        updating = true
+                        updateMessage = null
+                        viewModel.downloadAndInstallUpdate(act) { msg ->
+                            updateMessage = msg
+                            updating = false
+                        }
+                    },
+                    enabled = !updating && activity != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RecallColors.Copper,
+                        contentColor = RecallColors.Ink,
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 16.dp,
+                        vertical = 6.dp,
+                    ),
+                ) {
+                    Text(
+                        if (updating) "…" else "Update",
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+            updateMessage?.let { msg ->
+                Spacer(Modifier.height(8.dp))
+                Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         RecallPanel {
             Text("Reminder defaults", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)

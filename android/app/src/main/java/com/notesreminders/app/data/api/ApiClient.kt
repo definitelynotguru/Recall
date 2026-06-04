@@ -1,5 +1,6 @@
 package com.notesreminders.app.data.api
 
+import com.google.gson.GsonBuilder
 import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.data.auth.TokenStore
 import okhttp3.Interceptor
@@ -10,6 +11,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
+    private val gson = GsonBuilder().serializeNulls().create()
+
     fun create(tokenStore: TokenStore): NotesApi {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
@@ -29,7 +32,7 @@ object ApiClient {
 
         val retrofit = Retrofit.Builder()
             .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .client(
                 OkHttpClient.Builder()
                     .connectTimeout(30, TimeUnit.SECONDS)
@@ -40,7 +43,7 @@ object ApiClient {
                         TokenAuthenticator(tokenStore) { body ->
                             Retrofit.Builder()
                                 .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
-                                .addConverterFactory(GsonConverterFactory.create())
+                                .addConverterFactory(GsonConverterFactory.create(gson))
                                 .build()
                                 .create(NotesApi::class.java)
                                 .refresh(body)

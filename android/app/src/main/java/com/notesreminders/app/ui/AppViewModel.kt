@@ -11,7 +11,10 @@ import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.api.ApiErrorParser
+import android.app.Activity
+import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.debug.DebugReportCollector
+import com.notesreminders.app.update.AppUpdater
 import com.notesreminders.app.sync.SyncDiagnostics
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
@@ -178,6 +181,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         msg
                     }
+                },
+            )
+        }
+    }
+
+    fun downloadAndInstallUpdate(activity: Activity, onStatus: (String) -> Unit) {
+        if (!app.networkMonitor.currentIsOnline()) {
+            onStatus("Need internet to download update")
+            return
+        }
+        viewModelScope.launch {
+            onStatus("Downloading update…")
+            if (!AppUpdater.canInstallPackages(activity)) {
+                onStatus("Allow installs from this app, then tap Update again")
+                AppUpdater.openInstallPermissionSettings(activity)
+                return@launch
+            }
+            val result = withContext(Dispatchers.IO) {
+                AppUpdater.downloadLatestApk(activity)
+            }
+            result.fold(
+                onSuccess = { apk ->
+                    onStatus("Opening installer…")
+                    AppUpdater.promptInstall(activity, apk)
+                    onStatus("Follow prompts to install · v${BuildConfig.VERSION_NAME} installed until you update")
+                },
+                onFailure = {
+                    onStatus("Update failed: ${it.message ?: "unknown error"}")
                 },
             )
         }

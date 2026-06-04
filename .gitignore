@@ -14,3 +14,4 @@ dist/*.apk
 
 # OS
 .DS_Store
+android/.kotlin/
