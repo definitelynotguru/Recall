@@ -1,0 +1,114 @@
+package com.notesreminders.app.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.notesreminders.app.ui.theme.RecallColors
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ReminderEditorFields(
+    reminderDate: String,
+    onDateChange: (String) -> Unit,
+    hour24: Int,
+    minute: Int,
+    onTimeChange: (hour24: Int, minute: Int) -> Unit,
+    use12Hour: Boolean,
+    repeatRule: String,
+    onRepeatChange: (String) -> Unit,
+    fieldColors: androidx.compose.material3.TextFieldColors,
+) {
+    OutlinedTextField(
+        value = reminderDate,
+        onValueChange = onDateChange,
+        label = { Text("Date (YYYY-MM-DD)") },
+        colors = fieldColors,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
+    Spacer(Modifier.height(12.dp))
+    ReminderTimeSelector(
+        hour24 = hour24,
+        minute = minute,
+        use12Hour = use12Hour,
+        onTimeChange = onTimeChange,
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "Quick pick",
+        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+        color = RecallColors.ParchmentMuted,
+    )
+    Spacer(Modifier.height(6.dp))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        QuickChip("+10 min") {
+            applyOffset(onDateChange, onTimeChange, minutes = 10)
+        }
+        QuickChip("+1 hour") {
+            applyOffset(onDateChange, onTimeChange, minutes = 60)
+        }
+        QuickChip("Tonight") {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            onDateChange(today.toString())
+            onTimeChange(20, 0)
+        }
+        QuickChip("Tomorrow") {
+            val zone = ZoneId.systemDefault()
+            val tomorrow = LocalDate.now(zone).plusDays(1)
+            onDateChange(tomorrow.toString())
+            onTimeChange(9, 0)
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedTextField(
+        value = repeatRule,
+        onValueChange = onRepeatChange,
+        label = { Text("Repeat or empty") },
+        colors = fieldColors,
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun QuickChip(label: String, onClick: () -> Unit) {
+    FilterChip(
+        selected = false,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = RecallColors.InkElevated,
+            labelColor = RecallColors.Copper,
+        ),
+    )
+}
+
+private fun applyOffset(
+    onDateChange: (String) -> Unit,
+    onTimeChange: (Int, Int) -> Unit,
+    minutes: Long,
+) {
+    val zone = ZoneId.systemDefault()
+    val target = LocalDateTime.now(zone).plusMinutes(minutes)
+    onDateChange(target.toLocalDate().toString())
+    onTimeChange(target.hour, target.minute)
+}

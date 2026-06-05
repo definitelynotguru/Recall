@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,7 +21,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -44,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
@@ -67,7 +66,7 @@ fun NotesListScreen(
             Spacer(Modifier.height(16.dp))
             RecallScreenHeader(
                 title = "Notes",
-                subtitle = "Tap trash or swipe left to delete",
+                subtitle = "Tap a note to edit · swipe left to delete",
                 isSyncing = syncing,
                 syncHint = syncHint,
                 hasPendingSync = hasPendingSync,
@@ -168,29 +167,27 @@ private fun SwipeableNoteRow(
                 Modifier
                     .fillMaxSize()
                     .padding(vertical = 6.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(RecallColors.Error.copy(alpha = 0.25f)),
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(RecallColors.Error.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
                     tint = RecallColors.Error,
-                    modifier = Modifier.padding(end = 24.dp),
+                    modifier = Modifier.padding(end = 28.dp),
                 )
             }
         },
     ) {
-        NoteRow(note, onOpen, onDeleteRequest)
+        RecallPanel(modifier = Modifier.padding(vertical = 6.dp)) {
+            NoteRowContent(note, onOpen)
+        }
     }
 }
 
 @Composable
-private fun NoteRow(
-    note: NoteEntity,
-    onClick: (String) -> Unit,
-    onDelete: () -> Unit,
-) {
+private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
     val date = Instant.parse(note.updatedAt)
         .atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("MMM d"))
@@ -198,15 +195,13 @@ private fun NoteRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(note.id) }
-            .padding(vertical = 6.dp),
+            .clickable { onClick(note.id) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
                 .width(4.dp)
                 .height(52.dp)
-                .padding(start = 4.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(
                     Brush.verticalGradient(
@@ -217,7 +212,7 @@ private fun NoteRow(
         Column(
             Modifier
                 .weight(1f)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             Text(
                 note.title.ifBlank { "Untitled" },
@@ -238,12 +233,5 @@ private fun NoteRow(
             color = RecallColors.ParchmentMuted,
             modifier = Modifier.padding(end = 4.dp),
         )
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "Delete note",
-                tint = RecallColors.ParchmentMuted,
-            )
-        }
     }
 }

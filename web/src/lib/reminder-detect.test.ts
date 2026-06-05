@@ -41,6 +41,33 @@ describe("detectRemindersInNote", () => {
     },
   );
 
+  it("parses in three minutes", () => {
+    const found = detectRemindersInNote("Task", "in three minutes", {
+      referenceDate: FIXTURE_REFERENCE_DATE,
+    });
+    expect(found.length).toBe(1);
+    expect(found[0].confidence).toBe("high");
+    const fire = new Date(found[0].fireAt).getTime();
+    expect(fire).toBe(FIXTURE_REFERENCE_DATE.getTime() + 3 * 60_000);
+  });
+
+  it("parses in about 3 minutes", () => {
+    const found = detectRemindersInNote("Task", "in about 3 minutes", {
+      referenceDate: FIXTURE_REFERENCE_DATE,
+    });
+    expect(found.length).toBe(1);
+    expect(found[0].confidence).toBe("high");
+  });
+
+  it("parses half an hour", () => {
+    const found = detectRemindersInNote("", "remind in half an hour", {
+      referenceDate: FIXTURE_REFERENCE_DATE,
+    });
+    expect(found.length).toBe(1);
+    const fire = new Date(found[0].fireAt).getTime();
+    expect(fire).toBe(FIXTURE_REFERENCE_DATE.getTime() + 30 * 60_000);
+  });
+
   it("caps at five suggestions", () => {
     const body = [
       "2026-01-01",

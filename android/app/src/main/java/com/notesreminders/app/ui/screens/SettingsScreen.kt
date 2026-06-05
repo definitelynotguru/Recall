@@ -166,6 +166,29 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                Column(Modifier.weight(1f)) {
+                    Text("12-hour clock", color = RecallColors.Parchment)
+                    Text(
+                        "Reminder picker shows AM/PM",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                }
+                Switch(
+                    checked = prefs.use12HourClock,
+                    onCheckedChange = { prefs.use12HourClock = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = RecallColors.Ink,
+                        checkedTrackColor = RecallColors.Copper,
+                    ),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 Text("Auto-sync after reminder edits", color = RecallColors.ParchmentMuted)
                 Switch(
                     checked = prefs.autoSyncAfterReminder,

@@ -34,7 +34,7 @@ jobs:
         run: |
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           echo "API_BASE_URL=${{ inputs.api_base_url || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}" >> local.properties
-          echo "UPDATE_APK_URL=https://github.com/definitelynotguru/Recall/releases/download/v1.0.2-debug/recall-1.0.2-debug.apk" >> local.properties
+          echo "UPDATE_APK_URL=https://github.com/definitelynotguru/Recall/releases/download/v1.0.3-debug/recall-1.0.3-debug.apk" >> local.properties
 
       - name: Unit tests
         working-directory: android
@@ -47,7 +47,7 @@ jobs:
       - name: Rename APK
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk \
-            android/app/build/outputs/apk/debug/recall-1.0.2-debug.apk
+            android/app/build/outputs/apk/debug/recall-1.0.3-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:

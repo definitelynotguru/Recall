@@ -52,11 +52,12 @@ import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.reminders.ReminderDetect
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
+import com.notesreminders.app.ui.components.ReminderEditorFields
+import com.notesreminders.app.ui.components.parseReminderTimeFields
 import com.notesreminders.app.ui.theme.RecallColors
 import io.noties.markwon.Markwon
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -75,7 +76,8 @@ fun NoteDetailScreen(
     var showReminderDialog by remember(noteId) { mutableStateOf(false) }
     var editingReminder by remember(noteId) { mutableStateOf<ReminderEntity?>(null) }
     var reminderDate by remember(noteId) { mutableStateOf(LocalDate.now().toString()) }
-    var reminderTime by remember(noteId) { mutableStateOf("09:00") }
+    var reminderHour by remember(noteId) { mutableStateOf(9) }
+    var reminderMinute by remember(noteId) { mutableStateOf(0) }
     var repeatRule by remember(noteId) { mutableStateOf("") }
     var showDetectDialog by remember(noteId) { mutableStateOf(false) }
     var detectedList by remember(noteId) { mutableStateOf<List<DetectedReminder>>(emptyList()) }
@@ -119,24 +121,26 @@ fun NoteDetailScreen(
     fun openCreateDialog() {
         editingReminder = null
         reminderDate = LocalDate.now().toString()
-        reminderTime = "09:00"
+        reminderHour = viewModel.userPrefs.defaultReminderHour
+        reminderMinute = viewModel.userPrefs.defaultReminderMinute
         repeatRule = ""
         showReminderDialog = true
     }
 
     fun openEditDialog(reminder: ReminderEntity) {
         editingReminder = reminder
-        val (d, t, r) = reminderToLocalFields(reminder)
+        val (d, h, m) = parseReminderTimeFields(reminder.fireAt)
         reminderDate = d
-        reminderTime = t
-        repeatRule = r
+        reminderHour = h
+        reminderMinute = m
+        repeatRule = reminder.repeatRule ?: ""
         showReminderDialog = true
     }
 
     fun saveReminderFromDialog() {
         val zone = ZoneId.systemDefault()
         val local = LocalDate.parse(reminderDate)
-            .atTime(LocalTime.parse(reminderTime))
+            .atTime(reminderHour.coerceIn(0, 23), reminderMinute.coerceIn(0, 59))
             .atZone(zone)
         val fireAt = local.toInstant().toString()
         val tz = zone.id
@@ -385,9 +389,14 @@ fun NoteDetailScreen(
                                         color = RecallColors.ParchmentMuted,
                                     )
                                     Text(
-                                        "${(d.repeatRule ?: "once").uppercase()} · ${if (d.confidence == "high") "Likely" else "Maybe"}",
+                                        "${if (d.confidence == "high") "Likely" else "Maybe"} · ${(d.repeatRule ?: "once").uppercase()}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = RecallColors.Copper,
+                                    )
+                                    Text(
+                                        "“${d.source.take(80)}”",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = RecallColors.ParchmentMuted,
                                     )
                                     Text(
                                         d.reason,
@@ -452,28 +461,19 @@ fun NoteDetailScreen(
             },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = reminderDate,
-                        onValueChange = { reminderDate = it },
-                        label = { Text("Date (YYYY-MM-DD)") },
-                        colors = fieldColors,
-                        singleLine = true,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = reminderTime,
-                        onValueChange = { reminderTime = it },
-                        label = { Text("Time (HH:mm)") },
-                        colors = fieldColors,
-                        singleLine = true,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = repeatRule,
-                        onValueChange = { repeatRule = it },
-                        label = { Text("Repeat or empty") },
-                        colors = fieldColors,
-                        singleLine = true,
+                    ReminderEditorFields(
+                        reminderDate = reminderDate,
+                        onDateChange = { reminderDate = it },
+                        hour24 = reminderHour,
+                        minute = reminderMinute,
+                        onTimeChange = { h, m ->
+                            reminderHour = h
+                            reminderMinute = m
+                        },
+                        use12Hour = viewModel.userPrefs.use12HourClock,
+                        repeatRule = repeatRule,
+                        onRepeatChange = { repeatRule = it },
+                        fieldColors = fieldColors,
                     )
                     if (editingReminder != null) {
                         Spacer(Modifier.height(12.dp))
@@ -588,10 +588,3 @@ private fun formatFireAt(iso: String): String {
     return Instant.parse(iso).atZone(ZoneId.systemDefault()).format(formatter)
 }
 
-private fun reminderToLocalFields(reminder: ReminderEntity): Triple<String, String, String> {
-    val zoned = Instant.parse(reminder.fireAt).atZone(ZoneId.systemDefault())
-    val date = zoned.format(DateTimeFormatter.ISO_LOCAL_DATE)
-    val time = zoned.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val repeat = reminder.repeatRule ?: ""
-    return Triple(date, time, repeat)
-}

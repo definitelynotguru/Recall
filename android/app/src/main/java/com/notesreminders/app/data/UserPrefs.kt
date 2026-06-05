@@ -22,10 +22,15 @@ class UserPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_ONBOARDING, false)
         set(v) = prefs.edit { putBoolean(KEY_ONBOARDING, v) }
 
+    var use12HourClock: Boolean
+        get() = prefs.getBoolean(KEY_12H_CLOCK, true)
+        set(v) = prefs.edit { putBoolean(KEY_12H_CLOCK, v) }
+
     companion object {
         private const val KEY_HOUR = "default_reminder_hour"
         private const val KEY_MINUTE = "default_reminder_minute"
         private const val KEY_AUTO_SYNC = "auto_sync_after_reminder"
         private const val KEY_ONBOARDING = "onboarding_done"
+        private const val KEY_12H_CLOCK = "use_12_hour_clock"
     }
 }
