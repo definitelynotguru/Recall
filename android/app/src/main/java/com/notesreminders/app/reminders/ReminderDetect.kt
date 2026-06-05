@@ -16,7 +16,7 @@ data class DetectedReminder(
     val reason: String,
     val source: String,
     val priority: Int = 0,
-    val confidence: String = "high",
+    val confidence: String = DetectConfidence.HIGH.wire,
 )
 
 object ReminderDetect {
@@ -61,12 +61,6 @@ object ReminderDetect {
     private val dailyKw = Regex(
         "\\b(daily|every\\s+day|each\\s+day|morning\\s+routine)\\b",
         RegexOption.IGNORE_CASE,
-    )
-
-    private val numberWords = mapOf(
-        "a" to 1, "an" to 1, "one" to 1, "two" to 2, "three" to 3, "four" to 4,
-        "five" to 5, "six" to 6, "seven" to 7, "eight" to 8, "nine" to 9,
-        "ten" to 10, "eleven" to 11, "twelve" to 12,
     )
 
     fun detect(
@@ -184,7 +178,7 @@ object ReminderDetect {
                 time?.first, time?.second,
                 title.ifBlank { "Reminder · $day/$month/$year" },
                 reason, block.trim(), repeat, 20, defaults,
-                confidence = if (time == null) "maybe" else "high",
+                confidence = if (time == null) DetectConfidence.MAYBE else DetectConfidence.HIGH,
             )
         }
     }
@@ -197,9 +191,6 @@ object ReminderDetect {
         return null
     }
 
-    private fun parseCount(token: String): Int? =
-        token.toIntOrNull() ?: numberWords[token.lowercase(Locale.US)]
-
     private fun scanDurations(
         text: String,
         title: String,
@@ -208,127 +199,23 @@ object ReminderDetect {
         defaults: Pair<Int, Int>,
         reference: java.time.Instant,
     ) {
-        val zone = ZoneId.systemDefault()
-        val now = reference.atZone(zone)
-
-        fun emitDuration(
-            m: MatchResult,
-            target: java.time.Instant,
-            reason: String,
-            priority: Int,
-            confidence: String,
-        ) {
-            if (!target.isAfter(reference)) return
-            val ctx = contextAround(text, m.range.first)
+        DurationPatternScanner.scan(text, title, reference, defaults) { matchText, matchIndex, fireAt, reason, priority, confidence ->
+            val ctx = contextAround(text, matchIndex)
             val (repeat, repeatReason) = inferRepeat(ctx, title)
-            pushInstant(
-                out, seen, target,
-                title.ifBlank { m.value.trim() },
-                "$reason · $repeatReason",
-                m.value,
-                repeat,
-                priority,
-                confidence,
-            )
-        }
-
-        Regex(
-            """\b(?:in|after)\s+(?:about|around|roughly)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b""",
-            RegexOption.IGNORE_CASE,
-        ).findAll(text).forEach { m ->
-            val n = parseCount(m.groupValues[1]) ?: return@forEach
-            if (n !in 1..999) return@forEach
-            val target = reference.plusSeconds(n.toLong() * 60)
-            emitDuration(m, target, "Duration: in $n minute(s)", 18, "high")
-        }
-
-        Regex(
-            """\b(?:remind\s+me\s+)?in\s+(?:about|around)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b""",
-            RegexOption.IGNORE_CASE,
-        ).findAll(text).forEach { m ->
-            val n = parseCount(m.groupValues[1]) ?: return@forEach
-            if (n !in 1..999) return@forEach
-            val target = reference.plusSeconds(n.toLong() * 60)
-            emitDuration(m, target, "Duration: remind in $n minute(s)", 18, "high")
-        }
-
-        Regex("""\bin\s+(?:about\s+)?half\s+(?:an?\s+)?hour\b""", RegexOption.IGNORE_CASE)
-            .findAll(text).forEach { m ->
-                emitDuration(m, reference.plusSeconds(30 * 60), "Duration: half an hour", 17, "high")
-            }
-
-        Regex("""\b(?:in|after)\s+(?:an?\s+)?hour\b""", RegexOption.IGNORE_CASE)
-            .findAll(text).forEach { m ->
-                emitDuration(m, reference.plusSeconds(3600), "Duration: in one hour", 17, "high")
-            }
-
-        Regex(
-            """\b(?:in|after)\s+(?:about|around)?\s*(\d{1,2}|[a-z]+)\s+hours?\b""",
-            RegexOption.IGNORE_CASE,
-        ).findAll(text).forEach { m ->
-            val n = parseCount(m.groupValues[1]) ?: return@forEach
-            if (n !in 1..48) return@forEach
-            emitDuration(m, reference.plusSeconds(n.toLong() * 3600), "Duration: in $n hour(s)", 17, "high")
-        }
-
-        Regex("""\blater\s+today\b""", RegexOption.IGNORE_CASE).findAll(text).forEach { m ->
-            val target = reference.plusSeconds(3 * 3600)
-            emitDuration(m, target, "Vague: later today", 10, "maybe")
-        }
-
-        Regex("""\btonight\b""", RegexOption.IGNORE_CASE).findAll(text).forEach { m ->
-            val evening = now.toLocalDate().atTime(20, 0).atZone(zone)
-            val target = if (evening.toInstant().isAfter(reference)) {
-                evening.toInstant()
-            } else {
-                reference.plusSeconds(3600)
-            }
-            emitDuration(m, target, "Vague: tonight", 10, "maybe")
-        }
-
-        Regex("""\btomorrow\s+morning\b""", RegexOption.IGNORE_CASE).findAll(text).forEach { m ->
-            val target = now.toLocalDate().plusDays(1)
-                .atTime(defaults.first.coerceIn(0, 23), defaults.second.coerceIn(0, 59))
-                .atZone(zone)
-                .toInstant()
-            emitDuration(m, target, "Relative: tomorrow morning", 12, "high")
-        }
-
-        Regex("""\bnext\s+week\b""", RegexOption.IGNORE_CASE).findAll(text).forEach { m ->
-            val target = now.toLocalDate().plusDays(7)
-                .atTime(defaults.first.coerceIn(0, 23), defaults.second.coerceIn(0, 59))
-                .atZone(zone)
-                .toInstant()
-            emitDuration(m, target, "Relative: next week", 9, "maybe")
-        }
-    }
-
-    private fun pushInstant(
-        out: MutableList<DetectedReminder>,
-        seen: MutableSet<String>,
-        instant: java.time.Instant,
-        label: String,
-        reason: String,
-        source: String,
-        repeat: String?,
-        priority: Int,
-        confidence: String,
-    ) {
-        val zdt = instant.atZone(ZoneId.systemDefault())
-        val id = "dur-${instant.epochSecond}-${repeat ?: "once"}"
-        if (!seen.add(id)) return
-        out.add(
-            DetectedReminder(
-                id = id,
-                fireAt = instant.toString(),
-                repeatRule = repeat,
-                label = label,
-                reason = reason,
-                source = source.take(120),
+            pushDetected(
+                out = out,
+                seen = seen,
+                fireAt = fireAt,
+                label = title.ifBlank { matchText.trim() },
+                reason = "$reason · $repeatReason",
+                source = matchText,
+                repeat = repeat,
                 priority = priority,
                 confidence = confidence,
-            ),
-        )
+                idOverride = "dur-${fireAt.epochSecond}-${repeat ?: "once"}",
+                usedDefaultTime = false,
+            )
+        }
     }
 
     private fun scanRelative(
@@ -398,7 +285,7 @@ object ReminderDetect {
             repeat,
             8,
             defaults,
-            confidence = if (time != null) "high" else "maybe",
+            confidence = if (time != null) DetectConfidence.HIGH else DetectConfidence.MAYBE,
         )
     }
 
@@ -470,7 +357,7 @@ object ReminderDetect {
         repeat: String?,
         priority: Int,
         defaults: Pair<Int, Int>,
-        confidence: String = "high",
+        confidence: DetectConfidence = DetectConfidence.HIGH,
     ) {
         val usedDefault = hour == null
         val h = hour ?: defaults.first
@@ -482,22 +369,49 @@ object ReminderDetect {
         } catch (_: Exception) {
             return
         }
-        val fireAt = ldt.atZone(zone).toInstant().toString()
-        val id = "$year-$month-$day-$h$min-${repeat ?: "once"}"
-        if (!seen.add(id)) return
+        val fireAt = ldt.atZone(zone).toInstant()
         var finalReason = reason
         if (usedDefault) finalReason += " · No time found — using default"
-        val conf = if (usedDefault) "maybe" else confidence
+        val conf = if (usedDefault) DetectConfidence.MAYBE else confidence
+        pushDetected(
+            out = out,
+            seen = seen,
+            fireAt = fireAt,
+            label = label,
+            reason = finalReason,
+            source = source,
+            repeat = repeat,
+            priority = priority,
+            confidence = conf,
+            idOverride = "$year-$month-$day-$h$min-${repeat ?: "once"}",
+            usedDefaultTime = usedDefault,
+        )
+    }
+
+    private fun pushDetected(
+        out: MutableList<DetectedReminder>,
+        seen: MutableSet<String>,
+        fireAt: java.time.Instant,
+        label: String,
+        reason: String,
+        source: String,
+        repeat: String?,
+        priority: Int,
+        confidence: DetectConfidence,
+        idOverride: String,
+        usedDefaultTime: Boolean,
+    ) {
+        if (!seen.add(idOverride)) return
         out.add(
             DetectedReminder(
-                id = id,
-                fireAt = fireAt,
+                id = idOverride,
+                fireAt = fireAt.toString(),
                 repeatRule = repeat,
                 label = label,
-                reason = finalReason,
+                reason = reason,
                 source = source.take(120),
                 priority = priority,
-                confidence = conf,
+                confidence = confidence.wire,
             ),
         )
     }

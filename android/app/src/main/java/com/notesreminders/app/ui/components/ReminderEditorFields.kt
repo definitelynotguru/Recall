@@ -16,9 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -32,6 +29,8 @@ fun ReminderEditorFields(
     repeatRule: String,
     onRepeatChange: (String) -> Unit,
     fieldColors: androidx.compose.material3.TextFieldColors,
+    defaultHour: Int,
+    defaultMinute: Int,
 ) {
     OutlinedTextField(
         value = reminderDate,
@@ -60,22 +59,16 @@ fun ReminderEditorFields(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         QuickChip("+10 min") {
-            applyOffset(onDateChange, onTimeChange, minutes = 10)
+            applyReminderQuickPick(ReminderQuickPick.PLUS_10_MIN, defaultHour, defaultMinute, onDateChange, onTimeChange)
         }
         QuickChip("+1 hour") {
-            applyOffset(onDateChange, onTimeChange, minutes = 60)
+            applyReminderQuickPick(ReminderQuickPick.PLUS_1_HOUR, defaultHour, defaultMinute, onDateChange, onTimeChange)
         }
         QuickChip("Tonight") {
-            val zone = ZoneId.systemDefault()
-            val today = LocalDate.now(zone)
-            onDateChange(today.toString())
-            onTimeChange(20, 0)
+            applyReminderQuickPick(ReminderQuickPick.TONIGHT, defaultHour, defaultMinute, onDateChange, onTimeChange)
         }
         QuickChip("Tomorrow") {
-            val zone = ZoneId.systemDefault()
-            val tomorrow = LocalDate.now(zone).plusDays(1)
-            onDateChange(tomorrow.toString())
-            onTimeChange(9, 0)
+            applyReminderQuickPick(ReminderQuickPick.TOMORROW, defaultHour, defaultMinute, onDateChange, onTimeChange)
         }
     }
     Spacer(Modifier.height(8.dp))
@@ -100,15 +93,4 @@ private fun QuickChip(label: String, onClick: () -> Unit) {
             labelColor = RecallColors.Copper,
         ),
     )
-}
-
-private fun applyOffset(
-    onDateChange: (String) -> Unit,
-    onTimeChange: (Int, Int) -> Unit,
-    minutes: Long,
-) {
-    val zone = ZoneId.systemDefault()
-    val target = LocalDateTime.now(zone).plusMinutes(minutes)
-    onDateChange(target.toLocalDate().toString())
-    onTimeChange(target.hour, target.minute)
 }

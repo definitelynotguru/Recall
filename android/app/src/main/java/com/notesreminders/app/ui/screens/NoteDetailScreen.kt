@@ -19,8 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -51,8 +49,9 @@ import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.reminders.ReminderDetect
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.components.DetectedRemindersDialog
 import com.notesreminders.app.ui.components.RecallPanel
-import com.notesreminders.app.ui.components.ReminderEditorFields
+import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.parseReminderTimeFields
 import com.notesreminders.app.ui.theme.RecallColors
 import io.noties.markwon.Markwon
@@ -344,166 +343,64 @@ fun NoteDetailScreen(
         }
     }
 
-    if (showDetectDialog) {
-        AlertDialog(
-            onDismissRequest = { showDetectDialog = false },
-            containerColor = RecallColors.InkSurface,
-            title = {
-                Text("Detected reminders", color = RecallColors.Parchment)
-            },
-            text = {
-                Column {
-                    if (detectedList.isEmpty()) {
-                        Text(
-                            "No dates found. Try Day/Month/Year/Time fields or text like \"22 Oct 2026 at 3pm\". Mention birthday for yearly repeats.",
-                            color = RecallColors.ParchmentMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else {
-                        detectedList.forEach { d ->
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                Checkbox(
-                                    checked = selectedDetected.contains(d.id),
-                                    onCheckedChange = { checked ->
-                                        selectedDetected = if (checked) {
-                                            selectedDetected + d.id
-                                        } else {
-                                            selectedDetected - d.id
-                                        }
-                                    },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = RecallColors.Copper,
-                                        checkmarkColor = RecallColors.Ink,
-                                    ),
-                                )
-                                Column(Modifier.weight(1f)) {
-                                    Text(d.label, color = RecallColors.Parchment)
-                                    Text(
-                                        formatFireAt(d.fireAt),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = RecallColors.ParchmentMuted,
-                                    )
-                                    Text(
-                                        "${if (d.confidence == "high") "Likely" else "Maybe"} · ${(d.repeatRule ?: "once").uppercase()}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = RecallColors.Copper,
-                                    )
-                                    Text(
-                                        "“${d.source.take(80)}”",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RecallColors.ParchmentMuted,
-                                    )
-                                    Text(
-                                        d.reason,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = RecallColors.ParchmentMuted,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                if (detectedList.isNotEmpty()) {
-                    TextButton(
-                        onClick = {
-                            fetchingReminders = true
-                            val zone = ZoneId.systemDefault()
-                            val picks = detectedList.filter { selectedDetected.contains(it.id) }
-                            showDetectDialog = false
-                            picks.forEach { d ->
-                                viewModel.addReminder(
-                                    noteId,
-                                    d.fireAt,
-                                    zone.id,
-                                    d.repeatRule,
-                                    autoSync = false,
-                                )
-                            }
-                            if (viewModel.userPrefs.autoSyncAfterReminder) {
-                                viewModel.syncNow(showSuccess = true)
-                            }
-                            fetchingReminders = false
-                            refreshReminders()
-                        },
-                        enabled = selectedDetected.isNotEmpty(),
-                    ) {
-                        Text("Add selected", color = RecallColors.Copper)
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDetectDialog = false }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
-            },
-        )
-    }
-
-    if (showReminderDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showReminderDialog = false
-                editingReminder = null
-            },
-            containerColor = RecallColors.InkSurface,
-            title = {
-                Text(
-                    if (editingReminder != null) "Edit reminder" else "Schedule nudge",
-                    color = RecallColors.Parchment,
+    DetectedRemindersDialog(
+        open = showDetectDialog,
+        detected = detectedList,
+        selectedIds = selectedDetected,
+        onToggle = { id, checked ->
+            selectedDetected = if (checked) selectedDetected + id else selectedDetected - id
+        },
+        onDismiss = { showDetectDialog = false },
+        onConfirm = {
+            fetchingReminders = true
+            val zone = ZoneId.systemDefault()
+            val picks = detectedList.filter { selectedDetected.contains(it.id) }
+            showDetectDialog = false
+            picks.forEach { d ->
+                viewModel.addReminder(
+                    noteId,
+                    d.fireAt,
+                    zone.id,
+                    d.repeatRule,
+                    autoSync = false,
                 )
-            },
-            text = {
-                Column {
-                    ReminderEditorFields(
-                        reminderDate = reminderDate,
-                        onDateChange = { reminderDate = it },
-                        hour24 = reminderHour,
-                        minute = reminderMinute,
-                        onTimeChange = { h, m ->
-                            reminderHour = h
-                            reminderMinute = m
-                        },
-                        use12Hour = viewModel.userPrefs.use12HourClock,
-                        repeatRule = repeatRule,
-                        onRepeatChange = { repeatRule = it },
-                        fieldColors = fieldColors,
-                    )
-                    if (editingReminder != null) {
-                        Spacer(Modifier.height(12.dp))
-                        TextButton(
-                            onClick = {
-                                reminderToDelete = editingReminder
-                                showReminderDialog = false
-                                editingReminder = null
-                            },
-                        ) {
-                            Text("Delete reminder", color = RecallColors.Error)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { saveReminderFromDialog() }) {
-                    Text("Save", color = RecallColors.Copper)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showReminderDialog = false
-                    editingReminder = null
-                }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
-            },
-        )
-    }
+            }
+            if (viewModel.userPrefs.autoSyncAfterReminder) {
+                viewModel.syncNow(showSuccess = true)
+            }
+            fetchingReminders = false
+            refreshReminders()
+        },
+    )
+
+    ReminderScheduleDialog(
+        open = showReminderDialog,
+        title = if (editingReminder != null) "Edit reminder" else "Schedule nudge",
+        reminderDate = reminderDate,
+        onDateChange = { reminderDate = it },
+        hour24 = reminderHour,
+        minute = reminderMinute,
+        onTimeChange = { h, m ->
+            reminderHour = h
+            reminderMinute = m
+        },
+        use12Hour = viewModel.userPrefs.use12HourClock,
+        repeatRule = repeatRule,
+        onRepeatChange = { repeatRule = it },
+        defaultHour = viewModel.userPrefs.defaultReminderHour,
+        defaultMinute = viewModel.userPrefs.defaultReminderMinute,
+        showDelete = editingReminder != null,
+        onDelete = {
+            reminderToDelete = editingReminder
+            showReminderDialog = false
+            editingReminder = null
+        },
+        onDismiss = {
+            showReminderDialog = false
+            editingReminder = null
+        },
+        onSave = { saveReminderFromDialog() },
+    )
 
     if (showDeleteNoteDialog) {
         AlertDialog(

@@ -1,3 +1,4 @@
+import { scanDurationPhrases } from "./duration-patterns";
 import { loadUserPrefs } from "./user-prefs";
 
 export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
@@ -139,6 +140,48 @@ function makeId(
   return `${year}-${pad(month)}-${pad(day)}-${pad(hour)}${pad(minute)}-${repeat ?? "once"}`;
 }
 
+function pushDetected(
+  out: DetectedReminder[],
+  seen: Set<string>,
+  opts: {
+    fireAt: Date;
+    label: string;
+    reason: string;
+    source: string;
+    repeatRule: RepeatRule;
+    priority: number;
+    confidence: DetectConfidence;
+    usedDefaultTime: boolean;
+    idOverride?: string;
+  },
+) {
+  const fireAtIso = opts.fireAt.toISOString();
+  if (Number.isNaN(opts.fireAt.getTime())) return;
+  const id =
+    opts.idOverride ??
+    makeId(
+      opts.fireAt.getFullYear(),
+      opts.fireAt.getMonth() + 1,
+      opts.fireAt.getDate(),
+      opts.fireAt.getHours(),
+      opts.fireAt.getMinutes(),
+      opts.repeatRule,
+    );
+  if (seen.has(id)) return;
+  seen.add(id);
+  out.push({
+    id,
+    fireAt: fireAtIso,
+    repeatRule: opts.repeatRule,
+    label: opts.label,
+    reason: opts.reason,
+    source: opts.source.trim().slice(0, 120),
+    priority: opts.priority,
+    usedDefaultTime: opts.usedDefaultTime,
+    confidence: opts.confidence,
+  });
+}
+
 function pushCandidate(
   out: DetectedReminder[],
   seen: Set<string>,
@@ -163,25 +206,22 @@ function pushCandidate(
   const minute = opts.minute ?? opts.defaultMinute;
   const fireAt = toIso(opts.year, opts.month, opts.day, hour, minute);
   if (!fireAt) return;
-  const id = makeId(opts.year, opts.month, opts.day, hour, minute, opts.repeatRule);
-  if (seen.has(id)) return;
-  seen.add(id);
   let reason = opts.reason;
   if (usedDefaultTime) {
     reason += ` · No time found — default ${formatDefaultTime(hour, minute)}`;
   }
   const confidence: DetectConfidence =
     opts.confidence ?? (usedDefaultTime ? "maybe" : "high");
-  out.push({
-    id,
-    fireAt,
-    repeatRule: opts.repeatRule,
+  pushDetected(out, seen, {
+    fireAt: new Date(fireAt),
     label: opts.label,
     reason,
-    source: opts.source.trim().slice(0, 120),
+    source: opts.source,
+    repeatRule: opts.repeatRule,
     priority: opts.priority,
-    usedDefaultTime,
     confidence,
+    usedDefaultTime,
+    idOverride: makeId(opts.year, opts.month, opts.day, hour, minute, opts.repeatRule),
   });
 }
 
@@ -209,124 +249,6 @@ function nextWeekday(base: Date, targetDow: number): Date {
   if (delta === 0) delta = 7;
   d.setDate(d.getDate() + delta);
   return d;
-}
-
-const NUMBER_WORDS: Record<string, number> = {
-  a: 1,
-  an: 1,
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  eleven: 11,
-  twelve: 12,
-};
-
-function parseCountToken(token: string): number | null {
-  const n = Number(token);
-  if (!Number.isNaN(n)) return n;
-  return NUMBER_WORDS[token.toLowerCase()] ?? null;
-}
-
-function scanDurationPhrases(
-  text: string,
-  title: string,
-  out: DetectedReminder[],
-  seen: Set<string>,
-  defaults: { defaultHour: number; defaultMinute: number },
-  reference: Date,
-) {
-  const refMs = reference.getTime();
-
-  function emit(
-    m: RegExpMatchArray,
-    target: Date,
-    reason: string,
-    priority: number,
-    confidence: DetectConfidence,
-  ) {
-    if (target.getTime() <= refMs) return;
-    const ctx = contextAround(text, m.index ?? 0);
-    const { repeatRule, reason: repeatReason } = inferRepeat(ctx, title);
-    const id = `dur-${target.getTime()}-${repeatRule ?? "once"}`;
-    if (seen.has(id)) return;
-    seen.add(id);
-    const fireAt = target.toISOString();
-    out.push({
-      id,
-      fireAt,
-      repeatRule,
-      label: title.trim() || m[0].trim(),
-      reason: `${reason} · ${repeatReason}`,
-      source: m[0].trim().slice(0, 120),
-      priority,
-      usedDefaultTime: false,
-      confidence,
-    });
-  }
-
-  const minuteRe =
-    /\b(?:in|after)\s+(?:about|around|roughly)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b/gi;
-  for (const m of text.matchAll(minuteRe)) {
-    const n = parseCountToken(m[1]);
-    if (n == null || n < 1 || n > 999) continue;
-    emit(m, new Date(refMs + n * 60_000), `Duration: in ${n} minute(s)`, 18, "high");
-  }
-
-  const remindMinuteRe =
-    /\b(?:remind\s+me\s+)?in\s+(?:about|around)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b/gi;
-  for (const m of text.matchAll(remindMinuteRe)) {
-    const n = parseCountToken(m[1]);
-    if (n == null || n < 1 || n > 999) continue;
-    emit(m, new Date(refMs + n * 60_000), `Duration: remind in ${n} minute(s)`, 18, "high");
-  }
-
-  for (const m of text.matchAll(/\bin\s+(?:about\s+)?half\s+(?:an?\s+)?hour\b/gi)) {
-    emit(m, new Date(refMs + 30 * 60_000), "Duration: half an hour", 17, "high");
-  }
-
-  for (const m of text.matchAll(/\b(?:in|after)\s+(?:an?\s+)?hour\b/gi)) {
-    emit(m, new Date(refMs + 3_600_000), "Duration: in one hour", 17, "high");
-  }
-
-  const hourRe = /\b(?:in|after)\s+(?:about|around)?\s*(\d{1,2}|[a-z]+)\s+hours?\b/gi;
-  for (const m of text.matchAll(hourRe)) {
-    const n = parseCountToken(m[1]);
-    if (n == null || n < 1 || n > 48) continue;
-    emit(m, new Date(refMs + n * 3_600_000), `Duration: in ${n} hour(s)`, 17, "high");
-  }
-
-  for (const m of text.matchAll(/\blater\s+today\b/gi)) {
-    emit(m, new Date(refMs + 3 * 3_600_000), "Vague: later today", 10, "maybe");
-  }
-
-  for (const m of text.matchAll(/\btonight\b/gi)) {
-    const evening = new Date(reference);
-    evening.setHours(20, 0, 0, 0);
-    const target =
-      evening.getTime() > refMs ? evening : new Date(refMs + 3_600_000);
-    emit(m, target, "Vague: tonight", 10, "maybe");
-  }
-
-  for (const m of text.matchAll(/\btomorrow\s+morning\b/gi)) {
-    const d = new Date(reference);
-    d.setDate(d.getDate() + 1);
-    d.setHours(defaults.defaultHour, defaults.defaultMinute, 0, 0);
-    emit(m, d, "Relative: tomorrow morning", 12, "high");
-  }
-
-  for (const m of text.matchAll(/\bnext\s+week\b/gi)) {
-    const d = new Date(reference);
-    d.setDate(d.getDate() + 7);
-    d.setHours(defaults.defaultHour, defaults.defaultMinute, 0, 0);
-    emit(m, d, "Relative: next week", 9, "maybe");
-  }
 }
 
 function scanRelativeDates(
@@ -609,7 +531,27 @@ export function detectRemindersInNote(
   }
   if (combined) {
     scanRelativeDates(combined, trimmedTitle, out, seen, defaults, reference);
-    scanDurationPhrases(combined, trimmedTitle, out, seen, defaults, reference);
+    scanDurationPhrases({
+      text: combined,
+      title: trimmedTitle,
+      reference,
+      defaultHour: defaults.defaultHour,
+      defaultMinute: defaults.defaultMinute,
+      inferRepeat,
+      contextAround,
+      pushDetected: (opts) =>
+        pushDetected(out, seen, {
+          fireAt: opts.fireAt,
+          label: opts.label,
+          reason: opts.reason,
+          source: opts.source,
+          repeatRule: opts.repeatRule,
+          priority: opts.priority,
+          confidence: opts.confidence,
+          usedDefaultTime: opts.usedDefaultTime,
+          idOverride: opts.idOverride,
+        }),
+    });
   }
 
   const now = reference.getTime();

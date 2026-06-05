@@ -1,0 +1,94 @@
+{
+  "numberWords": {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12
+  },
+  "rules": [
+    {
+      "id": "minutes",
+      "regex": "\\b(?:remind\\s+me\\s+)?(?:in|after)\\s+(?:about|around|roughly)?\\s*(\\d{1,3}|[a-z]+)\\s*(?:minute|min|mins|minutes)\\b",
+      "resolve": "plusMinutes",
+      "captureGroup": 1,
+      "min": 1,
+      "max": 999,
+      "priority": 18,
+      "confidence": "high",
+      "reason": "Duration: in {n} minute(s)"
+    },
+    {
+      "id": "halfHour",
+      "regex": "\\bin\\s+(?:about\\s+)?half\\s+(?:an?\\s+)?hour\\b",
+      "resolve": "plusSeconds",
+      "seconds": 1800,
+      "priority": 17,
+      "confidence": "high",
+      "reason": "Duration: half an hour"
+    },
+    {
+      "id": "oneHour",
+      "regex": "\\b(?:in|after)\\s+(?:an?\\s+)?hour\\b",
+      "resolve": "plusSeconds",
+      "seconds": 3600,
+      "priority": 17,
+      "confidence": "high",
+      "reason": "Duration: in one hour"
+    },
+    {
+      "id": "hours",
+      "regex": "\\b(?:in|after)\\s+(?:about|around)?\\s*(\\d{1,2}|[a-z]+)\\s+hours?\\b",
+      "resolve": "plusHours",
+      "captureGroup": 1,
+      "min": 1,
+      "max": 48,
+      "priority": 17,
+      "confidence": "high",
+      "reason": "Duration: in {n} hour(s)"
+    },
+    {
+      "id": "laterToday",
+      "regex": "\\blater\\s+today\\b",
+      "resolve": "plusSeconds",
+      "seconds": 10800,
+      "priority": 10,
+      "confidence": "maybe",
+      "reason": "Vague: later today"
+    },
+    {
+      "id": "tonight",
+      "regex": "\\btonight\\b",
+      "resolve": "eveningToday",
+      "priority": 10,
+      "confidence": "maybe",
+      "reason": "Vague: tonight"
+    },
+    {
+      "id": "tomorrowMorning",
+      "regex": "\\btomorrow\\s+morning\\b",
+      "resolve": "tomorrowDefault",
+      "priority": 12,
+      "confidence": "high",
+      "reason": "Relative: tomorrow morning"
+    },
+    {
+      "id": "nextWeek",
+      "regex": "\\bnext\\s+week\\b",
+      "resolve": "plusDaysDefault",
+      "days": 7,
+      "priority": 9,
+      "confidence": "maybe",
+      "reason": "Relative: next week"
+    }
+  ]
+}

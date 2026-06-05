@@ -22,8 +22,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -42,7 +40,7 @@ import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
-import com.notesreminders.app.ui.components.ReminderEditorFields
+import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.parseReminderTimeFields
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
@@ -70,15 +68,6 @@ fun TodayScreen(
     var reminderMinute by remember { mutableStateOf(0) }
     var repeatRule by remember { mutableStateOf("") }
     var reminderToDelete by remember { mutableStateOf<String?>(null) }
-
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RecallColors.Copper,
-        unfocusedBorderColor = RecallColors.BorderStrong,
-        focusedTextColor = RecallColors.Parchment,
-        unfocusedTextColor = RecallColors.Parchment,
-        focusedLabelColor = RecallColors.ParchmentMuted,
-        unfocusedLabelColor = RecallColors.ParchmentMuted,
-    )
 
     fun openEditDialog(reminder: ReminderEntity) {
         editingReminder = reminder
@@ -158,59 +147,34 @@ fun TodayScreen(
         }
     }
 
-    if (showReminderDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showReminderDialog = false
-                editingReminder = null
-            },
-            containerColor = RecallColors.InkSurface,
-            title = {
-                Text("Edit reminder", color = RecallColors.Parchment)
-            },
-            text = {
-                Column {
-                    ReminderEditorFields(
-                        reminderDate = reminderDate,
-                        onDateChange = { reminderDate = it },
-                        hour24 = reminderHour,
-                        minute = reminderMinute,
-                        onTimeChange = { h, m ->
-                            reminderHour = h
-                            reminderMinute = m
-                        },
-                        use12Hour = viewModel.userPrefs.use12HourClock,
-                        repeatRule = repeatRule,
-                        onRepeatChange = { repeatRule = it },
-                        fieldColors = fieldColors,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    TextButton(
-                        onClick = {
-                            reminderToDelete = editingReminder!!.id
-                            showReminderDialog = false
-                            editingReminder = null
-                        },
-                    ) {
-                        Text("Delete reminder", color = RecallColors.Error)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { saveReminderFromDialog() }) {
-                    Text("Save", color = RecallColors.Copper)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showReminderDialog = false
-                    editingReminder = null
-                }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
-            },
-        )
-    }
+    ReminderScheduleDialog(
+        open = showReminderDialog,
+        title = "Edit reminder",
+        reminderDate = reminderDate,
+        onDateChange = { reminderDate = it },
+        hour24 = reminderHour,
+        minute = reminderMinute,
+        onTimeChange = { h, m ->
+            reminderHour = h
+            reminderMinute = m
+        },
+        use12Hour = viewModel.userPrefs.use12HourClock,
+        repeatRule = repeatRule,
+        onRepeatChange = { repeatRule = it },
+        defaultHour = viewModel.userPrefs.defaultReminderHour,
+        defaultMinute = viewModel.userPrefs.defaultReminderMinute,
+        showDelete = editingReminder != null,
+        onDelete = {
+            reminderToDelete = editingReminder!!.id
+            showReminderDialog = false
+            editingReminder = null
+        },
+        onDismiss = {
+            showReminderDialog = false
+            editingReminder = null
+        },
+        onSave = { saveReminderFromDialog() },
+    )
 
     reminderToDelete?.let { id ->
         AlertDialog(

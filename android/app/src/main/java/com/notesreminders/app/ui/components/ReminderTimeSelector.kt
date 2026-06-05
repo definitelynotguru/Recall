@@ -84,7 +84,7 @@ fun ReminderTimeSelector(
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            (0..59 step 5).forEach { m ->
+            (0..59).forEach { m ->
                 TimeChip(
                     label = m.toString().padStart(2, '0'),
                     selected = safeMinute == m,

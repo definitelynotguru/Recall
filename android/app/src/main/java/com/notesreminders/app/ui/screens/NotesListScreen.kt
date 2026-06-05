@@ -45,9 +45,6 @@ import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun NotesListScreen(
@@ -188,10 +185,6 @@ private fun SwipeableNoteRow(
 
 @Composable
 private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
-    val date = Instant.parse(note.updatedAt)
-        .atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("MMM d"))
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,11 +220,5 @@ private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Text(
-            date,
-            style = MaterialTheme.typography.labelSmall,
-            color = RecallColors.ParchmentMuted,
-            modifier = Modifier.padding(end = 4.dp),
-        )
     }
 }
