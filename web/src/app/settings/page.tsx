@@ -5,7 +5,7 @@ import { DownloadSimple, Copy, UploadSimple } from "@phosphor-icons/react";
 import { importBackup, parseBackupJson } from "@/lib/backup-import";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
-import { apiFetch, ApiNote } from "@/lib/api-client";
+import { apiFetch, ApiNote, ApiNoteTag, ApiReminder, ApiTag } from "@/lib/api-client";
 import {
   loadUserPrefs,
   saveUserPrefs,
@@ -59,16 +59,26 @@ export default function SettingsPage() {
   }, []);
 
   const buildBundle = async () => {
-    const notesRes = await apiFetch<{ notes: ApiNote[] }>("/notes");
-    const remindersByNote: Record<string, unknown[]> = {};
-    for (const n of notesRes.notes) {
-      const detail = await apiFetch<{ reminders: unknown[] }>(`/notes/${n.id}`);
-      remindersByNote[n.id] = detail.reminders;
+    const notesRes = await apiFetch<{ notes: ApiNote[] }>(
+      "/notes?status=all&limit=all",
+    );
+    const remindersRes = await apiFetch<{ reminders: ApiReminder[] }>(
+      "/reminders?status=all&limit=all",
+    );
+    const tagsRes = await apiFetch<{ tags: ApiTag[] }>("/tags");
+    const noteTagsRes = await apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags");
+    const remindersByNote: Record<string, ApiReminder[]> = {};
+    for (const n of notesRes.notes) remindersByNote[n.id] = [];
+    for (const r of remindersRes.reminders) {
+      if (!remindersByNote[r.note_id]) remindersByNote[r.note_id] = [];
+      remindersByNote[r.note_id].push(r);
     }
     return {
       exported_at: new Date().toISOString(),
       notes: notesRes.notes,
       reminders_by_note: remindersByNote,
+      tags: tagsRes.tags,
+      note_tags: noteTagsRes.note_tags,
     };
   };
 

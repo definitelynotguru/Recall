@@ -9,6 +9,7 @@ import {
   toApiReminder,
   parseIsoDate,
 } from "@/lib/api-utils";
+import { computeNextRepeat } from "@/lib/repeat-rules";
 import { eq, and, isNull } from "drizzle-orm";
 
 const schema = z.object({
@@ -56,7 +57,8 @@ export async function POST(
 
   if (existing.repeatRule) {
     status = "active";
-    const next = computeNext(existing.repeatRule, existing.fireAt);
+    const next = computeNextRepeat(existing.repeatRule, existing.fireAt);
+    if (!next) return errorResponse("Invalid repeat_rule", 400);
     fireAt = next;
   }
 
@@ -72,23 +74,4 @@ export async function POST(
     .returning();
 
   return jsonResponse({ reminder: toApiReminder(row) });
-}
-
-function computeNext(rule: string, from: Date): Date {
-  const d = new Date(from);
-  switch (rule) {
-    case "daily":
-      d.setUTCDate(d.getUTCDate() + 1);
-      break;
-    case "weekly":
-      d.setUTCDate(d.getUTCDate() + 7);
-      break;
-    case "monthly":
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      break;
-    case "yearly":
-      d.setUTCFullYear(d.getUTCFullYear() + 1);
-      break;
-  }
-  return d;
 }

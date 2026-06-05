@@ -27,12 +27,14 @@ export const notes = pgTable(
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
     status: text("status").notNull().default("active"),
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
     index("notes_user_updated").on(t.userId, t.updatedAt),
+    index("notes_user_pinned_updated").on(t.userId, t.pinnedAt, t.updatedAt),
   ],
 );
 
@@ -57,6 +59,44 @@ export const reminders = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [index("reminders_user_fire").on(t.userId, t.fireAt)],
+);
+
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [index("tags_user_name").on(t.userId, t.name)],
+);
+
+export const noteTags = pgTable(
+  "note_tags",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("note_tags_user_note").on(t.userId, t.noteId),
+    index("note_tags_user_tag").on(t.userId, t.tagId),
+  ],
 );
 
 export const deviceSyncState = pgTable(
@@ -108,3 +148,5 @@ export const refreshTokens = pgTable(
 export type User = typeof users.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
+export type NoteTag = typeof noteTags.$inferSelect;

@@ -30,6 +30,7 @@ data class NoteDto(
     val title: String,
     val body: String,
     val status: String,
+    val pinned_at: String? = null,
     val created_at: String,
     val updated_at: String,
     val deleted_at: String?,
@@ -50,6 +51,25 @@ data class ReminderDto(
     val deleted_at: String?,
 )
 
+data class TagDto(
+    val id: String,
+    val user_id: String? = null,
+    val name: String,
+    val created_at: String,
+    val updated_at: String,
+    val deleted_at: String?,
+)
+
+data class NoteTagDto(
+    val id: String,
+    val user_id: String? = null,
+    val note_id: String,
+    val tag_id: String,
+    val created_at: String,
+    val updated_at: String,
+    val deleted_at: String?,
+)
+
 data class NotesResponse(val notes: List<NoteDto>)
 
 data class NoteDetailResponse(val note: NoteDto, val reminders: List<ReminderDto>)
@@ -59,12 +79,16 @@ data class SyncRequest(
     val last_sync_at: String,
     val notes: List<NoteDto>,
     val reminders: List<ReminderDto>,
+    val tags: List<TagDto> = emptyList(),
+    val note_tags: List<NoteTagDto> = emptyList(),
 )
 
 data class SyncResponse(
     val server_time: String,
     val notes: List<NoteDto>,
     val reminders: List<ReminderDto>,
+    val tags: List<TagDto>? = emptyList(),
+    val note_tags: List<NoteTagDto>? = emptyList(),
 )
 
 data class SnoozeRequest(val fire_at: String)

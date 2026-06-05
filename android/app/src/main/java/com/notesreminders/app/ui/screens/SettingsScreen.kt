@@ -1,5 +1,7 @@
 package com.notesreminders.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,13 +49,25 @@ fun SettingsScreen(
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
     val hasPendingSync by viewModel.hasPendingSync.collectAsState()
+    val conflicts by viewModel.conflicts.collectAsState()
     val prefs = viewModel.userPrefs
     val zone = ZoneId.systemDefault().id
     var debugMessage by remember { mutableStateOf<String?>(null) }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
     var sendingDebug by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var updating by remember { mutableStateOf(false) }
     val activity = LocalContext.current as? Activity
+    val exportBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        uri?.let { viewModel.exportBackup(it) { msg -> backupMessage = msg } }
+    }
+    val importBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let { viewModel.importBackup(it) { msg -> backupMessage = msg } }
+    }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -133,7 +147,71 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        if (conflicts.isNotEmpty()) {
+            RecallPanel {
+                Text("Conflicts", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+                Spacer(Modifier.height(8.dp))
+                conflicts.forEach { conflict ->
+                    Text(
+                        "Note changed in two places",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = RecallColors.Parchment,
+                    )
+                    Text(
+                        "Local: ${conflict.localBody.take(80)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                    Text(
+                        "Server: ${conflict.serverBody.take(80)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = true) }) {
+                            Text("Keep local", color = RecallColors.Copper)
+                        }
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = false) }) {
+                            Text("Keep server", color = RecallColors.Copper)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
 
+        Spacer(Modifier.height(16.dp))
+        RecallPanel {
+            Text("Backup", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Export or import notes, reminders, tags, and archived items as JSON.",
+                style = MaterialTheme.typography.bodySmall,
+                color = RecallColors.ParchmentMuted,
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { exportBackup.launch("recall-backup.json") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RecallColors.Copper,
+                        contentColor = RecallColors.Ink,
+                    ),
+                ) {
+                    Text("Export")
+                }
+                TextButton(onClick = { importBackup.launch(arrayOf("application/json", "text/*", "*/*")) }) {
+                    Text("Import", color = RecallColors.Copper)
+                }
+            }
+            backupMessage?.let { msg ->
+                Spacer(Modifier.height(8.dp))
+                Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
         RecallPanel {
             Text("Reminder defaults", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
             Spacer(Modifier.height(8.dp))

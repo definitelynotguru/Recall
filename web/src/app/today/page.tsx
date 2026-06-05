@@ -7,14 +7,13 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { pickNextReminder } from "@/lib/reminder-detect";
-import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
+import { apiFetch, ApiReminder } from "@/lib/api-client";
 import {
   groupRemindersByDay,
   formatFireAt,
 } from "@/lib/reminder-utils";
 
 export default function TodayPage() {
-  const [notes, setNotes] = useState<ApiNote[]>([]);
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -23,17 +22,10 @@ export default function TodayPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const notesRes = await apiFetch<{ notes: ApiNote[] }>("/notes");
-      setNotes(notesRes.notes);
-      const allReminders: ApiReminder[] = [];
-      for (const n of notesRes.notes.slice(0, 50)) {
-        const detail = await apiFetch<{
-          note: ApiNote;
-          reminders: ApiReminder[];
-        }>(`/notes/${n.id}`);
-        allReminders.push(...detail.reminders);
-      }
-      setReminders(allReminders);
+      const res = await apiFetch<{ reminders: ApiReminder[] }>(
+        "/reminders?status=active&limit=all",
+      );
+      setReminders(res.reminders);
     } finally {
       setLoading(false);
     }
@@ -45,7 +37,7 @@ export default function TodayPage() {
 
   const groups = groupRemindersByDay(reminders);
   const noteTitle = (id: string) =>
-    notes.find((n) => n.id === id)?.title || "Untitled";
+    reminders.find((r) => r.note_id === id)?.note_title || "Untitled";
 
   const openEdit = (r: ApiReminder) => {
     setEditingReminder(r);

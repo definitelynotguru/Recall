@@ -6,6 +6,7 @@ import {
   CalendarBlank,
   NoteBlank,
   Gear,
+  ClockCounterClockwise,
   SignOut,
 } from "@phosphor-icons/react";
 import { useAuth } from "./AuthProvider";
@@ -13,6 +14,7 @@ import { useAuth } from "./AuthProvider";
 const NAV = [
   { href: "/today", label: "Today", icon: CalendarBlank },
   { href: "/notes", label: "Notes", icon: NoteBlank },
+  { href: "/history", label: "History", icon: ClockCounterClockwise },
   { href: "/settings", label: "Settings", icon: Gear },
 ] as const;
 

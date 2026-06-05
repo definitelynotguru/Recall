@@ -498,7 +498,7 @@ a:hover {
 /* Notes list */
 .note-row {
   display: grid;
-  grid-template-columns: 4px 1fr auto;
+  grid-template-columns: 4px minmax(0, 1fr) auto auto;
   gap: 0 18px;
   align-items: stretch;
   padding: 0;
@@ -530,6 +530,12 @@ a:hover {
 
 .note-row-body {
   padding: 18px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.note-row-body:hover {
+  text-decoration: none;
 }
 
 .note-row-body h3 {
@@ -556,6 +562,13 @@ a:hover {
   font-size: 0.7rem;
   color: var(--parchment-muted);
   align-self: center;
+}
+
+.note-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
 }
 
 /* Glass panel */
@@ -895,5 +908,65 @@ a:hover {
 .fab-row {
   display: flex;
   justify-content: flex-end;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 24px;
+}
+
+.notes-search-field {
+  min-width: min(100%, 280px);
+  margin-right: auto;
+}
+
+.input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ink-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  background: var(--ink-surface);
+}
+
+.input-with-icon input {
+  border: 0;
+  padding-inline: 0;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--ink-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmented button {
+  border: 0;
+  background: transparent;
+  color: var(--parchment-muted);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--copper-dim);
+  color: var(--copper);
+}
+
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  border: 1px solid var(--ink-border-strong);
+  cursor: pointer;
+}
+
+.tag-chip.selected {
+  background: var(--copper-dim);
+  color: var(--copper);
+  border-color: var(--copper);
 }

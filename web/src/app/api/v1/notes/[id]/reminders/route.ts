@@ -16,10 +16,7 @@ const createSchema = z.object({
   id: z.string().uuid().optional(),
   fire_at: z.string(),
   timezone: z.string().default("UTC"),
-  repeat_rule: z
-    .enum(["daily", "weekly", "monthly", "yearly"])
-    .nullable()
-    .optional(),
+  repeat_rule: z.string().trim().max(120).nullable().optional(),
   intensity: z.enum(["gentle", "persistent", "escalating"]).default("gentle"),
 });
 

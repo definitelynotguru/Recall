@@ -9,7 +9,9 @@ import {
   jsonResponse,
   errorResponse,
   toApiNote,
+  toApiNoteTag,
   toApiReminder,
+  toApiTag,
 } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
@@ -35,8 +37,18 @@ export async function POST(request: NextRequest) {
     return errorResponse("Invalid request", 400);
   }
 
-  const { notes: mergedNotes, reminders: mergedReminders } =
-    await processSync(user!.userId, body.notes, body.reminders);
+  const {
+    notes: mergedNotes,
+    reminders: mergedReminders,
+    tags: mergedTags,
+    noteTags: mergedNoteTags,
+  } = await processSync(
+    user!.userId,
+    body.notes,
+    body.reminders,
+    body.tags,
+    body.note_tags,
+  );
 
   const serverTime = new Date();
   await db
@@ -55,5 +67,7 @@ export async function POST(request: NextRequest) {
     server_time: serverTime.toISOString(),
     notes: mergedNotes.map(toApiNote),
     reminders: mergedReminders.map(toApiReminder),
+    tags: mergedTags.map(toApiTag),
+    note_tags: mergedNoteTags.map(toApiNoteTag),
   });
 }

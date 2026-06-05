@@ -30,7 +30,11 @@ class NotesApp : Application() {
         tokenStore = TokenStore(this)
         userPrefs = UserPrefs(this)
         database = Room.databaseBuilder(this, AppDatabase::class.java, "notes.db")
-            .fallbackToDestructiveMigration()
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+            )
             .build()
         api = ApiClient.create(tokenStore)
         syncRepository = SyncRepository(this, database, tokenStore)

@@ -18,7 +18,8 @@ internal object DurationPatternScanner {
     private data class Rule(
         val regex: Pattern,
         val resolve: ResolveKind,
-        val captureGroup: Int = 1,
+        /** 0 when the pattern has no capturing group for `{n}` substitution. */
+        val captureGroup: Int = 0,
         val min: Int = 1,
         val max: Int = Int.MAX_VALUE,
         val seconds: Long = 0,
@@ -41,6 +42,7 @@ internal object DurationPatternScanner {
         Rule(
             regex = pattern("""\b(?:remind\s+me\s+)?(?:in|after)\s+(?:about|around|roughly)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b"""),
             resolve = ResolveKind.PLUS_MINUTES,
+            captureGroup = 1,
             min = 1,
             max = 999,
             priority = 18,
@@ -66,6 +68,7 @@ internal object DurationPatternScanner {
         Rule(
             regex = pattern("""\b(?:in|after)\s+(?:about|around)?\s*(\d{1,2}|[a-z]+)\s+hours?\b"""),
             resolve = ResolveKind.PLUS_HOURS,
+            captureGroup = 1,
             min = 1,
             max = 48,
             priority = 17,
@@ -126,7 +129,11 @@ internal object DurationPatternScanner {
             while (matcher.find()) {
                 val target = resolveTarget(rule, matcher, reference, zonedNow, defaults) ?: continue
                 if (!target.isAfter(reference)) continue
-                val reason = rule.reason.replace("{n}", matcher.group(rule.captureGroup) ?: "")
+                val reason = if (rule.captureGroup > 0 && matcher.groupCount() >= rule.captureGroup) {
+                    rule.reason.replace("{n}", matcher.group(rule.captureGroup).orEmpty())
+                } else {
+                    rule.reason
+                }
                 emit(
                     matcher.group(),
                     matcher.start(),

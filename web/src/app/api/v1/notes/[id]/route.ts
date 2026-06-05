@@ -15,6 +15,7 @@ const patchSchema = z.object({
   title: z.string().optional(),
   body: z.string().optional(),
   status: z.enum(["active", "archived"]).optional(),
+  pinned_at: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -82,12 +83,22 @@ export async function PATCH(
   if (!existing) return errorResponse("Note not found", 404);
 
   const now = new Date();
+  const pinnedAt =
+    body.pinned_at === undefined
+      ? existing.pinnedAt
+      : body.pinned_at
+        ? new Date(body.pinned_at)
+        : null;
+  if (pinnedAt && Number.isNaN(pinnedAt.getTime())) {
+    return errorResponse("Invalid pinned_at", 400);
+  }
   const [row] = await db
     .update(notes)
     .set({
       title: body.title ?? existing.title,
       body: body.body ?? existing.body,
       status: body.status ?? existing.status,
+      pinnedAt,
       updatedAt: now,
     })
     .where(eq(notes.id, id))

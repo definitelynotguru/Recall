@@ -10,6 +10,7 @@ data class NoteEntity(
     val title: String,
     val body: String,
     val status: String,
+    val pinnedAt: String? = null,
     val createdAt: String,
     val updatedAt: String,
     val deletedAt: String?,

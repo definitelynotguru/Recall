@@ -40,6 +40,7 @@ export function toApiNote(row: {
   title: string;
   body: string;
   status: string;
+  pinnedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -50,6 +51,7 @@ export function toApiNote(row: {
     title: row.title,
     body: row.body,
     status: row.status,
+    pinned_at: row.pinnedAt?.toISOString() ?? null,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
     deleted_at: row.deletedAt?.toISOString() ?? null,
@@ -69,6 +71,7 @@ export function toApiReminder(row: {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  noteTitle?: string | null;
 }) {
   return {
     id: row.id,
@@ -80,6 +83,45 @@ export function toApiReminder(row: {
     intensity: row.intensity,
     status: row.status,
     completed_at: row.completedAt?.toISOString() ?? null,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    deleted_at: row.deletedAt?.toISOString() ?? null,
+    note_title: row.noteTitle ?? undefined,
+  };
+}
+
+export function toApiTag(row: {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}) {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    name: row.name,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    deleted_at: row.deletedAt?.toISOString() ?? null,
+  };
+}
+
+export function toApiNoteTag(row: {
+  id: string;
+  userId: string;
+  noteId: string;
+  tagId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}) {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    note_id: row.noteId,
+    tag_id: row.tagId,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
     deleted_at: row.deletedAt?.toISOString() ?? null,

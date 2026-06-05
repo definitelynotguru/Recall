@@ -19,6 +19,9 @@ interface ReminderDao {
     )
     suspend fun getActive(): List<ReminderEntity>
 
+    @Query("SELECT * FROM reminders WHERE deletedAt IS NULL ORDER BY fireAt ASC")
+    suspend fun getAllNonDeleted(): List<ReminderEntity>
+
     @Query("SELECT * FROM reminders WHERE isDirty = 1")
     suspend fun getDirty(): List<ReminderEntity>
 

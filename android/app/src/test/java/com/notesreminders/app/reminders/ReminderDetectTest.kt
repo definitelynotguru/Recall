@@ -38,7 +38,7 @@ class ReminderDetectTest {
     fun halfHour() {
         val found = ReminderDetect.detect(
             "",
-            "ping in half an hour",
+            "remind in half an hour",
             referenceInstant = ref,
         )
         assertEquals(1, found.size)

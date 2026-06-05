@@ -1,6 +1,7 @@
 package com.notesreminders.app.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.notesreminders.app.NotesApp
@@ -18,6 +19,7 @@ import com.notesreminders.app.update.AppUpdater
 import com.notesreminders.app.sync.SyncDiagnostics
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +35,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as NotesApp
 
@@ -41,13 +45,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val userEmail: String?
         get() = app.tokenStore.userEmail
 
-    val notes = app.notesRepository.observeNotes().stateIn(
+    private val _noteStatus = MutableStateFlow("active")
+    val noteStatus: StateFlow<String> = _noteStatus.asStateFlow()
+
+    private val _noteQuery = MutableStateFlow("")
+    val noteQuery: StateFlow<String> = _noteQuery.asStateFlow()
+
+    val notes = _noteStatus.flatMapLatest { status ->
+        _noteQuery.flatMapLatest { query ->
+            app.notesRepository.observeNotes(status, query)
+        }
+    }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList(),
     )
 
     val reminders = app.notesRepository.observeReminders().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList(),
+    )
+
+    val conflicts = app.notesRepository.observeConflicts().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList(),
@@ -271,6 +291,71 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.Main) {
                 onCreated(note.id)
             }
+        }
+    }
+
+    fun createNoteFromText(text: String, onCreated: (String) -> Unit) {
+        if (text.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val note = app.notesRepository.createNoteFromText(text)
+            withContext(Dispatchers.Main) {
+                onCreated(note.id)
+            }
+        }
+    }
+
+    fun exportBackup(uri: Uri, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val json = app.notesRepository.exportBackupJson()
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(json.toByteArray(Charsets.UTF_8))
+                    } ?: error("Could not open backup file")
+                    "Backup exported"
+                }
+            }
+            onResult(result.getOrElse { "Backup failed: ${it.message ?: "unknown error"}" })
+        }
+    }
+
+    fun importBackup(uri: Uri, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val json = getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+                        stream.bufferedReader(Charsets.UTF_8).readText()
+                    } ?: error("Could not open backup file")
+                    val bundle = app.notesRepository.importBackupJson(json)
+                    val noteCount = bundle.notes.orEmpty().size
+                    val reminderCount = bundle.reminders_by_note.orEmpty().values.sumOf { it.size }
+                    "Imported $noteCount notes, $reminderCount reminders"
+                }
+            }
+            onResult(result.getOrElse { "Import failed: ${it.message ?: "unknown error"}" })
+        }
+    }
+
+    fun setNoteListFilter(status: String, query: String) {
+        _noteStatus.value = status
+        _noteQuery.value = query
+    }
+
+    fun setNotePinned(id: String, pinned: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.setNotePinned(id, pinned)
+        }
+    }
+
+    fun setNoteArchived(id: String, archived: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.setNoteArchived(id, archived)
+        }
+    }
+
+    fun resolveConflict(conflictId: String, keepLocal: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.resolveConflict(conflictId, keepLocal)
         }
     }
 

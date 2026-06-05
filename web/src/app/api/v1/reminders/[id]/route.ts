@@ -14,10 +14,7 @@ import { eq, and, isNull } from "drizzle-orm";
 const patchSchema = z.object({
   fire_at: z.string().optional(),
   timezone: z.string().optional(),
-  repeat_rule: z
-    .enum(["daily", "weekly", "monthly", "yearly"])
-    .nullable()
-    .optional(),
+  repeat_rule: z.string().trim().max(120).nullable().optional(),
   intensity: z.enum(["gentle", "persistent", "escalating"]).optional(),
   status: z.enum(["active", "completed", "cancelled"]).optional(),
 });

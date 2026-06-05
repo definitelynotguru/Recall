@@ -16,7 +16,7 @@ import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
-import { apiFetch, ApiNote, ApiReminder } from "@/lib/api-client";
+import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
 import {
   detectRemindersInNote,
   DetectedReminder,
@@ -41,6 +41,9 @@ export default function NoteDetailPage() {
   const [loadError, setLoadError] = useState("");
   const [detectOpen, setDetectOpen] = useState(false);
   const [detected, setDetected] = useState<DetectedReminder[]>([]);
+  const [allTags, setAllTags] = useState<ApiTag[]>([]);
+  const [noteTags, setNoteTags] = useState<ApiTag[]>([]);
+  const [newTagName, setNewTagName] = useState("");
   const [fetching, setFetching] = useState(false);
   const [showSyncBanner, setShowSyncBanner] = useState(false);
   const { loading: authLoading } = useAuth();
@@ -55,6 +58,12 @@ export default function NoteDetailPage() {
       setTitle(res.note.title);
       setBody(res.note.body);
       setReminders(res.reminders.filter((r) => r.status === "active"));
+      const [tagsRes, noteTagsRes] = await Promise.all([
+        apiFetch<{ tags: ApiTag[] }>("/tags"),
+        apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`),
+      ]);
+      setAllTags(tagsRes.tags);
+      setNoteTags(noteTagsRes.tags);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load note";
       setLoadError(message);
@@ -143,6 +152,27 @@ export default function NoteDetailPage() {
   };
 
   const nextReminder = pickNextReminder(reminders);
+  const selectedTagIds = new Set(noteTags.map((tag) => tag.id));
+
+  const setNoteTagIds = async (tagIds: string[]) => {
+    const res = await apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`, {
+      method: "PUT",
+      body: JSON.stringify({ tag_ids: tagIds }),
+    });
+    setNoteTags(res.tags);
+  };
+
+  const createTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    const res = await apiFetch<{ tag: ApiTag }>("/tags", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+    setNewTagName("");
+    setAllTags((tags) => [...tags, res.tag].sort((a, b) => a.name.localeCompare(b.name)));
+    await setNoteTagIds([...selectedTagIds, res.tag.id]);
+  };
 
   if (authLoading || loading) {
     return (
@@ -214,6 +244,38 @@ export default function NoteDetailPage() {
       </div>
 
       <NextNudgeCard reminder={nextReminder} scope="note" />
+
+      <div className="panel panel-pad" style={{ marginBottom: 28 }}>
+        <h2 className="settings-heading">Tags</h2>
+        <div className="tag-picker">
+          {allTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              className={`chip tag-chip ${selectedTagIds.has(tag.id) ? "selected" : ""}`}
+              onClick={() => {
+                const next = selectedTagIds.has(tag.id)
+                  ? [...selectedTagIds].filter((id) => id !== tag.id)
+                  : [...selectedTagIds, tag.id];
+                setNoteTagIds(next);
+              }}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+        <div className="reminder-actions-row" style={{ marginTop: 12 }}>
+          <input
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            placeholder="New tag"
+            maxLength={40}
+          />
+          <button type="button" className="btn btn-secondary" onClick={createTag}>
+            Add tag
+          </button>
+        </div>
+      </div>
 
       <header className="page-header" style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: "1.35rem" }}>Reminders</h1>

@@ -1,6 +1,6 @@
 package com.notesreminders.app.reminders
 
-import org.json.JSONObject
+import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
@@ -9,14 +9,20 @@ import java.io.File
 class DurationPatternsSyncTest {
     @Test
     fun ruleCountMatchesSharedJson() {
-        val jsonFile = File("shared/duration-patterns.json")
-        if (!jsonFile.exists()) {
-            // CI runs from android/ subdir
-            val alt = File("../shared/duration-patterns.json")
-            require(alt.exists()) { "Missing shared/duration-patterns.json" }
-            assertEquals(8, JSONObject(alt.readText()).getJSONArray("rules").length())
-        } else {
-            assertEquals(8, JSONObject(jsonFile.readText()).getJSONArray("rules").length())
+        val json = locateSharedJson("duration-patterns.json")
+        val rules = JsonParser.parseString(json.readText())
+            .asJsonObject
+            .getAsJsonArray("rules")
+        assertEquals(8, rules.size())
+    }
+
+    private fun locateSharedJson(name: String): File {
+        var dir: File? = File(System.getProperty("user.dir"))
+        while (dir != null) {
+            val candidate = File(dir, "shared/$name")
+            if (candidate.isFile) return candidate
+            dir = dir.parentFile
         }
+        error("Missing shared/$name (cwd=${System.getProperty("user.dir")})")
     }
 }

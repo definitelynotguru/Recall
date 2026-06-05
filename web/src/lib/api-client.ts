@@ -114,6 +114,7 @@ export type ApiNote = {
   title: string;
   body: string;
   status: string;
+  pinned_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -128,6 +129,26 @@ export type ApiReminder = {
   intensity: string;
   status: string;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  note_title?: string;
+};
+
+export type ApiTag = {
+  id: string;
+  user_id?: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ApiNoteTag = {
+  id: string;
+  user_id?: string;
+  note_id: string;
+  tag_id: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

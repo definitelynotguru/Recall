@@ -20,15 +20,15 @@ android {
         applicationId = "com.notesreminders.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         val apiBase = localProperties.getProperty("API_BASE_URL")
             ?: "http://10.0.2.2:3000/api/v1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBase\"")
 
         val updateApk = localProperties.getProperty("UPDATE_APK_URL")
-            ?: "https://github.com/definitelynotguru/Recall/releases/download/v1.0.3-debug/recall-1.0.3-debug.apk"
+            ?: "https://github.com/definitelynotguru/Recall/releases/download/v1.0.4-debug/recall-1.0.4-debug.apk"
         buildConfigField("String", "UPDATE_APK_URL", "\"$updateApk\"")
 
         ndk {

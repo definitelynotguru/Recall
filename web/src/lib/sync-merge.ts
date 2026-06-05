@@ -5,6 +5,7 @@ export type SyncNoteInput = {
   title: string;
   body: string;
   status: string;
+  pinned_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -54,6 +55,7 @@ export function androidOfflineNotePayload(
     title,
     body,
     status: "active",
+    pinned_at: null,
     created_at: updatedAtIso,
     updated_at: updatedAtIso,
     deleted_at: null,

@@ -5,9 +5,12 @@ import com.notesreminders.app.data.api.ApiClient
 import com.notesreminders.app.data.api.SyncRequest
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
+import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.SyncMetaEntity
+import com.notesreminders.app.data.toDto
 import com.notesreminders.app.data.toEntity
 import com.notesreminders.app.reminders.ReminderReconciler
+import java.time.Instant
 import java.util.UUID
 
 class SyncRepository(
@@ -27,6 +30,8 @@ class SyncRepository(
 
             val dirtyNotes = db.noteDao().getDirty()
             val dirtyReminders = db.reminderDao().getDirty()
+            val dirtyTags = db.tagDao().getDirty()
+            val dirtyNoteTags = db.noteTagDao().getDirty()
             val knownNoteIds = db.noteDao().getAllIds().toSet()
 
             val sanitized = SyncPayloadSanitizer.sanitize(
@@ -46,14 +51,46 @@ class SyncRepository(
                     last_sync_at = lastSync,
                     notes = sanitized.notes,
                     reminders = sanitized.reminders,
+                    tags = dirtyTags.map { it.toDto() },
+                    note_tags = dirtyNoteTags.map { it.toDto() },
                 ),
             )
 
-            val mergedNotes = response.notes.map { it.toEntity(userId, isDirty = false) }
+            val dirtyById = dirtyNotes.associateBy { it.id }
+            val now = Instant.now().toString()
+            val conflictedNoteIds = mutableSetOf<String>()
+            response.notes.forEach { serverNote ->
+                val local = dirtyById[serverNote.id]
+                if (
+                    local != null &&
+                    serverNote.body != local.body &&
+                    serverNote.updated_at > local.updatedAt
+                ) {
+                    db.noteConflictDao().upsert(
+                        NoteConflictEntity(
+                            id = serverNote.id,
+                            noteId = serverNote.id,
+                            localBody = local.body,
+                            serverBody = serverNote.body,
+                            serverUpdatedAt = serverNote.updated_at,
+                            detectedAt = now,
+                        ),
+                    )
+                    conflictedNoteIds += serverNote.id
+                }
+            }
+
+            val mergedNotes = response.notes
+                .filterNot { it.id in conflictedNoteIds }
+                .map { it.toEntity(userId, isDirty = false) }
             val mergedReminders = response.reminders.map { it.toEntity(userId, isDirty = false) }
+            val mergedTags = response.tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
+            val mergedNoteTags = response.note_tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
 
             db.noteDao().upsertAll(mergedNotes)
             db.reminderDao().upsertAll(mergedReminders)
+            db.tagDao().upsertAll(mergedTags)
+            db.noteTagDao().upsertAll(mergedNoteTags)
 
             db.syncMetaDao().upsert(
                 SyncMetaEntity(

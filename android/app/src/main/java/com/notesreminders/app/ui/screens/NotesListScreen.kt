@@ -21,6 +21,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -29,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,10 +56,18 @@ fun NotesListScreen(
     onLogout: () -> Unit,
 ) {
     val notes by viewModel.notes.collectAsState()
+    val noteStatus by viewModel.noteStatus.collectAsState()
+    val noteQuery by viewModel.noteQuery.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
     val hasPendingSync by viewModel.hasPendingSync.collectAsState()
     var noteToDelete by remember { mutableStateOf<NoteEntity?>(null) }
+    var localQuery by remember { mutableStateOf(noteQuery) }
+    var localStatus by remember { mutableStateOf(noteStatus) }
+
+    LaunchedEffect(localStatus, localQuery) {
+        viewModel.setNoteListFilter(localStatus, localQuery)
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(horizontal = 20.dp)) {
@@ -71,6 +82,35 @@ fun NotesListScreen(
                 onSignOut = onLogout,
             )
             Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = localQuery,
+                onValueChange = { localQuery = it },
+                label = { Text("Search") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = RecallColors.Copper,
+                    unfocusedBorderColor = RecallColors.BorderStrong,
+                    focusedTextColor = RecallColors.Parchment,
+                    unfocusedTextColor = RecallColors.Parchment,
+                    focusedLabelColor = RecallColors.ParchmentMuted,
+                    unfocusedLabelColor = RecallColors.ParchmentMuted,
+                ),
+            )
+            Row {
+                TextButton(onClick = { localStatus = "active" }) {
+                    Text(
+                        "Active",
+                        color = if (localStatus == "active") RecallColors.Copper else RecallColors.ParchmentMuted,
+                    )
+                }
+                TextButton(onClick = { localStatus = "archived" }) {
+                    Text(
+                        "Archived",
+                        color = if (localStatus == "archived") RecallColors.Copper else RecallColors.ParchmentMuted,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
 
             PullToRefreshBox(
                 isRefreshing = syncing,
@@ -90,6 +130,12 @@ fun NotesListScreen(
                                 note = note,
                                 onOpen = onOpenNote,
                                 onDeleteRequest = { noteToDelete = note },
+                                onTogglePin = {
+                                    viewModel.setNotePinned(note.id, note.pinnedAt == null)
+                                },
+                                onToggleArchive = {
+                                    viewModel.setNoteArchived(note.id, note.status != "archived")
+                                },
                             )
                         }
                     }
@@ -146,6 +192,8 @@ private fun SwipeableNoteRow(
     note: NoteEntity,
     onOpen: (String) -> Unit,
     onDeleteRequest: () -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -178,17 +226,22 @@ private fun SwipeableNoteRow(
         },
     ) {
         RecallPanel(modifier = Modifier.padding(vertical = 6.dp)) {
-            NoteRowContent(note, onOpen)
+            NoteRowContent(note, onOpen, onTogglePin, onToggleArchive)
         }
     }
 }
 
 @Composable
-private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
+private fun NoteRowContent(
+    note: NoteEntity,
+    onClick: (String) -> Unit,
+    onTogglePin: () -> Unit,
+    onToggleArchive: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(note.id) },
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -205,6 +258,7 @@ private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
         Column(
             Modifier
                 .weight(1f)
+                .clickable { onClick(note.id) }
                 .padding(horizontal = 12.dp, vertical = 4.dp),
         ) {
             Text(
@@ -219,6 +273,20 @@ private fun NoteRowContent(note: NoteEntity, onClick: (String) -> Unit) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            TextButton(onClick = onTogglePin) {
+                Text(
+                    if (note.pinnedAt == null) "Pin" else "Unpin",
+                    color = RecallColors.Copper,
+                )
+            }
+            TextButton(onClick = onToggleArchive) {
+                Text(
+                    if (note.status == "archived") "Unarchive" else "Archive",
+                    color = RecallColors.ParchmentMuted,
+                )
+            }
         }
     }
 }

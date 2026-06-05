@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { notes, reminders } from "./db/schema";
+import { noteTags, notes, reminders, tags } from "./db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import {
   resolveNoteMerge,
@@ -9,6 +9,23 @@ import {
 } from "./sync-merge";
 
 export type { SyncNoteInput as SyncNote, SyncReminderInput as SyncReminder };
+
+export type SyncTagInput = {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type SyncNoteTagInput = {
+  id: string;
+  note_id: string;
+  tag_id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
 
 async function mergeNote(userId: string, client: SyncNoteInput): Promise<void> {
   const [existing] = await db
@@ -27,6 +44,7 @@ async function mergeNote(userId: string, client: SyncNoteInput): Promise<void> {
     title: client.title,
     body: client.body,
     status: client.status,
+    pinnedAt: client.pinned_at ? new Date(client.pinned_at) : null,
     createdAt: new Date(client.created_at),
     updatedAt: clientUpdated,
     deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,
@@ -79,16 +97,69 @@ async function mergeReminder(
   await db.update(reminders).set(row).where(eq(reminders.id, client.id));
 }
 
+async function mergeTag(userId: string, client: SyncTagInput): Promise<void> {
+  const [existing] = await db.select().from(tags).where(eq(tags.id, client.id)).limit(1);
+  const clientUpdated = new Date(client.updated_at);
+  const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
+  if (action === "skip") return;
+
+  const row = {
+    id: client.id,
+    userId,
+    name: client.name,
+    createdAt: new Date(client.created_at),
+    updatedAt: clientUpdated,
+    deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,
+  };
+
+  if (action === "insert") {
+    await db.insert(tags).values(row);
+    return;
+  }
+  await db.update(tags).set(row).where(eq(tags.id, client.id));
+}
+
+async function mergeNoteTag(userId: string, client: SyncNoteTagInput): Promise<void> {
+  const [existing] = await db.select().from(noteTags).where(eq(noteTags.id, client.id)).limit(1);
+  const clientUpdated = new Date(client.updated_at);
+  const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
+  if (action === "skip") return;
+
+  const row = {
+    id: client.id,
+    userId,
+    noteId: client.note_id,
+    tagId: client.tag_id,
+    createdAt: new Date(client.created_at),
+    updatedAt: clientUpdated,
+    deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,
+  };
+
+  if (action === "insert") {
+    await db.insert(noteTags).values(row);
+    return;
+  }
+  await db.update(noteTags).set(row).where(eq(noteTags.id, client.id));
+}
+
 export async function processSync(
   userId: string,
   incomingNotes: SyncNoteInput[],
   incomingReminders: SyncReminderInput[],
+  incomingTags: SyncTagInput[] = [],
+  incomingNoteTags: SyncNoteTagInput[] = [],
 ) {
   for (const n of incomingNotes) {
     await mergeNote(userId, n);
   }
   for (const r of incomingReminders) {
     await mergeReminder(userId, r);
+  }
+  for (const t of incomingTags) {
+    await mergeTag(userId, t);
+  }
+  for (const nt of incomingNoteTags) {
+    await mergeNoteTag(userId, nt);
   }
 
   const allNotes = await db
@@ -101,5 +172,15 @@ export async function processSync(
     .from(reminders)
     .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt)));
 
-  return { notes: allNotes, reminders: allReminders };
+  const allTags = await db
+    .select()
+    .from(tags)
+    .where(and(eq(tags.userId, userId), isNull(tags.deletedAt)));
+
+  const allNoteTags = await db
+    .select()
+    .from(noteTags)
+    .where(and(eq(noteTags.userId, userId), isNull(noteTags.deletedAt)));
+
+  return { notes: allNotes, reminders: allReminders, tags: allTags, noteTags: allNoteTags };
 }

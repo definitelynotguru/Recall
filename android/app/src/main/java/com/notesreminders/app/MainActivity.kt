@@ -64,18 +64,21 @@ class MainActivity : ComponentActivity() {
     ) { }
 
     private val pendingNoteId = mutableStateOf<String?>(null)
+    private val pendingSharedText = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermission()
         pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
+        pendingSharedText.value = intent.extractSharedText()
 
         setContent {
             NotesTheme {
                 val viewModel: AppViewModel = viewModel()
                 var loggedIn by remember { mutableStateOf(viewModel.isLoggedIn) }
                 val launchNoteId = pendingNoteId.value
+                val launchSharedText = pendingSharedText.value
 
                 if (!loggedIn) {
                     LoginScreen(viewModel) { loggedIn = true }
@@ -86,7 +89,9 @@ class MainActivity : ComponentActivity() {
                     MainShell(
                         viewModel = viewModel,
                         launchNoteId = launchNoteId,
+                        launchSharedText = launchSharedText,
                         onNoteOpened = { pendingNoteId.value = null },
+                        onSharedTextConsumed = { pendingSharedText.value = null },
                         onRequestExactAlarms = {
                             if (ReminderPermissions.needsExactAlarmPermission(this@MainActivity)) {
                                 startActivity(ReminderPermissions.exactAlarmSettingsIntent(this@MainActivity))
@@ -107,6 +112,12 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
+        pendingSharedText.value = intent.extractSharedText()
+    }
+
+    private fun Intent.extractSharedText(): String? {
+        if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null
+        return getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
     }
 
     private fun requestNotificationPermission() {
@@ -132,7 +143,9 @@ private data class BottomTab(
 private fun MainShell(
     viewModel: AppViewModel,
     launchNoteId: String?,
+    launchSharedText: String?,
     onNoteOpened: () -> Unit,
+    onSharedTextConsumed: () -> Unit,
     onRequestExactAlarms: () -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -154,6 +167,14 @@ private fun MainShell(
         if (!launchNoteId.isNullOrBlank()) {
             nav.navigate("note/$launchNoteId") { launchSingleTop = true }
             onNoteOpened()
+        }
+    }
+    LaunchedEffect(launchSharedText) {
+        if (!launchSharedText.isNullOrBlank()) {
+            viewModel.createNoteFromText(launchSharedText) { noteId ->
+                nav.navigate("note/$noteId") { launchSingleTop = true }
+                onSharedTextConsumed()
+            }
         }
     }
     val tabs = listOf(
