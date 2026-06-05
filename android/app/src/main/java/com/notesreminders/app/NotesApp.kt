@@ -11,6 +11,10 @@ import com.notesreminders.app.net.NetworkMonitor
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
 import com.notesreminders.app.sync.SyncWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NotesApp : Application() {
     lateinit var tokenStore: TokenStore
@@ -48,6 +52,11 @@ class NotesApp : Application() {
         }
         if (tokenStore.isLoggedIn()) {
             SyncWorker.schedule(this)
+            appScope.launch {
+                notesRepository.reconcileAlarms()
+            }
         }
     }
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 }

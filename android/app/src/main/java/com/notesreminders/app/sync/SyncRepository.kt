@@ -18,53 +18,55 @@ class SyncRepository(
     private val api = ApiClient.create(tokenStore)
     private val reconciler = ReminderReconciler(context, db.reminderDao())
 
-    suspend fun sync(): Result<Unit> = runCatching {
-        val userId = tokenStore.userId ?: error("Not logged in")
-        val meta = db.syncMetaDao().get()
-        val deviceId = meta?.deviceId ?: UUID.randomUUID().toString()
-        val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
+    suspend fun sync(): Result<Unit> {
+        val result = runCatching {
+            val userId = tokenStore.userId ?: error("Not logged in")
+            val meta = db.syncMetaDao().get()
+            val deviceId = meta?.deviceId ?: UUID.randomUUID().toString()
+            val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
 
-        val dirtyNotes = db.noteDao().getDirty()
-        val dirtyReminders = db.reminderDao().getDirty()
-        val knownNoteIds = db.noteDao().getAllIds().toSet()
+            val dirtyNotes = db.noteDao().getDirty()
+            val dirtyReminders = db.reminderDao().getDirty()
+            val knownNoteIds = db.noteDao().getAllIds().toSet()
 
-        val sanitized = SyncPayloadSanitizer.sanitize(
-            dirtyNotes,
-            dirtyReminders,
-            knownNoteIds,
-        )
+            val sanitized = SyncPayloadSanitizer.sanitize(
+                dirtyNotes,
+                dirtyReminders,
+                knownNoteIds,
+            )
 
-        SyncDiagnostics.lastWarnings = sanitized.warnings
-        SyncDiagnostics.lastSanitizedNoteCount = sanitized.notes.size
-        SyncDiagnostics.lastSanitizedReminderCount = sanitized.reminders.size
-        SyncDiagnostics.lastError = null
+            SyncDiagnostics.lastWarnings = sanitized.warnings
+            SyncDiagnostics.lastSanitizedNoteCount = sanitized.notes.size
+            SyncDiagnostics.lastSanitizedReminderCount = sanitized.reminders.size
+            SyncDiagnostics.lastError = null
 
-        val response = api.sync(
-            SyncRequest(
-                device_id = deviceId,
-                last_sync_at = lastSync,
-                notes = sanitized.notes,
-                reminders = sanitized.reminders,
-            ),
-        )
+            val response = api.sync(
+                SyncRequest(
+                    device_id = deviceId,
+                    last_sync_at = lastSync,
+                    notes = sanitized.notes,
+                    reminders = sanitized.reminders,
+                ),
+            )
 
-        val mergedNotes = response.notes.map { it.toEntity(userId, isDirty = false) }
-        val mergedReminders = response.reminders.map { it.toEntity(userId, isDirty = false) }
+            val mergedNotes = response.notes.map { it.toEntity(userId, isDirty = false) }
+            val mergedReminders = response.reminders.map { it.toEntity(userId, isDirty = false) }
 
-        db.noteDao().upsertAll(mergedNotes)
-        db.reminderDao().upsertAll(mergedReminders)
+            db.noteDao().upsertAll(mergedNotes)
+            db.reminderDao().upsertAll(mergedReminders)
 
-        db.syncMetaDao().upsert(
-            SyncMetaEntity(
-                deviceId = deviceId,
-                lastSyncAt = response.server_time,
-                userId = userId,
-            ),
-        )
-
+            db.syncMetaDao().upsert(
+                SyncMetaEntity(
+                    deviceId = deviceId,
+                    lastSyncAt = response.server_time,
+                    userId = userId,
+                ),
+            )
+        }.onFailure {
+            SyncDiagnostics.lastError = it.message
+        }
         reconciler.reconcile()
-    }.onFailure {
-        SyncDiagnostics.lastError = it.message
+        return result
     }
 
     fun getDeviceId(): String {

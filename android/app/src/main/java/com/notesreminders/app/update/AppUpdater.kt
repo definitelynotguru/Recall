@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -24,22 +25,63 @@ object AppUpdater {
 
     suspend fun downloadLatestApk(context: Context): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder()
-                .url(BuildConfig.UPDATE_APK_URL)
-                .get()
-                .build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                error("Download failed: HTTP ${response.code}")
+            val urls = resolveDownloadUrls()
+            var lastError: Throwable? = null
+            for (url in urls) {
+                val result = runCatching { downloadFromUrl(context, url) }
+                if (result.isSuccess) return@runCatching result.getOrThrow()
+                lastError = result.exceptionOrNull()
             }
-            val body = response.body ?: error("Empty response")
-            val dest = File(context.cacheDir, "recall-update.apk")
-            dest.outputStream().use { out -> body.byteStream().copyTo(out) }
-            if (dest.length() < 1_000_000) {
-                error("Downloaded file too small — check UPDATE_APK_URL")
-            }
-            dest
+            throw lastError ?: error("No download URL available")
         }
+    }
+
+    private fun resolveDownloadUrls(): List<String> {
+        val configured = BuildConfig.UPDATE_APK_URL.trim()
+        val urls = mutableListOf<String>()
+        if (configured.isNotEmpty()) urls.add(configured)
+        resolveLatestReleaseApkUrl()?.let { urls.add(it) }
+        return urls.distinct()
+    }
+
+    /** GitHub latest release asset (public repos). */
+    private fun resolveLatestReleaseApkUrl(): String? {
+        val request = Request.Builder()
+            .url("https://api.github.com/repos/definitelynotguru/Recall/releases/latest")
+            .header("Accept", "application/vnd.github+json")
+            .get()
+            .build()
+        return runCatching {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body?.string() ?: return null
+                val json = JSONObject(body)
+                val assets = json.optJSONArray("assets") ?: return null
+                for (i in 0 until assets.length()) {
+                    val asset = assets.getJSONObject(i)
+                    val name = asset.optString("name", "")
+                    if (name.endsWith(".apk")) {
+                        return asset.getString("browser_download_url")
+                    }
+                }
+                null
+            }
+        }.getOrNull()
+    }
+
+    private fun downloadFromUrl(context: Context, url: String): File {
+        val request = Request.Builder().url(url).get().build()
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            error("Download failed for $url: HTTP ${response.code}")
+        }
+        val body = response.body ?: error("Empty response from $url")
+        val dest = File(context.cacheDir, "recall-update.apk")
+        dest.outputStream().use { out -> body.byteStream().copyTo(out) }
+        if (dest.length() < 1_000_000) {
+            error("Downloaded file too small (${dest.length()} bytes) — not a valid APK")
+        }
+        return dest
     }
 
     fun canInstallPackages(context: Context): Boolean {

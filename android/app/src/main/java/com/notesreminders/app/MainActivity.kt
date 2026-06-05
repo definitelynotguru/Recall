@@ -26,12 +26,17 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.reminders.ReminderReceiver
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.components.OfflineSyncBanner
@@ -75,10 +80,18 @@ class MainActivity : ComponentActivity() {
                 if (!loggedIn) {
                     LoginScreen(viewModel) { loggedIn = true }
                 } else {
+                    LaunchedEffect(Unit) {
+                        viewModel.reconcileAlarms()
+                    }
                     MainShell(
                         viewModel = viewModel,
                         launchNoteId = launchNoteId,
                         onNoteOpened = { pendingNoteId.value = null },
+                        onRequestExactAlarms = {
+                            if (ReminderPermissions.needsExactAlarmPermission(this@MainActivity)) {
+                                startActivity(ReminderPermissions.exactAlarmSettingsIntent(this@MainActivity))
+                            }
+                        },
                     ) { loggedIn = false }
                 }
             }
@@ -120,10 +133,22 @@ private fun MainShell(
     viewModel: AppViewModel,
     launchNoteId: String?,
     onNoteOpened: () -> Unit,
+    onRequestExactAlarms: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val isOnline by viewModel.isOnline.collectAsState()
     val nav = rememberNavController()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshConnectivity()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(launchNoteId) {
         if (!launchNoteId.isNullOrBlank()) {
@@ -192,6 +217,7 @@ private fun MainShell(
             if (!isOnline) {
                 OfflineSyncBanner(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    onReconnect = { viewModel.refreshConnectivity() },
                 )
             }
             NavHost(
@@ -203,6 +229,7 @@ private fun MainShell(
                 TodayScreen(
                     viewModel = viewModel,
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onRequestExactAlarms = onRequestExactAlarms,
                     onLogout = { viewModel.logout { onLogout() } },
                 )
             }
@@ -229,6 +256,8 @@ private fun MainShell(
                     noteId = id,
                     viewModel = viewModel,
                     onBack = { nav.popBackStack() },
+                    onDeleted = { nav.popBackStack() },
+                    onRequestExactAlarms = onRequestExactAlarms,
                 )
             }
             }

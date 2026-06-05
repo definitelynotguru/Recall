@@ -65,6 +65,8 @@ fun NoteDetailScreen(
     noteId: String,
     viewModel: AppViewModel,
     onBack: () -> Unit,
+    onDeleted: () -> Unit,
+    onRequestExactAlarms: () -> Unit = {},
 ) {
     var title by remember(noteId) { mutableStateOf("") }
     var body by remember(noteId) { mutableStateOf("") }
@@ -79,6 +81,8 @@ fun NoteDetailScreen(
     var detectedList by remember(noteId) { mutableStateOf<List<DetectedReminder>>(emptyList()) }
     var selectedDetected by remember(noteId) { mutableStateOf<Set<String>>(emptySet()) }
     var fetchingReminders by remember(noteId) { mutableStateOf(false) }
+    var showDeleteNoteDialog by remember(noteId) { mutableStateOf(false) }
+    var reminderToDelete by remember(noteId) { mutableStateOf<ReminderEntity?>(null) }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -140,6 +144,7 @@ fun NoteDetailScreen(
         showReminderDialog = false
         val editing = editingReminder
         editingReminder = null
+        onRequestExactAlarms()
         if (editing != null) {
             viewModel.updateReminder(editing.id, fireAt, tz, repeat) {
                 refreshReminders()
@@ -178,6 +183,13 @@ fun NoteDetailScreen(
             }
             TextButton(onClick = { preview = !preview }) {
                 Text(if (preview) "Edit" else "Preview", color = RecallColors.Copper)
+            }
+            IconButton(onClick = { showDeleteNoteDialog = true }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete note",
+                    tint = RecallColors.Error,
+                )
             }
         }
 
@@ -239,7 +251,7 @@ fun NoteDetailScreen(
             Icon(Icons.Default.Notifications, null, tint = RecallColors.Copper)
             Spacer(Modifier.width(12.dp))
             Text(
-                "Tap Sync after editing reminders so alarms stay in sync.",
+                "Reminders notify on this device. Sync uploads changes to the web.",
                 style = MaterialTheme.typography.bodySmall,
                 color = RecallColors.ParchmentMuted,
             )
@@ -315,11 +327,7 @@ fun NoteDetailScreen(
                                 tint = RecallColors.Copper,
                             )
                         }
-                        IconButton(onClick = {
-                            viewModel.deleteReminder(r.id) {
-                                refreshReminders()
-                            }
-                        }) {
+                        IconButton(onClick = { reminderToDelete = r }) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete",
@@ -471,12 +479,9 @@ fun NoteDetailScreen(
                         Spacer(Modifier.height(12.dp))
                         TextButton(
                             onClick = {
-                                val id = editingReminder!!.id
+                                reminderToDelete = editingReminder
                                 showReminderDialog = false
                                 editingReminder = null
-                                viewModel.deleteReminder(id) {
-                                    refreshReminders()
-                                }
                             },
                         ) {
                             Text("Delete reminder", color = RecallColors.Error)
@@ -494,6 +499,66 @@ fun NoteDetailScreen(
                     showReminderDialog = false
                     editingReminder = null
                 }) {
+                    Text("Cancel", color = RecallColors.ParchmentMuted)
+                }
+            },
+        )
+    }
+
+    if (showDeleteNoteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteNoteDialog = false },
+            containerColor = RecallColors.InkSurface,
+            title = { Text("Delete note?", color = RecallColors.Parchment) },
+            text = {
+                Text(
+                    "This removes the note and all its reminders on this device. Sync to apply on web.",
+                    color = RecallColors.ParchmentMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteNoteDialog = false
+                        viewModel.flushNoteSave(noteId, title, body)
+                        viewModel.deleteNote(noteId) { onDeleted() }
+                    },
+                ) {
+                    Text("Delete", color = RecallColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteNoteDialog = false }) {
+                    Text("Cancel", color = RecallColors.ParchmentMuted)
+                }
+            },
+        )
+    }
+
+    reminderToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { reminderToDelete = null },
+            containerColor = RecallColors.InkSurface,
+            title = { Text("Delete reminder?", color = RecallColors.Parchment) },
+            text = {
+                Text(
+                    formatFireAt(target.fireAt),
+                    color = RecallColors.ParchmentMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = target.id
+                        reminderToDelete = null
+                        viewModel.deleteReminder(id) { refreshReminders() }
+                    },
+                ) {
+                    Text("Delete", color = RecallColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { reminderToDelete = null }) {
                     Text("Cancel", color = RecallColors.ParchmentMuted)
                 }
             },

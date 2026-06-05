@@ -67,6 +67,10 @@ class NotesRepository(
         return note
     }
 
+    suspend fun reconcileAlarms() {
+        reconciler.reconcile()
+    }
+
     suspend fun saveNoteLocal(id: String, title: String, body: String) {
         val existing = db.noteDao().getById(id) ?: return
         if (existing.title == title && existing.body == body) return
@@ -92,6 +96,7 @@ class NotesRepository(
                 r.copy(deletedAt = now, updatedAt = now, status = "cancelled", isDirty = true),
             )
         }
+        reconciler.reconcile()
     }
 
     suspend fun addReminder(
@@ -118,6 +123,7 @@ class NotesRepository(
             isDirty = true,
         )
         db.reminderDao().upsert(reminder)
+        reconciler.reconcile()
         return reminder
     }
 
@@ -137,6 +143,7 @@ class NotesRepository(
             isDirty = true,
         )
         db.reminderDao().upsert(updated)
+        reconciler.reconcile()
         return updated
     }
 
@@ -152,6 +159,7 @@ class NotesRepository(
                 isDirty = true,
             ),
         )
+        reconciler.reconcile()
     }
 
     suspend fun syncNow(): Result<Unit> = syncRepository.sync()

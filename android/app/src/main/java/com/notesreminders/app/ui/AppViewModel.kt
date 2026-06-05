@@ -142,8 +142,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshConnectivity() {
+        app.networkMonitor.refresh()
+        if (app.networkMonitor.currentIsOnline()) {
+            if (_syncHint.value == OFFLINE_SYNC_MESSAGE) {
+                _syncHint.value = null
+            }
+            reconcileAlarms()
+        }
+    }
+
     fun syncNow(showSuccess: Boolean = true) {
         if (_isSyncing.value) return
+        app.networkMonitor.refresh()
         if (!app.networkMonitor.currentIsOnline()) {
             _syncHint.value = OFFLINE_SYNC_MESSAGE
             return
@@ -187,8 +198,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun downloadAndInstallUpdate(activity: Activity, onStatus: (String) -> Unit) {
+        app.networkMonitor.refresh()
         if (!app.networkMonitor.currentIsOnline()) {
-            onStatus("Need internet to download update")
+            onStatus("Need internet to download update · tap Reconnect on the banner if you are online")
             return
         }
         viewModelScope.launch {
@@ -218,6 +230,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
+                    app.networkMonitor.refresh()
+                    app.notesRepository.reconcileAlarms()
                     val payload = DebugReportCollector.collect(
                         app,
                         lastSyncHint = _syncHint.value,
@@ -261,9 +275,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteNote(id: String, onDone: () -> Unit) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                app.notesRepository.deleteNote(id)
+            }
+            onDone()
+        }
+    }
+
+    fun reconcileAlarms() {
         viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.deleteNote(id)
-            withContext(Dispatchers.Main) { onDone() }
+            app.notesRepository.reconcileAlarms()
         }
     }
 

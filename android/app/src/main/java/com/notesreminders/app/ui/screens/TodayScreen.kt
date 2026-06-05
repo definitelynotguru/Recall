@@ -53,6 +53,7 @@ import java.time.format.DateTimeFormatter
 fun TodayScreen(
     viewModel: AppViewModel,
     onOpenNote: (String) -> Unit,
+    onRequestExactAlarms: () -> Unit = {},
     onLogout: () -> Unit,
 ) {
     val notes by viewModel.notes.collectAsState()
@@ -66,6 +67,7 @@ fun TodayScreen(
     var reminderDate by remember { mutableStateOf(LocalDate.now().toString()) }
     var reminderTime by remember { mutableStateOf("09:00") }
     var repeatRule by remember { mutableStateOf("") }
+    var reminderToDelete by remember { mutableStateOf<String?>(null) }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -96,6 +98,7 @@ fun TodayScreen(
         showReminderDialog = false
         val editing = editingReminder
         editingReminder = null
+        onRequestExactAlarms()
         if (editing != null) {
             viewModel.updateReminder(editing.id, fireAt, tz, repeat)
         }
@@ -141,7 +144,7 @@ fun TodayScreen(
                                     data = item,
                                     onOpenNote = onOpenNote,
                                     onEdit = { openEditDialog(it) },
-                                    onDelete = { viewModel.deleteReminder(it) },
+                                    onDelete = { reminderToDelete = it },
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
@@ -190,10 +193,9 @@ fun TodayScreen(
                     Spacer(Modifier.height(12.dp))
                     TextButton(
                         onClick = {
-                            val id = editingReminder!!.id
+                            reminderToDelete = editingReminder!!.id
                             showReminderDialog = false
                             editingReminder = null
-                            viewModel.deleteReminder(id)
                         },
                     ) {
                         Text("Delete reminder", color = RecallColors.Error)
@@ -210,6 +212,35 @@ fun TodayScreen(
                     showReminderDialog = false
                     editingReminder = null
                 }) {
+                    Text("Cancel", color = RecallColors.ParchmentMuted)
+                }
+            },
+        )
+    }
+
+    reminderToDelete?.let { id ->
+        AlertDialog(
+            onDismissRequest = { reminderToDelete = null },
+            containerColor = RecallColors.InkSurface,
+            title = { Text("Delete reminder?", color = RecallColors.Parchment) },
+            text = {
+                Text(
+                    "This cancels the scheduled nudge on this device.",
+                    color = RecallColors.ParchmentMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        reminderToDelete = null
+                        viewModel.deleteReminder(id)
+                    },
+                ) {
+                    Text("Delete", color = RecallColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { reminderToDelete = null }) {
                     Text("Cancel", color = RecallColors.ParchmentMuted)
                 }
             },

@@ -5,8 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.notesreminders.app.MainActivity
 import com.notesreminders.app.data.local.ReminderDao
-import com.notesreminders.app.data.local.ReminderEntity
 import java.time.Instant
 
 class ReminderReconciler(
@@ -20,6 +20,10 @@ class ReminderReconciler(
         val active = reminderDao.getActive()
         val scheduled = registry.load()
         val now = Instant.now()
+        var skippedPast = 0
+        var advancedRepeat = 0
+        var newlyScheduled = 0
+        val issues = mutableListOf<String>()
 
         for (id in scheduled.keys.toList()) {
             val reminder = active.find { it.id == id }
@@ -31,7 +35,12 @@ class ReminderReconciler(
 
         for (reminder in active) {
             var fireAt = reminder.fireAt
-            val fireInstant = Instant.parse(fireAt)
+            val fireInstant = try {
+                Instant.parse(fireAt)
+            } catch (e: Exception) {
+                issues.add("bad fire_at ${reminder.id}: ${e.message}")
+                continue
+            }
 
             if (fireInstant <= now && reminder.repeatRule != null) {
                 fireAt = RepeatUtils.computeNextOccurrence(
@@ -39,6 +48,7 @@ class ReminderReconciler(
                     fireAt,
                     reminder.timezone,
                 )
+                advancedRepeat++
                 reminderDao.upsert(
                     reminder.copy(
                         fireAt = fireAt,
@@ -48,17 +58,39 @@ class ReminderReconciler(
                 )
             }
 
-            if (Instant.parse(fireAt) <= now) continue
+            if (Instant.parse(fireAt) <= now) {
+                skippedPast++
+                continue
+            }
             if (scheduled[reminder.id] == fireAt) continue
 
-            scheduleAlarm(reminder.id, reminder.noteId, fireAt)
+            val method = scheduleAlarm(reminder.id, reminder.noteId, fireAt)
             scheduled[reminder.id] = fireAt
+            newlyScheduled++
+            if (newlyScheduled == 1) {
+                ReminderDiagnostics.lastScheduleMethod = method
+            }
         }
 
         registry.save(scheduled)
+
+        val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
+        ReminderDiagnostics.recordReconcile(
+            active = active.size,
+            scheduled = scheduled.size,
+            skippedPast = skippedPast,
+            advancedRepeat = advancedRepeat,
+            exactAlarms = exact,
+            scheduleMethod = ReminderDiagnostics.lastScheduleMethod ?: "none",
+            issues = issues,
+        )
     }
 
-    private fun scheduleAlarm(reminderId: String, noteId: String, fireAtIso: String) {
+    private fun scheduleAlarm(reminderId: String, noteId: String, fireAtIso: String): String {
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(ReminderReceiver.EXTRA_REMINDER_ID, reminderId)
             putExtra(ReminderReceiver.EXTRA_NOTE_ID, noteId)
@@ -72,27 +104,23 @@ class ReminderReconciler(
         )
         val trigger = Instant.parse(fireAtIso).toEpochMilli()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    trigger,
-                    pending,
-                )
-            } else {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    trigger,
-                    pending,
-                )
-            }
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                trigger,
-                pending,
-            )
+        val showIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(ReminderReceiver.EXTRA_NOTE_ID, noteId)
         }
+        val showPending = PendingIntent.getActivity(
+            context,
+            (reminderId + "show").hashCode(),
+            showIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        // Alarm clock alarms are exempt from exact-alarm permission and fire on time in Doze.
+        alarmManager.setAlarmClock(
+            AlarmManager.AlarmClockInfo(trigger, showPending),
+            pending,
+        )
+        return "alarm_clock"
     }
 
     fun cancelAlarm(reminderId: String) {

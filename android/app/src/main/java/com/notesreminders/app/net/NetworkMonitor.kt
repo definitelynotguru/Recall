@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,8 +39,7 @@ class NetworkMonitor(context: Context) {
     }
 
     fun start() {
-        _isOnline.value = checkOnline()
-        wasOnline = _isOnline.value
+        refresh()
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
@@ -53,7 +53,33 @@ class NetworkMonitor(context: Context) {
         }
     }
 
+    /** Re-check connectivity (e.g. after resume from sleep). */
+    fun refresh() {
+        updateState()
+    }
+
     fun currentIsOnline(): Boolean = checkOnline()
+
+    fun snapshot(): Map<String, Any?> {
+        val network = connectivityManager.activeNetwork
+        val caps = network?.let { connectivityManager.getNetworkCapabilities(it) }
+        return mapOf(
+            "monitor_online" to _isOnline.value,
+            "fresh_check_online" to checkOnline(),
+            "active_network_present" to (network != null),
+            "has_internet_capability" to caps?.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+            ),
+            "validated" to caps?.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+            ),
+            "not_suspended" to caps?.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED,
+            ),
+            "transport" to transportLabel(caps),
+            "sdk_int" to Build.VERSION.SDK_INT,
+        )
+    }
 
     private fun updateState() {
         val online = checkOnline()
@@ -65,10 +91,30 @@ class NetworkMonitor(context: Context) {
         }
     }
 
+    /**
+     * Treat as online when the active network has Internet. Do not require VALIDATED —
+     * that flag is often false briefly after unlock/resume even on working Wi‑Fi/cellular.
+     */
     private fun checkOnline(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val caps = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+            return false
+        }
+        if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+            return true
+        }
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED) &&
+            !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_RESTRICTED)
+    }
+
+    private fun transportLabel(caps: NetworkCapabilities?): String {
+        if (caps == null) return "none"
+        return buildList {
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) add("wifi")
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) add("cellular")
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) add("ethernet")
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) add("vpn")
+        }.joinToString(",").ifBlank { "other" }
     }
 }

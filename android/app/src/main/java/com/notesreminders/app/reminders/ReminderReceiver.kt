@@ -93,7 +93,16 @@ class ReminderReceiver : BroadcastReceiver() {
             .addAction(0, context.getString(R.string.action_snooze), snoozePending)
             .build()
 
-        NotificationManagerCompat.from(context).notify(reminderId.hashCode(), notification)
+        val nm = NotificationManagerCompat.from(context)
+        if (!nm.areNotificationsEnabled()) return
+
+        try {
+            nm.notify(reminderId.hashCode(), notification)
+        } catch (_: SecurityException) {
+            return
+        }
+
+        ReminderReconciler(context, app.database.reminderDao()).reconcile()
     }
 
     private suspend fun handleDone(context: Context, reminderId: String) {
