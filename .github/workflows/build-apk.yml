@@ -52,21 +52,21 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: recall-debug-apk
-          path: android/app/build/outputs/apk/debug/recall-1.0.2-debug.apk
+          path: android/app/build/outputs/apk/debug/recall-1.0.3-debug.apk
           if-no-files-found: error
 
       - name: Upload to GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.2-debug
-          name: Recall v1.0.2-debug
-          files: android/app/build/outputs/apk/debug/recall-1.0.2-debug.apk
+          tag_name: v1.0.3-debug
+          name: Recall v1.0.3-debug
+          files: android/app/build/outputs/apk/debug/recall-1.0.3-debug.apk
           make_latest: true
           overwrite_files: true
 
       - name: Summary
         run: |
           echo "### Recall debug APK" >> "$GITHUB_STEP_SUMMARY"
-          echo "Artifact: **recall-debug-apk** · Release: **v1.0.2-debug**" >> "$GITHUB_STEP_SUMMARY"
-          ls -lh android/app/build/outputs/apk/debug/recall-1.0.2-debug.apk
+          echo "Artifact: **recall-debug-apk** · Release: **v1.0.3-debug**" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh android/app/build/outputs/apk/debug/recall-1.0.3-debug.apk
