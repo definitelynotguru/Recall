@@ -105,7 +105,7 @@ class NetworkMonitor(context: Context) {
             return true
         }
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED) &&
-            !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_RESTRICTED)
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
     }
 
     private fun transportLabel(caps: NetworkCapabilities?): String {
