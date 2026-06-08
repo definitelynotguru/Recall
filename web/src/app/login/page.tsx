@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
   const { login, register, user, loading } = useAuth();
   const router = useRouter();
-  const [sessionExpired, setSessionExpired] = useState(false);
-
-  useEffect(() => {
-    setSessionExpired(
+  const [sessionExpired] = useState(
+    () =>
+      typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("reason") ===
         "session_expired",
-    );
-  }, []);
+  );
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

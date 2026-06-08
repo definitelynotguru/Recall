@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Sparkle, X } from "@phosphor-icons/react";
 import {
   DetectedReminder,
@@ -22,19 +22,29 @@ export function DetectedRemindersDialog({
   onClose,
   onAdd,
 }: Props) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  if (!open) return null;
+
+  return (
+    <DetectedRemindersDialogContent
+      key={suggestions.map((s) => s.id).join("|")}
+      suggestions={suggestions}
+      onClose={onClose}
+      onAdd={onAdd}
+    />
+  );
+}
+
+function DetectedRemindersDialogContent({
+  suggestions,
+  onClose,
+  onAdd,
+}: Omit<Props, "open">) {
+  const [selected, setSelected] = useState<Set<string>>(
+    () =>
+      new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
+  );
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setError("");
-    setSelected(
-      new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
-    );
-  }, [open, suggestions]);
-
-  if (!open) return null;
 
   const toggle = (id: string) => {
     setSelected((prev) => {

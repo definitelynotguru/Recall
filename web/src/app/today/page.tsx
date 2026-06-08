@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -19,21 +19,20 @@ export default function TodayPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ reminders: ApiReminder[] }>(
-        "/reminders?status=active&limit=all",
-      );
-      setReminders(res.reminders);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const load = useCallback(async () => {
+    const res = await apiFetch<{ reminders: ApiReminder[] }>(
+      "/reminders?status=active&limit=all",
+    );
+    setReminders(res.reminders);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    const id = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const groups = groupRemindersByDay(reminders);
   const noteTitle = (id: string) =>
@@ -46,6 +45,7 @@ export default function TodayPage() {
 
   const deleteReminder = async (id: string) => {
     if (!confirm("Delete this reminder?")) return;
+    setLoading(true);
     await apiFetch(`/reminders/${id}`, { method: "DELETE" });
     await load();
   };
@@ -152,7 +152,10 @@ export default function TodayPage() {
             setDialogOpen(false);
             setEditingReminder(null);
           }}
-          onSaved={() => load()}
+          onSaved={() => {
+            setLoading(true);
+            load();
+          }}
           reminder={editingReminder}
         />
       )}

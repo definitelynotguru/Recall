@@ -93,7 +93,12 @@ export async function importBackup(
         intensity: r.intensity ?? "gentle",
       };
       if (have.has(r.id)) {
-        const { id: _id, ...patch } = payload;
+        const patch: Omit<typeof payload, "id"> = {
+          fire_at: payload.fire_at,
+          timezone: payload.timezone,
+          repeat_rule: payload.repeat_rule,
+          intensity: payload.intensity,
+        };
         await apiFetch(`/reminders/${r.id}`, {
           method: "PATCH",
           body: JSON.stringify(patch),

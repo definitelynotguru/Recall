@@ -11,7 +11,9 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loaded = useRef(false);
 
-  latest.current = { title, body };
+  useEffect(() => {
+    latest.current = { title, body };
+  }, [title, body]);
 
   const flush = useCallback(async () => {
     if (!noteId) return;

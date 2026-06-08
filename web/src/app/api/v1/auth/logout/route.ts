@@ -3,7 +3,6 @@ import { z } from "zod";
 import { revokeRefreshToken } from "@/lib/auth";
 import {
   errorResponse,
-  jsonResponse,
   clearRefreshCookie,
   getRefreshFromRequest,
 } from "@/lib/api-utils";

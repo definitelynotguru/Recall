@@ -16,9 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.ui.theme.RecallColors
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun DetectedRemindersDialog(
@@ -78,7 +75,7 @@ private fun DetectedReminderRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val formatted = formatFireAt(item.fireAt)
+    val formatted = formatReminderFireAt(item.fireAt)
     val confidenceLabel = if (item.confidence == "high") "Likely" else "Maybe"
 
     Row(
@@ -119,9 +116,4 @@ private fun DetectedReminderRow(
             )
         }
     }
-}
-
-private fun formatFireAt(iso: String): String {
-    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d · h:mm a")
-    return Instant.parse(iso).atZone(ZoneId.systemDefault()).format(formatter)
 }

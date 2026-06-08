@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Sparkle, NotePencil, DeviceMobile, X } from "@phosphor-icons/react";
 import { setOnboardingDone } from "@/lib/user-prefs";
 

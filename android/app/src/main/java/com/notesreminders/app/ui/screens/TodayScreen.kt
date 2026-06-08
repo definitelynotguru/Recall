@@ -41,12 +41,12 @@ import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
+import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.parseReminderTimeFields
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun TodayScreen(
@@ -213,10 +213,7 @@ private fun TimelineReminderCard(
     onEdit: (ReminderEntity) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d · h:mm a")
-    val formatted = Instant.parse(data.reminder.fireAt)
-        .atZone(ZoneId.systemDefault())
-        .format(formatter)
+    val formatted = formatReminderFireAt(data.reminder.fireAt)
 
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -318,4 +315,3 @@ private fun groupReminders(
         "Later" to later,
     )
 }
-

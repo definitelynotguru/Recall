@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -49,12 +49,12 @@ export default function NoteDetailPage() {
   const { loading: authLoading } = useAuth();
   const { status: saveStatus, flush } = useDebouncedNoteSave(id, title, body);
 
-  const load = async () => {
-    setLoadError("");
+  const load = useCallback(async () => {
     try {
       const res = await apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(
         `/notes/${id}`,
       );
+      setLoadError("");
       setTitle(res.note.title);
       setBody(res.note.body);
       setReminders(res.reminders.filter((r) => r.status === "active"));
@@ -73,13 +73,15 @@ export default function NoteDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
 
   useEffect(() => {
     if (authLoading) return;
-    setLoading(true);
-    load();
-  }, [id, authLoading]);
+    const id = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [authLoading, load]);
 
   const saveStatusLabel = () => {
     switch (saveStatus) {
@@ -152,7 +154,10 @@ export default function NoteDetailPage() {
   };
 
   const nextReminder = pickNextReminder(reminders);
-  const selectedTagIds = new Set(noteTags.map((tag) => tag.id));
+  const selectedTagIds = useMemo(
+    () => new Set(noteTags.map((tag) => tag.id)),
+    [noteTags],
+  );
 
   const setNoteTagIds = async (tagIds: string[]) => {
     const res = await apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`, {

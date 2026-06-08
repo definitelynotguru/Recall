@@ -52,13 +52,12 @@ import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.DetectedRemindersDialog
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
+import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.parseReminderTimeFields
 import com.notesreminders.app.ui.theme.RecallColors
 import io.noties.markwon.Markwon
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun NoteDetailScreen(
@@ -309,7 +308,7 @@ fun NoteDetailScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            formatFireAt(r.fireAt),
+                            formatReminderFireAt(r.fireAt),
                             style = MaterialTheme.typography.titleMedium,
                             color = RecallColors.Parchment,
                         )
@@ -439,7 +438,7 @@ fun NoteDetailScreen(
             title = { Text("Delete reminder?", color = RecallColors.Parchment) },
             text = {
                 Text(
-                    formatFireAt(target.fireAt),
+                    formatReminderFireAt(target.fireAt),
                     color = RecallColors.ParchmentMuted,
                 )
             },
@@ -479,9 +478,3 @@ private fun MarkdownPreview(markdown: String) {
         modifier = Modifier.fillMaxWidth(),
     )
 }
-
-private fun formatFireAt(iso: String): String {
-    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d · h:mm a")
-    return Instant.parse(iso).atZone(ZoneId.systemDefault()).format(formatter)
-}
-

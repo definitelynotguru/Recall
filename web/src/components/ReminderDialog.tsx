@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, Trash, X } from "@phosphor-icons/react";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 import { loadUserPrefs } from "@/lib/user-prefs";
@@ -29,32 +29,47 @@ export function ReminderDialog({
   onSaved,
   reminder,
 }: Props) {
+  if (!open) return null;
+
+  return (
+    <ReminderDialogContent
+      key={reminder?.id ?? "new"}
+      noteId={noteId}
+      onClose={onClose}
+      onSaved={onSaved}
+      reminder={reminder}
+    />
+  );
+}
+
+function initialReminderFields(reminder?: ApiReminder | null) {
+  if (reminder) {
+    const { date, time } = fireAtToLocalFields(reminder.fire_at);
+    return { date, time, repeat: reminder.repeat_rule ?? "" };
+  }
+
+  const prefs = loadUserPrefs();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: "",
+    time: `${pad(prefs.defaultReminderHour)}:${pad(prefs.defaultReminderMinute)}`,
+    repeat: "",
+  };
+}
+
+function ReminderDialogContent({
+  noteId,
+  onClose,
+  onSaved,
+  reminder,
+}: Omit<Props, "open">) {
   const isEdit = Boolean(reminder);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("09:00");
-  const [repeat, setRepeat] = useState("");
+  const [date, setDate] = useState(() => initialReminderFields(reminder).date);
+  const [time, setTime] = useState(() => initialReminderFields(reminder).time);
+  const [repeat, setRepeat] = useState(() => initialReminderFields(reminder).repeat);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setError("");
-    if (reminder) {
-      const { date: d, time: t } = fireAtToLocalFields(reminder.fire_at);
-      setDate(d);
-      setTime(t);
-      setRepeat(reminder.repeat_rule ?? "");
-    } else {
-      const prefs = loadUserPrefs();
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setDate("");
-      setTime(`${pad(prefs.defaultReminderHour)}:${pad(prefs.defaultReminderMinute)}`);
-      setRepeat("");
-    }
-  }, [open, reminder]);
-
-  if (!open) return null;
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

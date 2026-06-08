@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
@@ -16,17 +16,20 @@ export default function NotesPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"active" | "archived">("active");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const params = new URLSearchParams({ status });
     if (query.trim()) params.set("q", query.trim());
     const res = await apiFetch<{ notes: ApiNote[] }>(`/notes?${params}`);
     setNotes(res.notes);
-  };
+    setLoading(false);
+  }, [query, status]);
 
   useEffect(() => {
-    setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [status, query]);
+    const id = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [load]);
 
   const createNote = async () => {
     setCreating(true);
@@ -68,7 +71,10 @@ export default function NotesPage() {
             <input
               id="notes-search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setLoading(true);
+                setQuery(e.target.value);
+              }}
               placeholder="Search title or body"
             />
           </div>
@@ -77,14 +83,20 @@ export default function NotesPage() {
           <button
             type="button"
             className={status === "active" ? "active" : ""}
-            onClick={() => setStatus("active")}
+            onClick={() => {
+              setLoading(true);
+              setStatus("active");
+            }}
           >
             Active
           </button>
           <button
             type="button"
             className={status === "archived" ? "active" : ""}
-            onClick={() => setStatus("archived")}
+            onClick={() => {
+              setLoading(true);
+              setStatus("archived");
+            }}
           >
             Archived
           </button>

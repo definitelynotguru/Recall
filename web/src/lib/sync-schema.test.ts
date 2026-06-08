@@ -44,7 +44,14 @@ describe("syncSchema", () => {
 
   it("accepts omitted deleted_at (Android Gson null omit)", () => {
     const raw = validPayload();
-    const { deleted_at: _, ...noteWithoutDeleted } = raw.notes[0];
+    const noteWithoutDeleted: Omit<(typeof raw.notes)[0], "deleted_at"> = {
+      id: raw.notes[0].id,
+      title: raw.notes[0].title,
+      body: raw.notes[0].body,
+      status: raw.notes[0].status,
+      created_at: raw.notes[0].created_at,
+      updated_at: raw.notes[0].updated_at,
+    };
     raw.notes[0] = noteWithoutDeleted as (typeof raw.notes)[0];
     const parsed = syncSchema.parse(raw);
     expect(parsed.notes[0].deleted_at).toBeNull();
