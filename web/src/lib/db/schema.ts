@@ -143,6 +143,7 @@ export const refreshTokens = pgTable(
       .notNull()
       .defaultNow(),
   },
+  (t) => [index("refresh_tokens_hash").on(t.tokenHash)],
 );
 
 export type User = typeof users.$inferSelect;

@@ -37,7 +37,7 @@ class NotesApp : Application() {
             )
             .build()
         api = ApiClient.create(tokenStore)
-        syncRepository = SyncRepository(this, database, tokenStore)
+        syncRepository = SyncRepository(this, database, tokenStore, api)
         val reconciler = ReminderReconciler(this, database.reminderDao())
         notesRepository = NotesRepository(
             database,

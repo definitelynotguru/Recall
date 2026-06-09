@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  noteStatusSchema,
+  reminderIntensitySchema,
+  reminderStatusSchema,
+} from "./domain";
 
 /** Gson on Android omits null keys; treat missing as null. */
 const nullableString = z.string().nullish().transform((v) => v ?? null);
@@ -7,7 +12,7 @@ export const syncNoteSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   body: z.string(),
-  status: z.string(),
+  status: noteStatusSchema,
   pinned_at: nullableString,
   created_at: z.string(),
   updated_at: z.string(),
@@ -20,8 +25,8 @@ export const syncReminderSchema = z.object({
   fire_at: z.string().min(1),
   timezone: z.string(),
   repeat_rule: nullableString,
-  intensity: z.string().min(1),
-  status: z.string(),
+  intensity: reminderIntensitySchema,
+  status: reminderStatusSchema,
   completed_at: nullableString,
   created_at: z.string(),
   updated_at: z.string(),
