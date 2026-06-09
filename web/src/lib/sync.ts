@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb } from "./db";
 import { noteTags, notes, reminders, tags } from "./db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import {
@@ -27,12 +27,43 @@ export type SyncNoteTagInput = {
   deleted_at: string | null;
 };
 
-async function mergeNote(userId: string, client: SyncNoteInput): Promise<void> {
-  const [existing] = await db
+type Db = ReturnType<typeof getDb>;
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+function ownedByUser(existingUserId: string | undefined, userId: string): boolean {
+  return existingUserId === undefined || existingUserId === userId;
+}
+
+async function userOwnsNote(tx: Tx, userId: string, noteId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: notes.id })
+    .from(notes)
+    .where(and(eq(notes.id, noteId), eq(notes.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function userOwnsTag(tx: Tx, userId: string, tagId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: tags.id })
+    .from(tags)
+    .where(and(eq(tags.id, tagId), eq(tags.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function mergeNote(
+  tx: Tx,
+  userId: string,
+  client: SyncNoteInput,
+): Promise<void> {
+  const [existing] = await tx
     .select()
     .from(notes)
     .where(eq(notes.id, client.id))
     .limit(1);
+
+  if (!ownedByUser(existing?.userId, userId)) return;
 
   const clientUpdated = new Date(client.updated_at);
   const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
@@ -51,22 +82,29 @@ async function mergeNote(userId: string, client: SyncNoteInput): Promise<void> {
   };
 
   if (action === "insert") {
-    await db.insert(notes).values(row);
+    await tx.insert(notes).values(row);
     return;
   }
 
-  await db.update(notes).set(row).where(eq(notes.id, client.id));
+  await tx
+    .update(notes)
+    .set(row)
+    .where(and(eq(notes.id, client.id), eq(notes.userId, userId)));
 }
 
 async function mergeReminder(
+  tx: Tx,
   userId: string,
   client: SyncReminderInput,
 ): Promise<void> {
-  const [existing] = await db
+  const [existing] = await tx
     .select()
     .from(reminders)
     .where(eq(reminders.id, client.id))
     .limit(1);
+
+  if (!ownedByUser(existing?.userId, userId)) return;
+  if (!(await userOwnsNote(tx, userId, client.note_id))) return;
 
   const clientUpdated = new Date(client.updated_at);
   const action = resolveReminderMerge(existing?.updatedAt, clientUpdated);
@@ -90,15 +128,25 @@ async function mergeReminder(
   };
 
   if (action === "insert") {
-    await db.insert(reminders).values(row);
+    await tx.insert(reminders).values(row);
     return;
   }
 
-  await db.update(reminders).set(row).where(eq(reminders.id, client.id));
+  await tx
+    .update(reminders)
+    .set(row)
+    .where(and(eq(reminders.id, client.id), eq(reminders.userId, userId)));
 }
 
-async function mergeTag(userId: string, client: SyncTagInput): Promise<void> {
-  const [existing] = await db.select().from(tags).where(eq(tags.id, client.id)).limit(1);
+async function mergeTag(tx: Tx, userId: string, client: SyncTagInput): Promise<void> {
+  const [existing] = await tx
+    .select()
+    .from(tags)
+    .where(eq(tags.id, client.id))
+    .limit(1);
+
+  if (!ownedByUser(existing?.userId, userId)) return;
+
   const clientUpdated = new Date(client.updated_at);
   const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
   if (action === "skip") return;
@@ -113,14 +161,31 @@ async function mergeTag(userId: string, client: SyncTagInput): Promise<void> {
   };
 
   if (action === "insert") {
-    await db.insert(tags).values(row);
+    await tx.insert(tags).values(row);
     return;
   }
-  await db.update(tags).set(row).where(eq(tags.id, client.id));
+
+  await tx
+    .update(tags)
+    .set(row)
+    .where(and(eq(tags.id, client.id), eq(tags.userId, userId)));
 }
 
-async function mergeNoteTag(userId: string, client: SyncNoteTagInput): Promise<void> {
-  const [existing] = await db.select().from(noteTags).where(eq(noteTags.id, client.id)).limit(1);
+async function mergeNoteTag(
+  tx: Tx,
+  userId: string,
+  client: SyncNoteTagInput,
+): Promise<void> {
+  const [existing] = await tx
+    .select()
+    .from(noteTags)
+    .where(eq(noteTags.id, client.id))
+    .limit(1);
+
+  if (!ownedByUser(existing?.userId, userId)) return;
+  if (!(await userOwnsNote(tx, userId, client.note_id))) return;
+  if (!(await userOwnsTag(tx, userId, client.tag_id))) return;
+
   const clientUpdated = new Date(client.updated_at);
   const action = resolveNoteMerge(existing?.updatedAt, clientUpdated);
   if (action === "skip") return;
@@ -136,10 +201,43 @@ async function mergeNoteTag(userId: string, client: SyncNoteTagInput): Promise<v
   };
 
   if (action === "insert") {
-    await db.insert(noteTags).values(row);
+    await tx.insert(noteTags).values(row);
     return;
   }
-  await db.update(noteTags).set(row).where(eq(noteTags.id, client.id));
+
+  await tx
+    .update(noteTags)
+    .set(row)
+    .where(and(eq(noteTags.id, client.id), eq(noteTags.userId, userId)));
+}
+
+async function fetchUserCatalog(tx: Tx, userId: string) {
+  const allNotes = await tx
+    .select()
+    .from(notes)
+    .where(and(eq(notes.userId, userId), isNull(notes.deletedAt)));
+
+  const allReminders = await tx
+    .select()
+    .from(reminders)
+    .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt)));
+
+  const allTags = await tx
+    .select()
+    .from(tags)
+    .where(and(eq(tags.userId, userId), isNull(tags.deletedAt)));
+
+  const allNoteTags = await tx
+    .select()
+    .from(noteTags)
+    .where(and(eq(noteTags.userId, userId), isNull(noteTags.deletedAt)));
+
+  return {
+    notes: allNotes,
+    reminders: allReminders,
+    tags: allTags,
+    noteTags: allNoteTags,
+  };
 }
 
 export async function processSync(
@@ -149,38 +247,19 @@ export async function processSync(
   incomingTags: SyncTagInput[] = [],
   incomingNoteTags: SyncNoteTagInput[] = [],
 ) {
-  for (const n of incomingNotes) {
-    await mergeNote(userId, n);
-  }
-  for (const r of incomingReminders) {
-    await mergeReminder(userId, r);
-  }
-  for (const t of incomingTags) {
-    await mergeTag(userId, t);
-  }
-  for (const nt of incomingNoteTags) {
-    await mergeNoteTag(userId, nt);
-  }
-
-  const allNotes = await db
-    .select()
-    .from(notes)
-    .where(and(eq(notes.userId, userId), isNull(notes.deletedAt)));
-
-  const allReminders = await db
-    .select()
-    .from(reminders)
-    .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt)));
-
-  const allTags = await db
-    .select()
-    .from(tags)
-    .where(and(eq(tags.userId, userId), isNull(tags.deletedAt)));
-
-  const allNoteTags = await db
-    .select()
-    .from(noteTags)
-    .where(and(eq(noteTags.userId, userId), isNull(noteTags.deletedAt)));
-
-  return { notes: allNotes, reminders: allReminders, tags: allTags, noteTags: allNoteTags };
+  return getDb().transaction(async (tx) => {
+    for (const n of incomingNotes) {
+      await mergeNote(tx, userId, n);
+    }
+    for (const r of incomingReminders) {
+      await mergeReminder(tx, userId, r);
+    }
+    for (const t of incomingTags) {
+      await mergeTag(tx, userId, t);
+    }
+    for (const nt of incomingNoteTags) {
+      await mergeNoteTag(tx, userId, nt);
+    }
+    return fetchUserCatalog(tx, userId);
+  });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -20,8 +20,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/today");
+    }
+  }, [loading, user, router]);
+
   if (!loading && user) {
-    router.replace("/today");
     return null;
   }
 

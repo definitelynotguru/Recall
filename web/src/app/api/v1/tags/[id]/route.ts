@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, getDb } from "@/lib/db";
 import { noteTags, tags } from "@/lib/db/schema";
 import { requireAuth, jsonResponse, errorResponse, toApiTag } from "@/lib/api-utils";
 import { and, eq, isNull } from "drizzle-orm";
@@ -55,10 +55,15 @@ export async function DELETE(
     .limit(1);
   if (!existing) return errorResponse("Tag not found", 404);
 
-  await db.update(tags).set({ deletedAt: now, updatedAt: now }).where(eq(tags.id, id));
-  await db
-    .update(noteTags)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(and(eq(noteTags.tagId, id), eq(noteTags.userId, user!.userId)));
+  await getDb().transaction(async (tx) => {
+    await tx
+      .update(tags)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(eq(tags.id, id));
+    await tx
+      .update(noteTags)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(noteTags.tagId, id), eq(noteTags.userId, user!.userId)));
+  });
   return jsonResponse({ ok: true });
 }
