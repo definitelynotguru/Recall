@@ -7,9 +7,6 @@ import {
   getRefreshFromRequest,
 } from "@/lib/api-utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 
 const schema = z.object({
   refresh_token: z.string().optional(),
@@ -39,17 +36,11 @@ export async function POST(request: NextRequest) {
     return errorResponse("Invalid or expired refresh token", 401);
   }
 
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, result.userId))
-    .limit(1);
-
   return new Response(
     JSON.stringify({
       access_token: result.accessToken,
       refresh_token: result.refreshToken,
-      user: { id: user.id, email: user.email },
+      user: { id: result.userId, email: result.email },
     }),
     {
       status: 200,

@@ -1,7 +1,7 @@
 package com.notesreminders.app.sync
 
 import android.content.Context
-import com.notesreminders.app.data.api.ApiClient
+import com.notesreminders.app.data.api.NotesApi
 import com.notesreminders.app.data.api.SyncRequest
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
@@ -17,15 +17,25 @@ class SyncRepository(
     context: Context,
     private val db: AppDatabase,
     private val tokenStore: TokenStore,
+    private val api: NotesApi,
 ) {
-    private val api = ApiClient.create(tokenStore)
     private val reconciler = ReminderReconciler(context, db.reminderDao())
 
     suspend fun sync(): Result<Unit> {
         val result = runCatching {
             val userId = tokenStore.userId ?: error("Not logged in")
             val meta = db.syncMetaDao().get()
-            val deviceId = meta?.deviceId ?: UUID.randomUUID().toString()
+            val deviceId = meta?.deviceId ?: UUID.randomUUID().toString().also { newId ->
+                if (meta == null) {
+                    db.syncMetaDao().upsert(
+                        SyncMetaEntity(
+                            deviceId = newId,
+                            lastSyncAt = "1970-01-01T00:00:00Z",
+                            userId = userId,
+                        ),
+                    )
+                }
+            }
             val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
 
             val dirtyNotes = db.noteDao().getDirty()
@@ -63,7 +73,7 @@ class SyncRepository(
                 val local = dirtyById[serverNote.id]
                 if (
                     local != null &&
-                    serverNote.body != local.body &&
+                    (serverNote.body != local.body || serverNote.title != local.title) &&
                     serverNote.updated_at > local.updatedAt
                 ) {
                     db.noteConflictDao().upsert(
@@ -87,13 +97,12 @@ class SyncRepository(
             val mergedTags = response.tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
             val mergedNoteTags = response.note_tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
 
-            db.noteDao().upsertAll(mergedNotes)
-            db.reminderDao().upsertAll(mergedReminders)
-            db.tagDao().upsertAll(mergedTags)
-            db.noteTagDao().upsertAll(mergedNoteTags)
-
-            db.syncMetaDao().upsert(
-                SyncMetaEntity(
+            db.applySyncMerge(
+                notes = mergedNotes,
+                reminders = mergedReminders,
+                tags = mergedTags,
+                noteTags = mergedNoteTags,
+                syncMeta = SyncMetaEntity(
                     deviceId = deviceId,
                     lastSyncAt = response.server_time,
                     userId = userId,
