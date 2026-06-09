@@ -1,3 +1,4 @@
+# Applies Drizzle schema to production Postgres. Requires DATABASE_URL in GitHub Actions secrets.
 name: Database schema push
 
 on:
