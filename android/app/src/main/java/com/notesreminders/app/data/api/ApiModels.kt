@@ -85,6 +85,7 @@ data class SyncRequest(
 
 data class SyncResponse(
     val server_time: String,
+    val sync_mode: String? = null,
     val notes: List<NoteDto>,
     val reminders: List<ReminderDto>,
     val tags: List<TagDto>? = emptyList(),

@@ -352,23 +352,12 @@ fun NoteDetailScreen(
         onDismiss = { showDetectDialog = false },
         onConfirm = {
             fetchingReminders = true
-            val zone = ZoneId.systemDefault()
             val picks = detectedList.filter { selectedDetected.contains(it.id) }
             showDetectDialog = false
-            picks.forEach { d ->
-                viewModel.addReminder(
-                    noteId,
-                    d.fireAt,
-                    zone.id,
-                    d.repeatRule,
-                    autoSync = false,
-                )
+            viewModel.addRemindersFromDetection(noteId, picks) {
+                fetchingReminders = false
+                refreshReminders()
             }
-            if (viewModel.userPrefs.autoSyncAfterReminder) {
-                viewModel.syncNow(showSuccess = true)
-            }
-            fetchingReminders = false
-            refreshReminders()
         },
     )
 

@@ -34,6 +34,12 @@
     "expectRepeat": null
   },
   {
+    "title": "Contact",
+    "body": "Reach me at 555-123-4567 anytime",
+    "expectCount": 0,
+    "expectRepeat": null
+  },
+  {
     "title": "Daily standup",
     "body": "Every day at 9am starting 2026-06-01",
     "expectCount": 1,

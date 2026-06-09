@@ -56,11 +56,12 @@ describe.skipIf(!hasDb)("processSync ownership", () => {
   });
 
   it("does not overwrite another user's note", async () => {
-    await processSync(attackerUserId, [], []);
-    await processSync(attackerUserId, [], []);
+    const epoch = "1970-01-01T00:00:00Z";
+    await processSync(attackerUserId, epoch, [], []);
+    await processSync(attackerUserId, epoch, [], []);
 
     const attackTime = new Date("2026-06-01T00:00:00.000Z");
-    await processSync(attackerUserId, [
+    await processSync(attackerUserId, epoch, [
       {
         id: victimNoteId,
         title: "Hijacked",
@@ -92,6 +93,7 @@ describe.skipIf(!hasDb)("processSync ownership", () => {
 
     const result = await processSync(
       attackerUserId,
+      "1970-01-01T00:00:00Z",
       [],
       [
         {
@@ -119,6 +121,7 @@ describe.skipIf(!hasDb)("processSync ownership", () => {
 
     const result = await processSync(
       attackerUserId,
+      "1970-01-01T00:00:00Z",
       [
         {
           id: attackerNoteId,

@@ -42,8 +42,10 @@ export async function POST(request: NextRequest) {
     reminders: mergedReminders,
     tags: mergedTags,
     noteTags: mergedNoteTags,
+    sync_mode,
   } = await processSync(
     user!.userId,
+    body.last_sync_at,
     body.notes,
     body.reminders,
     body.tags,
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
 
   return jsonResponse({
     server_time: serverTime.toISOString(),
+    sync_mode,
     notes: mergedNotes.map(toApiNote),
     reminders: mergedReminders.map(toApiReminder),
     tags: mergedTags.map(toApiTag),
