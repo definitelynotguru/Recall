@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, getDb } from "@/lib/db";
 import { notes, reminders } from "@/lib/db/schema";
 import {
   requireAuth,
@@ -125,17 +125,19 @@ export async function DELETE(
 
   if (!existing) return errorResponse("Note not found", 404);
 
-  await db
-    .update(notes)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(eq(notes.id, id));
+  await getDb().transaction(async (tx) => {
+    await tx
+      .update(notes)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(eq(notes.id, id));
 
-  await db
-    .update(reminders)
-    .set({ deletedAt: now, updatedAt: now, status: "cancelled" })
-    .where(
-      and(eq(reminders.noteId, id), eq(reminders.userId, user!.userId)),
-    );
+    await tx
+      .update(reminders)
+      .set({ deletedAt: now, updatedAt: now, status: "cancelled" })
+      .where(
+        and(eq(reminders.noteId, id), eq(reminders.userId, user!.userId)),
+      );
+  });
 
   return jsonResponse({ ok: true });
 }

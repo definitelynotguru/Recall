@@ -2,6 +2,7 @@ package com.notesreminders.app.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -24,6 +25,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun noteTagDao(): NoteTagDao
     abstract fun noteConflictDao(): NoteConflictDao
+
+    @Transaction
+    open suspend fun applySyncMerge(
+        notes: List<NoteEntity>,
+        reminders: List<ReminderEntity>,
+        tags: List<TagEntity>,
+        noteTags: List<NoteTagEntity>,
+        syncMeta: SyncMetaEntity,
+    ) {
+        noteDao().upsertAll(notes)
+        reminderDao().upsertAll(reminders)
+        tagDao().upsertAll(tags)
+        noteTagDao().upsertAll(noteTags)
+        syncMetaDao().upsert(syncMeta)
+    }
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {

@@ -156,6 +156,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             noteSaveJob?.cancel()
+            withContext(Dispatchers.IO) {
+                app.notesRepository.clearLocalData()
+            }
             app.tokenStore.clear()
             _syncHint.value = null
             onDone()

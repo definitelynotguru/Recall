@@ -89,4 +89,10 @@ describe("syncSchema", () => {
     const result = syncSchema.safeParse(raw);
     expect(result.success).toBe(false);
   });
+
+  it("rejects invalid note status", () => {
+    const raw = validPayload();
+    raw.notes[0].status = "deleted";
+    expect(syncSchema.safeParse(raw).success).toBe(false);
+  });
 });

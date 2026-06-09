@@ -26,10 +26,12 @@ export async function importBackup(
   bundle: BackupBundle,
 ): Promise<{ notes: number; reminders: number }> {
   const existing = await apiFetch<{ notes: ApiNote[] }>("/notes?status=all&limit=all");
+  const existingTags = await apiFetch<{ tags: ApiTag[] }>("/tags");
   const existingReminders = await apiFetch<{ reminders: ApiReminder[] }>(
     "/reminders?status=all&limit=all",
   );
   const existingIds = new Set(existing.notes.map((n) => n.id));
+  const existingTagIds = new Set(existingTags.tags.map((t) => t.id));
   const remindersByNote = new Map<string, Set<string>>();
   for (const r of existingReminders.reminders) {
     if (!remindersByNote.has(r.note_id)) remindersByNote.set(r.note_id, new Set());
@@ -40,15 +42,18 @@ export async function importBackup(
 
   for (const tag of bundle.tags ?? []) {
     if (!tag.id || tag.deleted_at) continue;
-    await apiFetch("/tags", {
-      method: "POST",
-      body: JSON.stringify({ id: tag.id, name: tag.name }),
-    }).catch(async () => {
+    if (existingTagIds.has(tag.id)) {
       await apiFetch(`/tags/${tag.id}`, {
         method: "PATCH",
         body: JSON.stringify({ name: tag.name }),
       });
-    });
+    } else {
+      await apiFetch("/tags", {
+        method: "POST",
+        body: JSON.stringify({ id: tag.id, name: tag.name }),
+      });
+      existingTagIds.add(tag.id);
+    }
   }
 
   for (const note of bundle.notes) {

@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { createHash, randomBytes } from "crypto";
-import { db } from "./db";
+import { db, getDb } from "./db";
 import { refreshTokens, users } from "./db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 
@@ -64,11 +64,32 @@ export async function verifyAccessToken(token: string) {
   if (!sub || typeof sub !== "string") {
     throw new Error("Invalid token");
   }
-  return { userId: sub, email: payload.email as string };
+  const email = payload.email;
+  if (!email || typeof email !== "string") {
+    throw new Error("Invalid token");
+  }
+  return { userId: sub, email };
 }
 
 export function generateRefreshToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+type Db = ReturnType<typeof getDb>;
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+async function insertRefreshToken(tx: Tx, userId: string) {
+  const token = generateRefreshToken();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + REFRESH_DAYS);
+
+  await tx.insert(refreshTokens).values({
+    userId,
+    tokenHash: hashRefreshToken(token),
+    expiresAt,
+  });
+
+  return { token, expiresAt };
 }
 
 export async function createRefreshToken(userId: string) {
@@ -87,36 +108,44 @@ export async function createRefreshToken(userId: string) {
 
 export async function rotateRefreshToken(oldToken: string) {
   const hash = hashRefreshToken(oldToken);
-  const [row] = await db
-    .select()
-    .from(refreshTokens)
-    .where(
-      and(eq(refreshTokens.tokenHash, hash), isNull(refreshTokens.revokedAt)),
-    )
-    .limit(1);
 
-  if (!row || row.expiresAt < new Date()) {
-    return null;
-  }
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(refreshTokens)
+      .where(
+        and(eq(refreshTokens.tokenHash, hash), isNull(refreshTokens.revokedAt)),
+      )
+      .limit(1);
 
-  await db
-    .update(refreshTokens)
-    .set({ revokedAt: new Date() })
-    .where(eq(refreshTokens.id, row.id));
+    if (!row || row.expiresAt < new Date()) {
+      return null;
+    }
 
-  const accessToken = await signAccessToken(
-    row.userId,
-    (
-      await db
-        .select({ email: users.email })
-        .from(users)
-        .where(eq(users.id, row.userId))
-        .limit(1)
-    )[0]?.email ?? "",
-  );
+    const [user] = await tx
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, row.userId))
+      .limit(1);
 
-  const refresh = await createRefreshToken(row.userId);
-  return { userId: row.userId, accessToken, refreshToken: refresh.token };
+    if (!user) {
+      return null;
+    }
+
+    await tx
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(refreshTokens.id, row.id));
+
+    const accessToken = await signAccessToken(row.userId, user.email);
+    const refresh = await insertRefreshToken(tx, row.userId);
+    return {
+      userId: row.userId,
+      email: user.email,
+      accessToken,
+      refreshToken: refresh.token,
+    };
+  });
 }
 
 export async function revokeRefreshToken(token: string) {
