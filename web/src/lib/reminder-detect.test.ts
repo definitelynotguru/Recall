@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import fixtures from "../../../shared/fixtures.json";
+import fixtures from "../../shared/fixtures.json";
 import { detectRemindersInNote } from "./reminder-detect";
 
 /** Fixed "today" so fixture dates (e.g. May 2026) stay in the future. */

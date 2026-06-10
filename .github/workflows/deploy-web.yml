@@ -12,6 +12,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -23,8 +26,8 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm install -g vercel@54
-      # Deploy from monorepo root so ../shared is included in the upload.
-      # Vercel project Root Directory should remain `web`.
+      - name: Stage shared JSON for Vercel upload
+        run: npm run stage-shared
       - name: Deploy production
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
         env:

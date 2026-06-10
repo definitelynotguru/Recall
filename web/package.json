@@ -4,6 +4,10 @@
   "private": true,
   "description": "Recall web app — Next.js notes + reminders API (Vercel + Neon)",
   "scripts": {
+    "stage-shared": "node scripts/stage-shared.mjs",
+    "predev": "npm run stage-shared",
+    "prebuild": "npm run stage-shared",
+    "pretest": "npm run stage-shared",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

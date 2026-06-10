@@ -1,4 +1,4 @@
-import patterns from "../../../shared/duration-patterns.json";
+import patterns from "../../shared/duration-patterns.json";
 
 type DetectConfidence = "high" | "maybe";
 type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
