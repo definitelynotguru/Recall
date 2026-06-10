@@ -16,6 +16,7 @@ import android.app.Activity
 import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.debug.DebugReportCollector
 import com.notesreminders.app.update.AppUpdater
+import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.sync.SyncDiagnostics
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
@@ -383,6 +384,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     suspend fun getReminders(noteId: String): List<ReminderEntity> = withContext(Dispatchers.IO) {
         app.notesRepository.getRemindersForNote(noteId)
+    }
+
+    fun addRemindersFromDetection(
+        noteId: String,
+        picks: List<DetectedReminder>,
+        onComplete: () -> Unit = {},
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val zone = ZoneId.systemDefault().id
+            for (pick in picks) {
+                app.notesRepository.addReminder(noteId, pick.fireAt, zone, pick.repeatRule)
+            }
+            if (userPrefs.autoSyncAfterReminder) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+            }
+            withContext(Dispatchers.Main) { onComplete() }
+        }
     }
 
     fun addReminder(
