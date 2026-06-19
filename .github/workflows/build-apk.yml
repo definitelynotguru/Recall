@@ -22,6 +22,8 @@ on:
 jobs:
   assemble-debug:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -76,8 +78,6 @@ jobs:
       - name: Upload to GitHub Release
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
-        permissions:
-          contents: write
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Recall ${{ steps.version.outputs.tag }}
