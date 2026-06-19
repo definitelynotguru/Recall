@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteTagEntity::class,
         NoteConflictEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -88,6 +88,12 @@ abstract class AppDatabase : RoomDatabase() {
                         "detectedAt TEXT NOT NULL, " +
                         "resolvedAt TEXT)",
                 )
+            }
+        }
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE note_conflicts ADD COLUMN localTitle TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE note_conflicts ADD COLUMN serverTitle TEXT NOT NULL DEFAULT ''")
             }
         }
     }

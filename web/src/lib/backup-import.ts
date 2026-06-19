@@ -14,6 +14,37 @@ function isBackupBundle(value: unknown): value is BackupBundle {
   return Array.isArray(o.notes) && typeof o.reminders_by_note === "object";
 }
 
+export type BackupPreview = {
+  notes: number;
+  reminders: number;
+  tags: number;
+  note_tags: number;
+  newNotes: number;
+};
+
+export function parseBackupPreview(
+  bundle: BackupBundle,
+  existingNoteIds?: Set<string>,
+): BackupPreview {
+  let reminders = 0;
+  for (const list of Object.values(bundle.reminders_by_note)) {
+    reminders += list.filter((r) => r.id && !r.deleted_at).length;
+  }
+
+  const activeNotes = bundle.notes.filter((n) => n.id && !n.deleted_at);
+  const newNotes = existingNoteIds
+    ? activeNotes.filter((n) => !existingNoteIds.has(n.id)).length
+    : activeNotes.length;
+
+  return {
+    notes: activeNotes.length,
+    reminders,
+    tags: (bundle.tags ?? []).filter((t) => t.id && !t.deleted_at).length,
+    note_tags: (bundle.note_tags ?? []).filter((l) => l.id && !l.deleted_at).length,
+    newNotes,
+  };
+}
+
 export function parseBackupJson(text: string): BackupBundle {
   const parsed: unknown = JSON.parse(text);
   if (!isBackupBundle(parsed)) {

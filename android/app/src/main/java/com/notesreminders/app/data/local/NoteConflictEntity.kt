@@ -7,6 +7,8 @@ import androidx.room.PrimaryKey
 data class NoteConflictEntity(
     @PrimaryKey val id: String,
     val noteId: String,
+    val localTitle: String,
+    val serverTitle: String,
     val localBody: String,
     val serverBody: String,
     val serverUpdatedAt: String,

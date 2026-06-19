@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Syne, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
+import { ToastProvider } from "@/components/ToastProvider";
 
 const syne = Syne({
   variable: "--font-syne",
@@ -37,7 +39,11 @@ export default function RootLayout({
       className={`${syne.variable} ${sourceSans.variable} ${plexMono.variable}`}
     >
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ConfirmProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ConfirmProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Note
 import androidx.compose.material.icons.outlined.Settings
 import com.notesreminders.app.ui.components.OnboardingDialog
+import com.notesreminders.app.ui.screens.HistoryScreen
 import com.notesreminders.app.ui.screens.SettingsScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +53,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.screens.HistoryScreen
 import com.notesreminders.app.ui.screens.LoginScreen
 import com.notesreminders.app.ui.screens.NoteDetailScreen
 import com.notesreminders.app.ui.screens.NotesListScreen
@@ -180,6 +183,7 @@ private fun MainShell(
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
         BottomTab("notes", "Notes", Icons.Outlined.Note),
+        BottomTab("history", "History", Icons.Outlined.History),
         BottomTab("settings", "Settings", Icons.Outlined.Settings),
     )
     var showOnboarding by remember { mutableStateOf(!viewModel.userPrefs.onboardingDone) }
@@ -256,6 +260,13 @@ private fun MainShell(
             }
             composable("notes") {
                 NotesListScreen(
+                    viewModel = viewModel,
+                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onLogout = { viewModel.logout { onLogout() } },
+                )
+            }
+            composable("history") {
+                HistoryScreen(
                     viewModel = viewModel,
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
                     onLogout = { viewModel.logout { onLogout() } },

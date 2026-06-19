@@ -11,6 +11,7 @@ import com.notesreminders.app.data.api.RefreshRequest
 import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
+import com.notesreminders.app.data.local.TagEntity
 import com.notesreminders.app.data.api.ApiErrorParser
 import android.app.Activity
 import com.notesreminders.app.BuildConfig
@@ -24,10 +25,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -52,11 +55,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _noteQuery = MutableStateFlow("")
     val noteQuery: StateFlow<String> = _noteQuery.asStateFlow()
 
-    val notes = _noteStatus.flatMapLatest { status ->
-        _noteQuery.flatMapLatest { query ->
-            app.notesRepository.observeNotes(status, query)
-        }
+    private val _noteTagFilter = MutableStateFlow<String?>(null)
+    val noteTagFilter: StateFlow<String?> = _noteTagFilter.asStateFlow()
+
+    val notes = combine(_noteStatus, _noteQuery, _noteTagFilter) { status, query, tagId ->
+        Triple(status, query, tagId)
+    }.flatMapLatest { (status, query, tagId) ->
+        app.notesRepository.observeNotes(status, query, tagId)
     }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList(),
+    )
+
+    val tags = app.notesRepository.observeTags().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList(),
+    )
+
+    val historyReminders = app.notesRepository.observeHistoryReminders().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList(),
@@ -96,6 +114,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _syncHint = MutableStateFlow<String?>(null)
     val syncHint: StateFlow<String?> = _syncHint.asStateFlow()
+
+    private val _lastSyncAt = MutableStateFlow<String?>(null)
+    val lastSyncAt: StateFlow<String?> = _lastSyncAt.asStateFlow()
 
     private var noteSaveJob: Job? = null
 
@@ -200,6 +221,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _isSyncing.value = false
             _syncHint.value = result.fold(
                 onSuccess = {
+                    _lastSyncAt.value = withContext(Dispatchers.IO) {
+                        app.notesRepository.getLastSyncAt()
+                    }
                     if (showSuccess) {
                         val time = ZonedDateTime.now(ZoneId.systemDefault())
                             .format(DateTimeFormatter.ofPattern("h:mm a"))
@@ -279,6 +303,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         noteSaveJob = viewModelScope.launch(Dispatchers.IO) {
             delay(500)
             app.notesRepository.saveNoteLocal(noteId, title, body)
+            if (userPrefs.autoSyncAfterNote && app.networkMonitor.currentIsOnline()) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
+            }
         }
     }
 
@@ -333,16 +360,48 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val bundle = app.notesRepository.importBackupJson(json)
                     val noteCount = bundle.notes.orEmpty().size
                     val reminderCount = bundle.reminders_by_note.orEmpty().values.sumOf { it.size }
-                    "Imported $noteCount notes, $reminderCount reminders"
+                    val tagCount = bundle.tags.orEmpty().size
+                    "Imported $noteCount notes, $reminderCount reminders, $tagCount tags · sync pending"
                 }
             }
             onResult(result.getOrElse { "Import failed: ${it.message ?: "unknown error"}" })
         }
     }
 
-    fun setNoteListFilter(status: String, query: String) {
+    fun setNoteListFilter(status: String, query: String, tagId: String? = null) {
         _noteStatus.value = status
         _noteQuery.value = query
+        _noteTagFilter.value = tagId
+    }
+
+    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> =
+        app.notesRepository.observeTagsForNote(noteId)
+
+    fun createTag(name: String, onCreated: ((TagEntity) -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val tag = app.notesRepository.createTag(name)
+            withContext(Dispatchers.Main) { onCreated?.invoke(tag) }
+        }
+    }
+
+    fun assignTag(noteId: String, tagId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.assignTag(noteId, tagId)
+        }
+    }
+
+    fun unassignTag(noteId: String, tagId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.unassignTag(noteId, tagId)
+        }
+    }
+
+    fun createTagAndAssign(noteId: String, name: String, onDone: () -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val tag = app.notesRepository.createTag(name)
+            app.notesRepository.assignTag(noteId, tag.id)
+            withContext(Dispatchers.Main) { onDone() }
+        }
     }
 
     fun setNotePinned(id: String, pinned: Boolean) {
@@ -448,6 +507,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             if (autoSync && userPrefs.autoSyncAfterReminder) {
                 withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
             }
+        }
+    }
+
+    fun completeReminder(reminderId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.completeReminder(reminderId)
+            withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+        }
+    }
+
+    fun snoozeReminder(reminderId: String, hours: Long = 1) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val until = java.time.Instant.now().plusSeconds(hours * 3600).toString()
+            app.notesRepository.snoozeReminder(reminderId, until)
+            withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
         }
     }
 }

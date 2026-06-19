@@ -38,11 +38,14 @@ import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.components.NextNudgeCard
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.parseReminderTimeFields
+import com.notesreminders.app.ui.components.pickNextReminder
+import com.notesreminders.app.reminders.RepeatUtils
 import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
 import java.time.LocalDate
@@ -109,6 +112,14 @@ fun TodayScreen(
         )
         Spacer(Modifier.height(16.dp))
 
+        val noteMap = notes.associateBy { it.id }
+        val nextReminder = pickNextReminder(reminders)
+        NextNudgeCard(
+            reminder = nextReminder,
+            noteTitle = nextReminder?.let { noteMap[it.noteId]?.title },
+        )
+        Spacer(Modifier.height(12.dp))
+
         PullToRefreshBox(
             isRefreshing = syncing,
             onRefresh = { viewModel.syncNow() },
@@ -137,6 +148,8 @@ fun TodayScreen(
                                     onOpenNote = onOpenNote,
                                     onEdit = { openEditDialog(it) },
                                     onDelete = { reminderToDelete = it },
+                                    onComplete = { viewModel.completeReminder(it) },
+                                    onSnooze = { viewModel.snoozeReminder(it) },
                                 )
                                 Spacer(Modifier.height(8.dp))
                             }
@@ -212,6 +225,8 @@ private fun TimelineReminderCard(
     onOpenNote: (String) -> Unit,
     onEdit: (ReminderEntity) -> Unit,
     onDelete: (String) -> Unit,
+    onComplete: (String) -> Unit,
+    onSnooze: (String) -> Unit,
 ) {
     val formatted = formatReminderFireAt(data.reminder.fireAt)
 
@@ -250,7 +265,7 @@ private fun TimelineReminderCard(
             data.reminder.repeatRule?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    it.uppercase(),
+                    RepeatUtils.formatRepeatLabel(it),
                     style = MaterialTheme.typography.labelSmall,
                     color = RecallColors.Copper,
                     modifier = Modifier
@@ -258,6 +273,15 @@ private fun TimelineReminderCard(
                         .background(RecallColors.CopperDim)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row {
+                TextButton(onClick = { onComplete(data.reminder.id) }) {
+                    Text("Done", color = RecallColors.Copper)
+                }
+                TextButton(onClick = { onSnooze(data.reminder.id) }) {
+                    Text("+1h", color = RecallColors.ParchmentMuted)
+                }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -288,10 +312,12 @@ private fun groupReminders(
     val noteMap = notes.associateBy { it.id }
     val zone = ZoneId.systemDefault()
     val now = Instant.now().atZone(zone)
+    val startToday = now.toLocalDate().atStartOfDay(zone)
     val startTomorrow = now.toLocalDate().plusDays(1).atStartOfDay(zone)
     val endTomorrow = startTomorrow.plusDays(1)
     val endWeek = now.toLocalDate().plusDays(7).atStartOfDay(zone)
 
+    val overdue = mutableListOf<ReminderRowData>()
     val today = mutableListOf<ReminderRowData>()
     val tomorrow = mutableListOf<ReminderRowData>()
     val week = mutableListOf<ReminderRowData>()
@@ -301,6 +327,7 @@ private fun groupReminders(
         val fire = Instant.parse(r.fireAt).atZone(zone)
         val row = ReminderRowData(r, noteMap[r.noteId])
         when {
+            fire.isBefore(startToday) -> overdue.add(row)
             fire.isBefore(startTomorrow) -> today.add(row)
             fire.isBefore(endTomorrow) -> tomorrow.add(row)
             fire.isBefore(endWeek) -> week.add(row)
@@ -309,6 +336,7 @@ private fun groupReminders(
     }
 
     return listOf(
+        "Overdue" to overdue,
         "Today" to today,
         "Tomorrow" to tomorrow,
         "This week" to week,

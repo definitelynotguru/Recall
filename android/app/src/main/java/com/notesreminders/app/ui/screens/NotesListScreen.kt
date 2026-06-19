@@ -2,8 +2,11 @@ package com.notesreminders.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +22,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +54,7 @@ import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NotesListScreen(
     viewModel: AppViewModel,
@@ -56,17 +62,20 @@ fun NotesListScreen(
     onLogout: () -> Unit,
 ) {
     val notes by viewModel.notes.collectAsState()
+    val allTags by viewModel.tags.collectAsState()
     val noteStatus by viewModel.noteStatus.collectAsState()
     val noteQuery by viewModel.noteQuery.collectAsState()
+    val noteTagFilter by viewModel.noteTagFilter.collectAsState()
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
     val hasPendingSync by viewModel.hasPendingSync.collectAsState()
     var noteToDelete by remember { mutableStateOf<NoteEntity?>(null) }
     var localQuery by remember { mutableStateOf(noteQuery) }
     var localStatus by remember { mutableStateOf(noteStatus) }
+    var localTagFilter by remember { mutableStateOf(noteTagFilter) }
 
-    LaunchedEffect(localStatus, localQuery) {
-        viewModel.setNoteListFilter(localStatus, localQuery)
+    LaunchedEffect(localStatus, localQuery, localTagFilter) {
+        viewModel.setNoteListFilter(localStatus, localQuery, localTagFilter)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -108,6 +117,28 @@ fun NotesListScreen(
                         "Archived",
                         color = if (localStatus == "archived") RecallColors.Copper else RecallColors.ParchmentMuted,
                     )
+                }
+            }
+            if (allTags.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TagFilterChip(
+                        label = "All tags",
+                        selected = localTagFilter == null,
+                        onClick = { localTagFilter = null },
+                    )
+                    allTags.forEach { tag ->
+                        TagFilterChip(
+                            label = tag.name,
+                            selected = localTagFilter == tag.id,
+                            onClick = {
+                                localTagFilter = if (localTagFilter == tag.id) null else tag.id
+                            },
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -184,6 +215,25 @@ fun NotesListScreen(
             },
         )
     }
+}
+
+@Composable
+private fun TagFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = RecallColors.CopperDim,
+            selectedLabelColor = RecallColors.Copper,
+            containerColor = RecallColors.InkSurface,
+            labelColor = RecallColors.ParchmentMuted,
+        ),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

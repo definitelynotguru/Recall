@@ -25,7 +25,7 @@ Most notes apps treat reminders as an afterthought. Recall is built around a sim
 | Offline notes (stay signed in, sync when online) | Online-first | Yes (Room) |
 | Notifications + snooze / complete from shade | — | Yes |
 | Tap notification → open note | — | Yes |
-| JSON backup export / import | Yes | — |
+| JSON backup export / import | Yes | Yes |
 | Debug reports (Android → server → web Settings) | View | Send |
 | In-app APK update (Settings → Update) | — | Yes |
 
@@ -88,7 +88,7 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 4. Run on a device or emulator.
 
-**APK:** [GitHub Releases v1.0.0-debug](https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk) — rebuilt on `main` when `android/**` changes. After first install, use **Settings → Update** to install newer builds without uninstalling. See [android/README.md](android/README.md).
+**APK:** [GitHub Releases v1.0.4-debug](https://github.com/definitelynotguru/Recall/releases/download/v1.0.4-debug/recall-1.0.4-debug.apk) — debug-signed; rebuilt on `main` when `android/**` changes. After first install, use **Settings → Update** to install newer builds without uninstalling. See [android/README.md](android/README.md).
 
 ### Deploy web (Vercel)
 
@@ -103,7 +103,7 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 ├── android/          # Jetpack Compose app (notifications, offline sync)
 ├── web/              # Next.js app + API routes (/api/v1/*)
 ├── shared/           # Detection fixtures (Vitest in web)
-├── plan.md           # Roadmap / implementation log
+├── docs/             # Self-hosting, roadmap
 ├── TESTING.md        # Manual E2E checklist
 └── README.md
 ```
@@ -130,14 +130,20 @@ If sync shows **HTTP 400**:
 
 Ensure `API_BASE_URL` in `local.properties` matches your deployed API (trailing path `/api/v1`).
 
+## Before making the repo public
+
+- Run a full git history secret scan (`gitleaks` or `trufflehog`)
+- Rotate `VERCEL_TOKEN` if it was ever pasted in chat
+- Set GitHub secrets: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` for manual deploy workflow
+
 ## Design
 
 Warm **ink + copper** palette, Syne + Source Sans 3 on web, timeline-first Today view. Preview: `web/public/ui-preview.html`.
 
 ## License
 
-Personal project — all rights reserved unless you add a license file.
+[MIT](LICENSE) — see [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## Author
 
-Built for solo, daily use. Repo: [definitelynotguru/Recall](https://github.com/definitelynotguru/Recall).
+Open-source notes + reminders. Repo: [definitelynotguru/Recall](https://github.com/definitelynotguru/Recall).

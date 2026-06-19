@@ -15,7 +15,11 @@ object ApiClient {
 
     fun create(tokenStore: TokenStore): NotesApi {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         val authInterceptor = Interceptor { chain ->

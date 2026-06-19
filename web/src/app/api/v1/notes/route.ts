@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
-import { notes } from "@/lib/db/schema";
+import { notes, noteTags } from "@/lib/db/schema";
 import {
   requireAuth,
   jsonResponse,
   errorResponse,
   toApiNote,
 } from "@/lib/api-utils";
-import { eq, and, isNull, desc, ilike, or, sql } from "drizzle-orm";
+import { eq, and, isNull, desc, ilike, or, sql, inArray } from "drizzle-orm";
 
 const createSchema = z.object({
   id: z.string().uuid().optional(),
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const status = params.get("status") ?? "active";
   const q = params.get("q")?.trim() ?? "";
+  const tagId = params.get("tag_id")?.trim() ?? "";
   const limitParam = params.get("limit");
   const limit = limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
   if (!["active", "archived", "all"].includes(status)) {
@@ -42,6 +43,23 @@ export async function GET(request: NextRequest) {
   if (q) {
     const pattern = `%${q}%`;
     filters.push(or(ilike(notes.title, pattern), ilike(notes.body, pattern))!);
+  }
+  if (tagId) {
+    const links = await db
+      .select({ noteId: noteTags.noteId })
+      .from(noteTags)
+      .where(
+        and(
+          eq(noteTags.userId, user!.userId),
+          eq(noteTags.tagId, tagId),
+          isNull(noteTags.deletedAt),
+        ),
+      );
+    const noteIds = links.map((l) => l.noteId);
+    if (noteIds.length === 0) {
+      return jsonResponse({ notes: [] });
+    }
+    filters.push(inArray(notes.id, noteIds));
   }
 
   const rows = await db

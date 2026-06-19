@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArchiveBoxIcon,
+  ArchiveTrayIcon,
   Eye,
   PencilSimple,
   Sparkle,
@@ -16,6 +18,8 @@ import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ToastProvider";
 import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
 import {
   detectRemindersInNote,
@@ -23,6 +27,7 @@ import {
   isDuplicateOfExisting,
   pickNextReminder,
 } from "@/lib/reminder-detect";
+import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { formatFireAt } from "@/lib/reminder-utils";
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
 import { loadUserPrefs } from "@/lib/user-prefs";
@@ -33,6 +38,7 @@ export default function NoteDetailPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [noteStatus, setNoteStatus] = useState<"active" | "archived">("active");
   const [preview, setPreview] = useState(false);
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,6 +53,8 @@ export default function NoteDetailPage() {
   const [fetching, setFetching] = useState(false);
   const [showSyncBanner, setShowSyncBanner] = useState(false);
   const { loading: authLoading } = useAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
   const { status: saveStatus, flush } = useDebouncedNoteSave(id, title, body);
 
   const load = useCallback(async () => {
@@ -57,6 +65,7 @@ export default function NoteDetailPage() {
       setLoadError("");
       setTitle(res.note.title);
       setBody(res.note.body);
+      setNoteStatus(res.note.status === "archived" ? "archived" : "active");
       setReminders(res.reminders.filter((r) => r.status === "active"));
       const [tagsRes, noteTagsRes] = await Promise.all([
         apiFetch<{ tags: ApiTag[] }>("/tags"),
@@ -99,9 +108,26 @@ export default function NoteDetailPage() {
   };
 
   const deleteNote = async () => {
-    if (!confirm("Delete this note and its reminders?")) return;
+    const ok = await confirm({
+      title: "Delete note",
+      message: "Delete this note and its reminders?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     await apiFetch(`/notes/${id}`, { method: "DELETE" });
+    toast("Note deleted");
     router.push("/notes");
+  };
+
+  const toggleArchive = async () => {
+    const next = noteStatus === "archived" ? "active" : "archived";
+    await apiFetch(`/notes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: next }),
+    });
+    setNoteStatus(next);
+    toast(next === "archived" ? "Note archived" : "Note restored");
   };
 
   const openCreateDialog = () => {
@@ -115,8 +141,15 @@ export default function NoteDetailPage() {
   };
 
   const deleteReminder = async (reminderId: string) => {
-    if (!confirm("Delete this reminder?")) return;
+    const ok = await confirm({
+      title: "Delete reminder",
+      message: "Delete this reminder?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
+    toast("Reminder deleted");
     await load();
     setShowSyncBanner(true);
   };
@@ -217,6 +250,19 @@ export default function NoteDetailPage() {
           {preview ? "Edit" : "Preview"}
         </button>
         <span className="save-status">{saveStatusLabel()}</span>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={toggleArchive}
+          aria-label={noteStatus === "archived" ? "Unarchive note" : "Archive note"}
+        >
+          {noteStatus === "archived" ? (
+            <ArchiveTrayIcon size={18} />
+          ) : (
+            <ArchiveBoxIcon size={18} />
+          )}
+          {noteStatus === "archived" ? "Unarchive" : "Archive"}
+        </button>
         <button type="button" className="btn btn-ghost" onClick={deleteNote}>
           <Trash size={18} />
         </button>
@@ -315,7 +361,7 @@ export default function NoteDetailPage() {
                 <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
                 {r.repeat_rule && (
                   <span className="chip" style={{ marginTop: 8, display: "inline-block" }}>
-                    {r.repeat_rule}
+                    {formatRepeatLabel(r.repeat_rule)}
                   </span>
                 )}
               </div>

@@ -2,6 +2,16 @@
   "name": "recall-web",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/definitelynotguru/Recall.git",
+    "directory": "web"
+  },
+  "bugs": {
+    "url": "https://github.com/definitelynotguru/Recall/issues"
+  },
+  "homepage": "https://github.com/definitelynotguru/Recall#readme",
   "description": "Recall web app — Next.js notes + reminders API (Vercel + Neon)",
   "scripts": {
     "stage-shared": "node scripts/stage-shared.mjs",

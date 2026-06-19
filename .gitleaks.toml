@@ -1,0 +1,10 @@
+title = "Recall gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Example env placeholders"
+paths = [
+  '''web/\.env\.example$''',
+]

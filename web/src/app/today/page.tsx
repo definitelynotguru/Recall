@@ -2,22 +2,34 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { PencilSimple, Trash } from "@phosphor-icons/react";
+import { Check, Clock, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderDialog } from "@/components/ReminderDialog";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ToastProvider";
 import { pickNextReminder } from "@/lib/reminder-detect";
+import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 import {
   groupRemindersByDay,
   formatFireAt,
 } from "@/lib/reminder-utils";
 
+function snoozeFireAt(minutes: number) {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + minutes);
+  return d.toISOString();
+}
+
 export default function TodayPage() {
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await apiFetch<{ reminders: ApiReminder[] }>(
@@ -44,16 +56,54 @@ export default function TodayPage() {
   };
 
   const deleteReminder = async (id: string) => {
-    if (!confirm("Delete this reminder?")) return;
+    const ok = await confirm({
+      title: "Delete reminder",
+      message: "Delete this reminder?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     setLoading(true);
     await apiFetch(`/reminders/${id}`, { method: "DELETE" });
+    toast("Reminder deleted");
     await load();
   };
 
-  const renderItem = (r: ApiReminder, index: number) => (
+  const completeReminder = async (id: string) => {
+    setActingId(id);
+    try {
+      await apiFetch(`/reminders/${id}/complete`, { method: "POST", body: "{}" });
+      toast("Marked complete");
+      setLoading(true);
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not complete", "error");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const snoozeReminder = async (id: string, minutes: number) => {
+    setActingId(id);
+    try {
+      await apiFetch(`/reminders/${id}/snooze`, {
+        method: "POST",
+        body: JSON.stringify({ fire_at: snoozeFireAt(minutes) }),
+      });
+      toast(`Snoozed ${minutes >= 60 ? `${minutes / 60} hour` : `${minutes} min`}`);
+      setLoading(true);
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not snooze", "error");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const renderItem = (r: ApiReminder, index: number, overdue = false) => (
     <div
       key={r.id}
-      className="timeline-item timeline-item-with-actions"
+      className={`timeline-item timeline-item-with-actions${overdue ? " timeline-item-overdue" : ""}`}
       style={{ "--i": index } as React.CSSProperties}
     >
       <div className="timeline-item-body">
@@ -62,11 +112,31 @@ export default function TodayPage() {
           <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
           {r.repeat_rule && (
             <span className="chip" style={{ marginTop: 8 }}>
-              {r.repeat_rule}
+              {formatRepeatLabel(r.repeat_rule)}
             </span>
           )}
         </Link>
         <div className="timeline-item-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => completeReminder(r.id)}
+            disabled={actingId === r.id}
+            aria-label="Complete reminder"
+          >
+            <Check size={16} weight="bold" />
+            Done
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => snoozeReminder(r.id, 60)}
+            disabled={actingId === r.id}
+            aria-label="Snooze 1 hour"
+          >
+            <Clock size={16} />
+            +1h
+          </button>
           <button
             type="button"
             className="btn btn-secondary"
@@ -83,7 +153,6 @@ export default function TodayPage() {
             aria-label="Delete reminder"
           >
             <Trash size={16} />
-            Delete
           </button>
         </div>
       </div>
@@ -94,11 +163,14 @@ export default function TodayPage() {
     title: string,
     items: ApiReminder[],
     offset: number,
+    overdue = false,
   ) =>
     items.length > 0 && (
       <div className="timeline-section">
-        <p className="timeline-label">{title}</p>
-        {items.map((r, i) => renderItem(r, offset + i))}
+        <p className={`timeline-label${overdue ? " timeline-label-overdue" : ""}`}>
+          {title}
+        </p>
+        {items.map((r, i) => renderItem(r, offset + i, overdue))}
       </div>
     );
 
@@ -134,6 +206,8 @@ export default function TodayPage() {
         </div>
       ) : (
         <div className="timeline">
+          {section("Overdue", groups.overdue, idx, true)}
+          {(idx += groups.overdue.length)}
           {section("Today", groups.today, idx)}
           {(idx += groups.today.length)}
           {section("Tomorrow", groups.tomorrow, idx)}

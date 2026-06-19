@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ASSETS="${RECALL_LOGO_ASSETS:-/home/parthd/Downloads/recall_logo_assets}"
+ASSETS="${RECALL_LOGO_ASSETS:-$ROOT/branding}"
 RES="$ROOT/app/src/main/res"
 
 MARK="$ASSETS/recall-logo-mark.svg"

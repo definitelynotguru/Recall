@@ -4,6 +4,8 @@ import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,10 +21,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +45,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,15 +59,18 @@ import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.reminders.ReminderDetect
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.DetectedRemindersDialog
+import com.notesreminders.app.ui.components.NextNudgeCard
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.parseReminderTimeFields
+import com.notesreminders.app.ui.components.pickNextReminder
 import com.notesreminders.app.ui.theme.RecallColors
 import io.noties.markwon.Markwon
 import java.time.LocalDate
 import java.time.ZoneId
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NoteDetailScreen(
     noteId: String,
@@ -83,6 +95,14 @@ fun NoteDetailScreen(
     var fetchingReminders by remember(noteId) { mutableStateOf(false) }
     var showDeleteNoteDialog by remember(noteId) { mutableStateOf(false) }
     var reminderToDelete by remember(noteId) { mutableStateOf<ReminderEntity?>(null) }
+    var isPinned by remember(noteId) { mutableStateOf(false) }
+    var isArchived by remember(noteId) { mutableStateOf(false) }
+    var newTagName by remember(noteId) { mutableStateOf("") }
+    var saveStatus by remember(noteId) { mutableStateOf("Saved") }
+
+    val allTags by viewModel.tags.collectAsStateWithLifecycle()
+    val noteTags by viewModel.observeTagsForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val selectedTagIds = remember(noteTags) { noteTags.map { it.id }.toSet() }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = RecallColors.Copper,
@@ -106,8 +126,17 @@ fun NoteDetailScreen(
         if (note != null) {
             title = note.title
             body = note.body
+            isPinned = note.pinnedAt != null
+            isArchived = note.status == "archived"
         }
         reminders = viewModel.getReminders(noteId)
+    }
+
+    LaunchedEffect(title, body) {
+        if (saveStatus == "Unsaved…") {
+            delay(600)
+            saveStatus = "Saved"
+        }
     }
 
     DisposableEffect(noteId, title, body) {
@@ -183,6 +212,32 @@ fun NoteDetailScreen(
                     tint = RecallColors.Copper,
                 )
             }
+            IconButton(
+                onClick = {
+                    val pinned = !isPinned
+                    isPinned = pinned
+                    viewModel.setNotePinned(noteId, pinned)
+                },
+            ) {
+                Icon(
+                    Icons.Outlined.PushPin,
+                    contentDescription = if (isPinned) "Unpin" else "Pin",
+                    tint = if (isPinned) RecallColors.Copper else RecallColors.ParchmentMuted,
+                )
+            }
+            IconButton(
+                onClick = {
+                    val archived = !isArchived
+                    isArchived = archived
+                    viewModel.setNoteArchived(noteId, archived)
+                },
+            ) {
+                Icon(
+                    if (isArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                    contentDescription = if (isArchived) "Unarchive" else "Archive",
+                    tint = if (isArchived) RecallColors.Copper else RecallColors.ParchmentMuted,
+                )
+            }
             TextButton(onClick = { preview = !preview }) {
                 Text(if (preview) "Edit" else "Preview", color = RecallColors.Copper)
             }
@@ -196,7 +251,7 @@ fun NoteDetailScreen(
         }
 
         Text(
-            "Saved on device · Sync uploads to web",
+            "$saveStatus · Sync uploads to web",
             style = MaterialTheme.typography.bodySmall,
             color = RecallColors.ParchmentMuted,
             modifier = Modifier.padding(bottom = 12.dp),
@@ -207,6 +262,7 @@ fun NoteDetailScreen(
                 value = title,
                 onValueChange = {
                     title = it
+                    saveStatus = "Unsaved…"
                     viewModel.scheduleNoteSave(noteId, title, body)
                 },
                 label = { Text("Title") },
@@ -225,16 +281,90 @@ fun NoteDetailScreen(
                     value = body,
                     onValueChange = {
                         body = it
+                        saveStatus = "Unsaved…"
                         viewModel.scheduleNoteSave(noteId, title, body)
                     },
                     label = { Text("Body — Markdown") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp),
+                        .height(360.dp),
                     colors = fieldColors,
                 )
             }
         }
+
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "Tags",
+            style = MaterialTheme.typography.headlineMedium,
+            color = RecallColors.Parchment,
+        )
+        Spacer(Modifier.height(8.dp))
+        RecallPanel {
+            if (allTags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    allTags.forEach { tag ->
+                        val selected = selectedTagIds.contains(tag.id)
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                if (selected) {
+                                    viewModel.unassignTag(noteId, tag.id)
+                                } else {
+                                    viewModel.assignTag(noteId, tag.id)
+                                }
+                            },
+                            label = { Text(tag.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = RecallColors.CopperDim,
+                                selectedLabelColor = RecallColors.Copper,
+                                containerColor = RecallColors.InkSurface,
+                                labelColor = RecallColors.ParchmentMuted,
+                            ),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = newTagName,
+                    onValueChange = { newTagName = it },
+                    label = { Text("New tag") },
+                    modifier = Modifier.weight(1f),
+                    colors = fieldColors,
+                    singleLine = true,
+                )
+                Button(
+                    onClick = {
+                        val name = newTagName.trim()
+                        if (name.isEmpty()) return@Button
+                        viewModel.createTagAndAssign(noteId, name) {
+                            newTagName = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RecallColors.InkSurface,
+                        contentColor = RecallColors.Copper,
+                    ),
+                ) {
+                    Text("Add tag")
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        NextNudgeCard(
+            reminder = pickNextReminder(reminders),
+            noteTitle = title,
+        )
 
         Spacer(Modifier.height(28.dp))
         Text(

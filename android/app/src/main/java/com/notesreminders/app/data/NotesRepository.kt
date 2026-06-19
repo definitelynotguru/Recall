@@ -5,7 +5,9 @@ import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.NoteEntity
+import com.notesreminders.app.data.local.NoteTagEntity
 import com.notesreminders.app.data.local.ReminderEntity
+import com.notesreminders.app.data.local.TagEntity
 import com.google.gson.GsonBuilder
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
@@ -13,6 +15,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.Instant
 import java.util.UUID
+
+data class PendingSyncCounts(
+    val notes: Int,
+    val reminders: Int,
+    val tags: Int,
+    val noteTags: Int,
+) {
+    val total: Int get() = notes + reminders + tags + noteTags
+}
 
 class NotesRepository(
     private val db: AppDatabase,
@@ -25,8 +36,19 @@ class NotesRepository(
 
     fun observeNotes(): Flow<List<NoteEntity>> = db.noteDao().observeActive()
 
-    fun observeNotes(status: String, query: String): Flow<List<NoteEntity>> =
-        db.noteDao().observeByStatusAndQuery(status, query)
+    fun observeNotes(status: String, query: String, tagId: String? = null): Flow<List<NoteEntity>> =
+        if (tagId.isNullOrBlank()) {
+            db.noteDao().observeByStatusAndQuery(status, query)
+        } else {
+            db.noteDao().observeByStatusQueryAndTag(status, query, tagId)
+        }
+
+    fun observeTags(): Flow<List<TagEntity>> = db.tagDao().observeAllNonDeleted()
+
+    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> =
+        db.tagDao().observeForNote(noteId)
+
+    fun observeHistoryReminders(): Flow<List<ReminderEntity>> = db.reminderDao().observeHistory()
 
     fun observeReminders(): Flow<List<ReminderEntity>> = db.reminderDao().observeActive()
 
@@ -132,6 +154,59 @@ class NotesRepository(
         )
     }
 
+    suspend fun createTag(name: String): TagEntity {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty() && trimmed.length <= 40) { "Invalid tag name" }
+        val now = Instant.now().toString()
+        val tag = TagEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            name = trimmed,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            isDirty = true,
+        )
+        db.tagDao().upsert(tag)
+        return tag
+    }
+
+    suspend fun assignTag(noteId: String, tagId: String) {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        db.tagDao().getById(tagId) ?: return
+        val now = Instant.now().toString()
+        val existing = db.noteTagDao().getByNoteAndTag(noteId, tagId)
+        if (existing != null) {
+            if (existing.deletedAt == null) return
+            db.noteTagDao().upsert(
+                existing.copy(deletedAt = null, updatedAt = now, isDirty = true),
+            )
+        } else {
+            db.noteTagDao().upsert(
+                NoteTagEntity(
+                    id = UUID.randomUUID().toString(),
+                    userId = userId,
+                    noteId = noteId,
+                    tagId = tagId,
+                    createdAt = now,
+                    updatedAt = now,
+                    deletedAt = null,
+                    isDirty = true,
+                ),
+            )
+        }
+    }
+
+    suspend fun unassignTag(noteId: String, tagId: String) {
+        val existing = db.noteTagDao().getByNoteAndTag(noteId, tagId) ?: return
+        if (existing.deletedAt != null) return
+        val now = Instant.now().toString()
+        db.noteTagDao().upsert(
+            existing.copy(deletedAt = now, updatedAt = now, isDirty = true),
+        )
+    }
+
     suspend fun resolveConflict(conflictId: String, keepLocal: Boolean) {
         val conflict = db.noteConflictDao().getById(conflictId) ?: return
         val now = Instant.now().toString()
@@ -139,6 +214,7 @@ class NotesRepository(
         if (note != null) {
             db.noteDao().upsert(
                 note.copy(
+                    title = if (keepLocal) conflict.localTitle else conflict.serverTitle,
                     body = if (keepLocal) conflict.localBody else conflict.serverBody,
                     updatedAt = now,
                     isDirty = true,
@@ -146,6 +222,17 @@ class NotesRepository(
             )
         }
         db.noteConflictDao().resolve(conflictId, now)
+    }
+
+    suspend fun getLastSyncAt(): String? = db.syncMetaDao().get()?.lastSyncAt
+
+    suspend fun getPendingSyncCounts(): PendingSyncCounts {
+        return PendingSyncCounts(
+            notes = db.noteDao().getDirty().size,
+            reminders = db.reminderDao().getDirty().size,
+            tags = db.tagDao().getDirty().size,
+            noteTags = db.noteTagDao().getDirty().size,
+        )
     }
 
     suspend fun exportBackupJson(): String {
@@ -263,6 +350,63 @@ class NotesRepository(
                 isDirty = true,
             ),
         )
+        reconciler.reconcile()
+    }
+
+    suspend fun completeReminder(id: String) {
+        val reminder = db.reminderDao().getById(id) ?: return
+        reconciler.cancelAlarm(id)
+        val now = Instant.now().toString()
+        try {
+            api.completeReminder(id)
+        } catch (_: Exception) {
+            if (reminder.repeatRule != null) {
+                val next = com.notesreminders.app.reminders.RepeatUtils.computeNextOccurrence(
+                    reminder.repeatRule,
+                    reminder.fireAt,
+                    reminder.timezone,
+                )
+                db.reminderDao().upsert(
+                    reminder.copy(
+                        fireAt = next,
+                        status = "active",
+                        isDirty = true,
+                        updatedAt = now,
+                    ),
+                )
+            } else {
+                db.reminderDao().upsert(
+                    reminder.copy(
+                        status = "completed",
+                        completedAt = now,
+                        isDirty = true,
+                        updatedAt = now,
+                    ),
+                )
+            }
+            syncRepository.sync()
+            reconciler.reconcile()
+            return
+        }
+        syncRepository.sync()
+        reconciler.reconcile()
+    }
+
+    suspend fun snoozeReminder(id: String, snoozeUntilIso: String) {
+        val reminder = db.reminderDao().getById(id) ?: return
+        try {
+            api.snoozeReminder(id, com.notesreminders.app.data.api.SnoozeRequest(snoozeUntilIso))
+        } catch (_: Exception) {
+            db.reminderDao().upsert(
+                reminder.copy(
+                    fireAt = snoozeUntilIso,
+                    status = "active",
+                    isDirty = true,
+                    updatedAt = Instant.now().toString(),
+                ),
+            )
+        }
+        syncRepository.sync()
         reconciler.reconcile()
     }
 

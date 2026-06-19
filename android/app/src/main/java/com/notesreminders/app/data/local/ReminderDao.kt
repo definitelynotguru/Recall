@@ -15,6 +15,15 @@ interface ReminderDao {
     fun observeActive(): Flow<List<ReminderEntity>>
 
     @Query(
+        """
+        SELECT * FROM reminders
+        WHERE deletedAt IS NULL AND status IN ('completed', 'cancelled')
+        ORDER BY COALESCE(completedAt, fireAt) DESC
+        """,
+    )
+    fun observeHistory(): Flow<List<ReminderEntity>>
+
+    @Query(
         "SELECT * FROM reminders WHERE deletedAt IS NULL AND status = 'active' ORDER BY fireAt ASC",
     )
     suspend fun getActive(): List<ReminderEntity>

@@ -970,3 +970,104 @@ a:hover {
   color: var(--copper);
   border-color: var(--copper);
 }
+
+.quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.note-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.timeline-label-overdue {
+  color: var(--error);
+}
+
+.timeline-item-overdue {
+  border-color: color-mix(in srgb, var(--error) 35%, var(--ink-border));
+}
+
+.timeline-item-overdue::before {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 20%, transparent);
+}
+
+.toast-stack {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  right: 24px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 48px));
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ink-border-strong);
+  background: var(--ink-surface);
+  color: var(--parchment);
+  font-size: 0.9rem;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+  animation: sheetUp 0.3s var(--ease-out) both;
+}
+
+.toast-success {
+  border-color: color-mix(in srgb, var(--sage) 50%, var(--ink-border-strong));
+}
+
+.toast-error {
+  border-color: color-mix(in srgb, var(--error) 50%, var(--ink-border-strong));
+  color: var(--error);
+}
+
+.import-preview-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--parchment-muted);
+  font-size: 0.9rem;
+}
+
+.sync-device-list,
+.tag-manager-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-device-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ink-border);
+  background: color-mix(in srgb, var(--ink-surface) 50%, transparent);
+}
+
+.tag-manager-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ink-border);
+}
+
+.tag-manager-list li:last-child {
+  border-bottom: none;
+}

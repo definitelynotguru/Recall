@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DownloadSimple, Copy, UploadSimple } from "@phosphor-icons/react";
-import { importBackup, parseBackupJson } from "@/lib/backup-import";
+import { DownloadSimple, Copy, UploadSimple, Trash } from "@phosphor-icons/react";
+import {
+  importBackup,
+  parseBackupJson,
+  parseBackupPreview,
+  type BackupBundle,
+  type BackupPreview,
+} from "@/lib/backup-import";
 import { RequireAuth } from "@/components/RequireAuth";
+import { ImportPreviewDialog } from "@/components/ImportPreviewDialog";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { apiFetch, ApiNote, ApiNoteTag, ApiReminder, ApiTag } from "@/lib/api-client";
 import {
@@ -12,21 +21,36 @@ import {
   type UserPrefs,
 } from "@/lib/user-prefs";
 
+type SyncDevice = {
+  device_id: string;
+  last_sync_at: string;
+};
+
+type DebugReportRow = {
+  id: string;
+  created_at: string;
+  device_id: string;
+  app_version: string;
+  summary: string;
+  payload: unknown;
+};
+
 export default function SettingsPage() {
   const { replayOnboarding } = useAuth();
+  const { confirm } = useConfirm();
+  const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<BackupPreview | null>(null);
+  const [pendingBundle, setPendingBundle] = useState<BackupBundle | null>(null);
   const [prefs, setPrefs] = useState<UserPrefs>(loadUserPrefs());
   const [copied, setCopied] = useState(false);
-  type DebugReportRow = {
-    id: string;
-    created_at: string;
-    device_id: string;
-    app_version: string;
-    summary: string;
-    payload: unknown;
-  };
+  const [tags, setTags] = useState<ApiTag[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
+  const [syncDevices, setSyncDevices] = useState<SyncDevice[]>([]);
+  const [syncLoading, setSyncLoading] = useState(true);
+  const [syncServerTime, setSyncServerTime] = useState<string | null>(null);
   const [debugReports, setDebugReports] = useState<DebugReportRow[]>([]);
   const [debugLoading, setDebugLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -39,7 +63,35 @@ export default function SettingsPage() {
     saveUserPrefs(prefs);
   }, [prefs]);
 
+  const loadTags = async () => {
+    try {
+      const res = await apiFetch<{ tags: ApiTag[] }>("/tags");
+      setTags(res.tags);
+    } catch {
+      setTags([]);
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const loadSyncStatus = async () => {
+    try {
+      const res = await apiFetch<{ devices: SyncDevice[]; server_time: string }>(
+        "/sync/status",
+      );
+      setSyncDevices(res.devices);
+      setSyncServerTime(res.server_time);
+    } catch {
+      setSyncDevices([]);
+      setSyncServerTime(null);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
   useEffect(() => {
+    void loadTags();
+    void loadSyncStatus();
     let cancelled = false;
     (async () => {
       try {
@@ -57,6 +109,19 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  const deleteTag = async (tag: ApiTag) => {
+    const ok = await confirm({
+      title: "Delete tag",
+      message: `Delete "${tag.name}" from all notes?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+    await apiFetch(`/tags/${tag.id}`, { method: "DELETE" });
+    toast("Tag deleted");
+    await loadTags();
+  };
 
   const buildBundle = async () => {
     const notesRes = await apiFetch<{ notes: ApiNote[] }>(
@@ -112,12 +177,115 @@ export default function SettingsPage() {
     }
   };
 
+  const handleImportFile = async (file: File) => {
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      const bundle = parseBackupJson(text);
+      const existing = await apiFetch<{ notes: ApiNote[] }>("/notes?status=all&limit=all");
+      const existingIds = new Set(existing.notes.map((n) => n.id));
+      setPendingBundle(bundle);
+      setImportPreview(parseBackupPreview(bundle, existingIds));
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Invalid backup file", "error");
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!pendingBundle) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const result = await importBackup(pendingBundle);
+      setImportMsg(
+        `Imported ${result.notes} notes and ${result.reminders} reminders.`,
+      );
+      toast("Backup imported");
+      setPendingBundle(null);
+      setImportPreview(null);
+      await loadTags();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Import failed";
+      setImportMsg(message);
+      toast(message, "error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <RequireAuth>
       <header className="page-header">
         <h1>Settings</h1>
         <p>Defaults, backup, and how notifications work across devices.</p>
       </header>
+
+      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
+        <h2 className="settings-heading">Sync status</h2>
+        <p className="settings-muted">
+          Last sync times reported by your Android devices.
+        </p>
+        {syncLoading ? (
+          <p className="settings-muted">Loading…</p>
+        ) : syncDevices.length === 0 ? (
+          <p className="settings-muted">
+            No device syncs yet — open the Android app and pull to sync.
+          </p>
+        ) : (
+          <ul className="sync-device-list">
+            {syncDevices.map((d) => (
+              <li key={d.device_id}>
+                <strong>{d.device_id.slice(0, 12)}…</strong>
+                <span className="timeline-meta">
+                  {new Date(d.last_sync_at).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {syncServerTime && (
+          <p className="settings-muted" style={{ marginBottom: 0, fontSize: "0.82rem" }}>
+            Server time: {new Date(syncServerTime).toLocaleString()}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ marginTop: 12 }}
+          onClick={() => {
+            setSyncLoading(true);
+            void loadSyncStatus();
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
+        <h2 className="settings-heading">Tags</h2>
+        <p className="settings-muted">Manage tags used across your notes.</p>
+        {tagsLoading ? (
+          <p className="settings-muted">Loading…</p>
+        ) : tags.length === 0 ? (
+          <p className="settings-muted">No tags yet — add them from a note.</p>
+        ) : (
+          <ul className="tag-manager-list">
+            {tags.map((tag) => (
+              <li key={tag.id}>
+                <span className="chip">{tag.name}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => deleteTag(tag)}
+                  aria-label={`Delete tag ${tag.name}`}
+                >
+                  <Trash size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="panel panel-pad" style={{ marginBottom: 20 }}>
         <h2 className="settings-heading">Reminder defaults</h2>
@@ -208,22 +376,7 @@ export default function SettingsPage() {
                 const file = e.target.files?.[0];
                 e.target.value = "";
                 if (!file) return;
-                setImporting(true);
-                setImportMsg(null);
-                try {
-                  const text = await file.text();
-                  const bundle = parseBackupJson(text);
-                  const result = await importBackup(bundle);
-                  setImportMsg(
-                    `Imported ${result.notes} notes and ${result.reminders} reminders.`,
-                  );
-                } catch (err) {
-                  setImportMsg(
-                    err instanceof Error ? err.message : "Import failed",
-                  );
-                } finally {
-                  setImporting(false);
-                }
+                await handleImportFile(file);
               }}
             />
           </label>
@@ -339,6 +492,18 @@ export default function SettingsPage() {
           and delivers every notification — this web app never pings you.
         </p>
       </div>
+
+      <ImportPreviewDialog
+        open={importPreview !== null}
+        preview={importPreview}
+        importing={importing}
+        onClose={() => {
+          if (importing) return;
+          setImportPreview(null);
+          setPendingBundle(null);
+        }}
+        onConfirm={confirmImport}
+      />
     </RequireAuth>
   );
 }

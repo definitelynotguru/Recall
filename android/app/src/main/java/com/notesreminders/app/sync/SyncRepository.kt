@@ -47,6 +47,8 @@ class SyncRepository(
             val sanitized = SyncPayloadSanitizer.sanitize(
                 dirtyNotes,
                 dirtyReminders,
+                dirtyTags,
+                dirtyNoteTags,
                 knownNoteIds,
             )
 
@@ -61,8 +63,8 @@ class SyncRepository(
                     last_sync_at = lastSync,
                     notes = sanitized.notes,
                     reminders = sanitized.reminders,
-                    tags = dirtyTags.map { it.toDto() },
-                    note_tags = dirtyNoteTags.map { it.toDto() },
+                    tags = sanitized.tags,
+                    note_tags = sanitized.noteTags,
                 ),
             )
 
@@ -80,6 +82,8 @@ class SyncRepository(
                         NoteConflictEntity(
                             id = serverNote.id,
                             noteId = serverNote.id,
+                            localTitle = local.title,
+                            serverTitle = serverNote.title,
                             localBody = local.body,
                             serverBody = serverNote.body,
                             serverUpdatedAt = serverNote.updated_at,

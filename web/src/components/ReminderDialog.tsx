@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Bell, Trash, X } from "@phosphor-icons/react";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 import { loadUserPrefs } from "@/lib/user-prefs";
+import { formatRepeatLabel } from "@/lib/repeat-rules";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Props = {
   noteId: string;
@@ -13,6 +15,17 @@ type Props = {
   reminder?: ApiReminder | null;
 };
 
+const REPEAT_PRESETS = [
+  { value: "", label: "Once" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+  { value: "freq=weekly;days=MO,WE,FR", label: "Mon, Wed, Fri" },
+  { value: "freq=weekly;days=SA,SU", label: "Weekends" },
+  { value: "__custom__", label: "Custom…" },
+] as const;
+
 function fireAtToLocalFields(fireAt: string) {
   const d = new Date(fireAt);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -20,6 +33,45 @@ function fireAtToLocalFields(fireAt: string) {
     date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
     time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
   };
+}
+
+function localFieldsToDate(date: string, time: string) {
+  return new Date(`${date}T${time}:00`);
+}
+
+function applyQuickPick(
+  pick: "10min" | "1hour" | "tonight" | "tomorrow",
+  setDate: (v: string) => void,
+  setTime: (v: string) => void,
+) {
+  const prefs = loadUserPrefs();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const now = new Date();
+
+  if (pick === "10min") {
+    now.setMinutes(now.getMinutes() + 10);
+  } else if (pick === "1hour") {
+    now.setHours(now.getHours() + 1);
+  } else if (pick === "tonight") {
+    now.setHours(20, 0, 0, 0);
+    if (now.getTime() <= Date.now()) {
+      now.setDate(now.getDate() + 1);
+    }
+  } else if (pick === "tomorrow") {
+    now.setDate(now.getDate() + 1);
+    now.setHours(prefs.defaultReminderHour, prefs.defaultReminderMinute, 0, 0);
+  }
+
+  setDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+  setTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+}
+
+function resolveRepeatPreset(repeat: string) {
+  if (!repeat) return "";
+  const match = REPEAT_PRESETS.find(
+    (p) => p.value === repeat && p.value !== "__custom__",
+  );
+  return match ? match.value : "__custom__";
 }
 
 export function ReminderDialog({
@@ -50,8 +102,10 @@ function initialReminderFields(reminder?: ApiReminder | null) {
 
   const prefs = loadUserPrefs();
   const pad = (n: number) => String(n).padStart(2, "0");
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
   return {
-    date: "",
+    date: `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
     time: `${pad(prefs.defaultReminderHour)}:${pad(prefs.defaultReminderMinute)}`,
     repeat: "",
   };
@@ -63,15 +117,25 @@ function ReminderDialogContent({
   onSaved,
   reminder,
 }: Omit<Props, "open">) {
+  const { confirm } = useConfirm();
   const isEdit = Boolean(reminder);
-  const [date, setDate] = useState(() => initialReminderFields(reminder).date);
-  const [time, setTime] = useState(() => initialReminderFields(reminder).time);
-  const [repeat, setRepeat] = useState(() => initialReminderFields(reminder).repeat);
+  const initial = initialReminderFields(reminder);
+  const [date, setDate] = useState(initial.date);
+  const [time, setTime] = useState(initial.time);
+  const [repeat, setRepeat] = useState(initial.repeat);
+  const [repeatPreset, setRepeatPreset] = useState<string>(() =>
+    resolveRepeatPreset(initial.repeat),
+  );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const handlePresetChange = (value: string) => {
+    setRepeatPreset(value);
+    if (value !== "__custom__") setRepeat(value);
+  };
 
   const handleSave = async () => {
     setError("");
@@ -81,7 +145,7 @@ function ReminderDialogContent({
     }
     setSaving(true);
     try {
-      const local = new Date(`${date}T${time}:00`);
+      const local = localFieldsToDate(date, time);
       const payload = {
         fire_at: local.toISOString(),
         timezone: tz,
@@ -112,7 +176,13 @@ function ReminderDialogContent({
 
   const handleDelete = async () => {
     if (!reminder) return;
-    if (!confirm("Delete this reminder?")) return;
+    const ok = await confirm({
+      title: "Delete reminder",
+      message: "Delete this reminder?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     setError("");
     try {
@@ -169,6 +239,40 @@ function ReminderDialogContent({
         </div>
 
         <div className="field">
+          <label>Quick picks</label>
+          <div className="quick-picks">
+            <button
+              type="button"
+              className="chip tag-chip"
+              onClick={() => applyQuickPick("10min", setDate, setTime)}
+            >
+              +10 min
+            </button>
+            <button
+              type="button"
+              className="chip tag-chip"
+              onClick={() => applyQuickPick("1hour", setDate, setTime)}
+            >
+              +1 hour
+            </button>
+            <button
+              type="button"
+              className="chip tag-chip"
+              onClick={() => applyQuickPick("tonight", setDate, setTime)}
+            >
+              Tonight
+            </button>
+            <button
+              type="button"
+              className="chip tag-chip"
+              onClick={() => applyQuickPick("tomorrow", setDate, setTime)}
+            >
+              Tomorrow
+            </button>
+          </div>
+        </div>
+
+        <div className="field">
           <label htmlFor="r-date">Date</label>
           <input
             id="r-date"
@@ -187,14 +291,33 @@ function ReminderDialogContent({
           />
         </div>
         <div className="field">
-          <label htmlFor="r-repeat">Repeat</label>
-          <select id="r-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)}>
-            <option value="">Once</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
+          <label htmlFor="r-repeat-preset">Repeat</label>
+          <select
+            id="r-repeat-preset"
+            value={repeatPreset}
+            onChange={(e) => handlePresetChange(e.target.value)}
+          >
+            {REPEAT_PRESETS.map((p) => (
+              <option key={p.value || "once"} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
+          {repeatPreset === "__custom__" && (
+            <input
+              id="r-repeat-advanced"
+              type="text"
+              value={repeat}
+              onChange={(e) => setRepeat(e.target.value)}
+              placeholder="e.g. freq=weekly;days=TU,TH"
+              style={{ marginTop: 10 }}
+            />
+          )}
+          {repeat && (
+            <p className="settings-muted" style={{ margin: "8px 0 0", fontSize: "0.82rem" }}>
+              {formatRepeatLabel(repeat)}
+            </p>
+          )}
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="dialog-actions">
@@ -204,7 +327,7 @@ function ReminderDialogContent({
               className="btn btn-ghost"
               onClick={handleDelete}
               disabled={deleting || saving}
-              style={{ marginRight: "auto", color: "var(--error, #e57373)" }}
+              style={{ marginRight: "auto", color: "var(--error)" }}
             >
               <Trash size={18} />
               {deleting ? "Deleting…" : "Delete"}

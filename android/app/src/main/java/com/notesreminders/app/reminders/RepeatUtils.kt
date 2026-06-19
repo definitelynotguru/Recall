@@ -88,4 +88,30 @@ object RepeatUtils {
         val targetDay = (day ?: current.dayOfMonth).coerceAtMost(next.toLocalDate().lengthOfMonth())
         return next.withDayOfMonth(targetDay)
     }
+
+    fun formatRepeatLabel(raw: String?): String {
+        val text = raw?.trim().orEmpty()
+        if (text.isEmpty()) return "Once"
+        val rule = parseRule(text) ?: return text
+        val freqLabel = when (rule.freq) {
+            "daily" -> if (rule.interval == 1L) "Daily" else "Every ${rule.interval} days"
+            "weekly" -> {
+                val dayNames = rule.days.sorted().map { day ->
+                    when (day) {
+                        1 -> "Mon"; 2 -> "Tue"; 3 -> "Wed"; 4 -> "Thu"
+                        5 -> "Fri"; 6 -> "Sat"; 7 -> "Sun"; else -> ""
+                    }
+                }.filter { it.isNotEmpty() }
+                when {
+                    dayNames.isNotEmpty() -> "Weekly · ${dayNames.joinToString(", ")}"
+                    rule.interval == 1L -> "Weekly"
+                    else -> "Every ${rule.interval} weeks"
+                }
+            }
+            "monthly" -> if (rule.interval == 1L) "Monthly" else "Every ${rule.interval} months"
+            "yearly" -> if (rule.interval == 1L) "Yearly" else "Every ${rule.interval} years"
+            else -> text
+        }
+        return freqLabel
+    }
 }

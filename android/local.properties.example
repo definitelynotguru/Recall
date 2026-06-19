@@ -3,4 +3,4 @@
 API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 # Optional: override APK URL for Settings → Update (defaults to GitHub Release debug APK)
-# UPDATE_APK_URL=https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk
+# UPDATE_APK_URL=https://github.com/definitelynotguru/Recall/releases/download/v1.0.4-debug/recall-1.0.4-debug.apk

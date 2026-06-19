@@ -4,7 +4,7 @@ import { Sparkle, NotePencil, DeviceMobile, X } from "@phosphor-icons/react";
 import { setOnboardingDone } from "@/lib/user-prefs";
 
 const APK_URL =
-  "https://github.com/definitelynotguru/Recall/releases/download/v1.0.0-debug/recall-1.0.0-debug.apk";
+  "https://github.com/definitelynotguru/Recall/releases/download/v1.0.4-debug/recall-1.0.4-debug.apk";
 
 type Props = {
   open: boolean;

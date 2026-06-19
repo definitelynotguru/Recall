@@ -2,17 +2,12 @@ name: Production API smoke
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "web/**"
-      - ".github/workflows/api-smoke.yml"
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     env:
-      BASE_URL: https://recall-aevum-s-projects1.vercel.app
+      BASE_URL: ${{ vars.PRODUCTION_URL || 'https://recall-aevum-s-projects1.vercel.app' }}
     steps:
       - name: Login page responds
         run: curl -sf "$BASE_URL/login" -o /dev/null

@@ -25,6 +25,29 @@ const WEEKDAYS: Record<string, number> = {
   SA: 6,
 };
 
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const FREQ_UNIT: Record<Frequency, string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
+
 export function parseRepeatRule(raw: string | null): RepeatRule | null {
   const rule = raw?.trim();
   if (!rule) return null;
@@ -118,4 +141,53 @@ function addYears(from: Date, years: number, month?: number, day?: number): Date
 
 function daysInMonth(year: number, monthZeroBased: number): number {
   return new Date(Date.UTC(year, monthZeroBased + 1, 0)).getUTCDate();
+}
+
+export function formatRepeatLabel(raw: string | null | undefined): string {
+  const trimmed = raw?.trim();
+  if (!trimmed) return "Once";
+
+  const rule = parseRepeatRule(trimmed);
+  if (!rule) return trimmed;
+
+  const unit = FREQ_UNIT[rule.freq];
+  const simple =
+    rule.interval === 1 &&
+    !rule.days?.length &&
+    rule.day === undefined &&
+    rule.month === undefined;
+
+  if (simple) {
+    return rule.freq.charAt(0).toUpperCase() + rule.freq.slice(1);
+  }
+
+  let label =
+    rule.interval === 1
+      ? `Every ${unit}`
+      : `Every ${rule.interval} ${unit}${rule.interval === 1 ? "" : "s"}`;
+
+  if (rule.days?.length) {
+    label += ` on ${rule.days.map((d) => DAY_LABELS[d]).join(", ")}`;
+  }
+  if (rule.day !== undefined) {
+    label +=
+      rule.freq === "monthly" || rule.freq === "yearly"
+        ? ` on the ${ordinal(rule.day)}`
+        : ` (day ${rule.day})`;
+  }
+  if (rule.month !== undefined) {
+    label += ` in ${MONTH_LABELS[rule.month - 1]}`;
+  }
+
+  return label;
+}
+
+function ordinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  const mod10 = n % 10;
+  if (mod10 === 1) return `${n}st`;
+  if (mod10 === 2) return `${n}nd`;
+  if (mod10 === 3) return `${n}rd`;
+  return `${n}th`;
 }

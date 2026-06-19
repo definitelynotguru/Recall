@@ -1,28 +1,54 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
-import { apiFetch, ApiNote } from "@/lib/api-client";
+import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function NotesPage() {
   const router = useRouter();
   const [notes, setNotes] = useState<ApiNote[]>([]);
+  const [allTags, setAllTags] = useState<ApiTag[]>([]);
+  const [noteTags, setNoteTags] = useState<ApiNoteTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [status, setStatus] = useState<"active" | "archived">("active");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [query]);
+
+  const loadTags = useCallback(async () => {
+    const [tagsRes, noteTagsRes] = await Promise.all([
+      apiFetch<{ tags: ApiTag[] }>("/tags"),
+      apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags"),
+    ]);
+    setAllTags(tagsRes.tags);
+    setNoteTags(noteTagsRes.note_tags);
+  }, []);
 
   const load = useCallback(async () => {
+    setLoading(true);
     const params = new URLSearchParams({ status });
-    if (query.trim()) params.set("q", query.trim());
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (tagFilter) params.set("tag_id", tagFilter);
     const res = await apiFetch<{ notes: ApiNote[] }>(`/notes?${params}`);
     setNotes(res.notes);
     setLoading(false);
-  }, [query, status]);
+  }, [debouncedQuery, status, tagFilter]);
+
+  useEffect(() => {
+    void loadTags();
+  }, [loadTags]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -30,6 +56,19 @@ export default function NotesPage() {
     }, 0);
     return () => window.clearTimeout(id);
   }, [load]);
+
+  const tagsByNote = useMemo(() => {
+    const map = new Map<string, ApiTag[]>();
+    const tagById = new Map(allTags.map((t) => [t.id, t]));
+    for (const link of noteTags) {
+      const tag = tagById.get(link.tag_id);
+      if (!tag) continue;
+      const list = map.get(link.note_id) ?? [];
+      list.push(tag);
+      map.set(link.note_id, list);
+    }
+    return map;
+  }, [allTags, noteTags]);
 
   const createNote = async () => {
     setCreating(true);
@@ -71,10 +110,7 @@ export default function NotesPage() {
             <input
               id="notes-search"
               value={query}
-              onChange={(e) => {
-                setLoading(true);
-                setQuery(e.target.value);
-              }}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder="Search title or body"
             />
           </div>
@@ -83,20 +119,14 @@ export default function NotesPage() {
           <button
             type="button"
             className={status === "active" ? "active" : ""}
-            onClick={() => {
-              setLoading(true);
-              setStatus("active");
-            }}
+            onClick={() => setStatus("active")}
           >
             Active
           </button>
           <button
             type="button"
             className={status === "archived" ? "active" : ""}
-            onClick={() => {
-              setLoading(true);
-              setStatus("archived");
-            }}
+            onClick={() => setStatus("archived")}
           >
             Archived
           </button>
@@ -112,6 +142,28 @@ export default function NotesPage() {
         </button>
       </div>
 
+      {allTags.length > 0 && (
+        <div className="tag-picker" style={{ marginBottom: 20 }}>
+          <button
+            type="button"
+            className={`chip tag-chip ${tagFilter === null ? "selected" : ""}`}
+            onClick={() => setTagFilter(null)}
+          >
+            All tags
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              className={`chip tag-chip ${tagFilter === tag.id ? "selected" : ""}`}
+              onClick={() => setTagFilter(tagFilter === tag.id ? null : tag.id)}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <>
           <div className="skeleton" />
@@ -119,7 +171,11 @@ export default function NotesPage() {
         </>
       ) : notes.length === 0 ? (
         <div className="empty-state">
-          <p>{query ? "No matching notes." : "Your notebook is empty. Start with a single thought."}</p>
+          <p>
+            {debouncedQuery || tagFilter
+              ? "No matching notes."
+              : "Your notebook is empty. Start with a single thought."}
+          </p>
           <button type="button" className="btn btn-primary" onClick={createNote}>
             Write first note
           </button>
@@ -136,6 +192,15 @@ export default function NotesPage() {
               <Link href={`/notes/${n.id}`} className="note-row-body">
                 <h3>{n.title || "Untitled"}</h3>
                 <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
+                  <div className="note-row-tags">
+                    {tagsByNote.get(n.id)!.map((tag) => (
+                      <span key={tag.id} className="chip">
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Link>
               <time className="note-row-time">
                 {new Date(n.updated_at).toLocaleDateString(undefined, {

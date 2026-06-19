@@ -147,6 +147,26 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        RecallPanel {
+            Text("Sync status", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Spacer(Modifier.height(8.dp))
+            val lastSync by viewModel.lastSyncAt.collectAsState()
+            Text(
+                lastSync?.let { "Last sync: $it" } ?: "Not synced yet on this device",
+                style = MaterialTheme.typography.bodySmall,
+                color = RecallColors.ParchmentMuted,
+            )
+            if (hasPendingSync) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Pending local changes — tap Sync in the header",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RecallColors.Copper,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
         if (conflicts.isNotEmpty()) {
             RecallPanel {
                 Text("Conflicts", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
@@ -157,13 +177,25 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = RecallColors.Parchment,
                     )
+                    if (conflict.localTitle != conflict.serverTitle) {
+                        Text(
+                            "Title — local: ${conflict.localTitle.ifBlank { "Untitled" }}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RecallColors.ParchmentMuted,
+                        )
+                        Text(
+                            "Title — server: ${conflict.serverTitle.ifBlank { "Untitled" }}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = RecallColors.ParchmentMuted,
+                        )
+                    }
                     Text(
-                        "Local: ${conflict.localBody.take(80)}",
+                        "Body — local: ${conflict.localBody.take(120)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = RecallColors.ParchmentMuted,
                     )
                     Text(
-                        "Server: ${conflict.serverBody.take(80)}",
+                        "Body — server: ${conflict.serverBody.take(120)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = RecallColors.ParchmentMuted,
                     )
@@ -271,6 +303,22 @@ fun SettingsScreen(
                 Switch(
                     checked = prefs.autoSyncAfterReminder,
                     onCheckedChange = { prefs.autoSyncAfterReminder = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = RecallColors.Ink,
+                        checkedTrackColor = RecallColors.Copper,
+                    ),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Auto-sync after note edits", color = RecallColors.ParchmentMuted)
+                Switch(
+                    checked = prefs.autoSyncAfterNote,
+                    onCheckedChange = { prefs.autoSyncAfterNote = it },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = RecallColors.Ink,
                         checkedTrackColor = RecallColors.Copper,

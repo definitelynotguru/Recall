@@ -2,8 +2,7 @@
 
 import { DeviceMobile } from "@phosphor-icons/react";
 import { ApiReminder } from "@/lib/api-client";
-import type { RepeatRule } from "@/lib/reminder-detect";
-import { formatRepeatLabel } from "@/lib/reminder-detect";
+import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { formatFireAt } from "@/lib/reminder-utils";
 
 type Props = {
@@ -25,7 +24,7 @@ export function NextNudgeCard({ reminder, scope = "global" }: Props) {
           <p className="next-nudge-time">{formatFireAt(reminder.fire_at)}</p>
           {reminder.repeat_rule && (
             <span className="chip" style={{ marginTop: 8 }}>
-              {formatRepeatLabel(reminder.repeat_rule as RepeatRule)}
+              {formatRepeatLabel(reminder.repeat_rule)}
             </span>
           )}
           <p className="next-nudge-foot">

@@ -31,6 +31,18 @@ interface NoteDao {
     )
     fun observeByStatusAndQuery(status: String, query: String): Flow<List<NoteEntity>>
 
+    @Query(
+        """
+        SELECT notes.* FROM notes
+        INNER JOIN note_tags ON note_tags.noteId = notes.id
+        WHERE notes.deletedAt IS NULL AND notes.status = :status
+        AND note_tags.tagId = :tagId AND note_tags.deletedAt IS NULL
+        AND (:query = '' OR notes.title LIKE '%' || :query || '%' OR notes.body LIKE '%' || :query || '%')
+        ORDER BY notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
+        """,
+    )
+    fun observeByStatusQueryAndTag(status: String, query: String, tagId: String): Flow<List<NoteEntity>>
+
     @Query("SELECT * FROM notes WHERE isDirty = 1")
     suspend fun getDirty(): List<NoteEntity>
 
