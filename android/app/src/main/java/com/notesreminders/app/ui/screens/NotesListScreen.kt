@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -50,9 +49,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.ui.AppViewModel
+import com.notesreminders.app.ui.components.RecallAlertDialog
+import com.notesreminders.app.ui.components.RecallDialogDestructiveButton
+import com.notesreminders.app.ui.components.RecallDialogTextButton
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallFieldColors
+import com.notesreminders.app.ui.theme.recallTagFilterChipColors
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -96,14 +100,7 @@ fun NotesListScreen(
                 onValueChange = { localQuery = it },
                 label = { Text("Search") },
                 modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = RecallColors.Copper,
-                    unfocusedBorderColor = RecallColors.BorderStrong,
-                    focusedTextColor = RecallColors.Parchment,
-                    unfocusedTextColor = RecallColors.Parchment,
-                    focusedLabelColor = RecallColors.ParchmentMuted,
-                    unfocusedLabelColor = RecallColors.ParchmentMuted,
-                ),
+                colors = recallFieldColors(),
             )
             Row {
                 TextButton(onClick = { localStatus = "active" }) {
@@ -187,10 +184,9 @@ fun NotesListScreen(
     }
 
     noteToDelete?.let { note ->
-        AlertDialog(
+        RecallAlertDialog(
             onDismissRequest = { noteToDelete = null },
-            containerColor = RecallColors.InkSurface,
-            title = { Text("Delete note?", color = RecallColors.Parchment) },
+            title = "Delete note?",
             text = {
                 Text(
                     "\"${note.title.ifBlank { "Untitled" }}\" and its reminders will be removed on this device.",
@@ -198,20 +194,14 @@ fun NotesListScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val id = note.id
-                        noteToDelete = null
-                        viewModel.deleteNote(id) { }
-                    },
-                ) {
-                    Text("Delete", color = RecallColors.Error)
+                RecallDialogDestructiveButton("Delete") {
+                    val id = note.id
+                    noteToDelete = null
+                    viewModel.deleteNote(id) { }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { noteToDelete = null }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
+                RecallDialogTextButton("Cancel", { noteToDelete = null }, RecallColors.ParchmentMuted)
             },
         )
     }
@@ -227,12 +217,7 @@ private fun TagFilterChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = RecallColors.CopperDim,
-            selectedLabelColor = RecallColors.Copper,
-            containerColor = RecallColors.InkSurface,
-            labelColor = RecallColors.ParchmentMuted,
-        ),
+        colors = recallTagFilterChipColors(),
     )
 }
 

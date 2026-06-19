@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import { DetectedRemindersDialog } from "@/components/DetectedRemindersDialog";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
+import { ReminderMeta } from "@/components/ReminderMeta";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
@@ -27,9 +28,8 @@ import {
   isDuplicateOfExisting,
   pickNextReminder,
 } from "@/lib/reminder-detect";
-import { formatRepeatLabel } from "@/lib/repeat-rules";
-import { formatFireAt } from "@/lib/reminder-utils";
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
+import { useOnMount } from "@/hooks/useOnMount";
 import { loadUserPrefs } from "@/lib/user-prefs";
 
 export default function NoteDetailPage() {
@@ -84,13 +84,9 @@ export default function NoteDetailPage() {
     }
   }, [id, router]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    const id = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [authLoading, load]);
+  useOnMount(() => {
+    if (!authLoading) void load();
+  });
 
   const saveStatusLabel = () => {
     switch (saveStatus) {
@@ -358,12 +354,7 @@ export default function NoteDetailPage() {
           reminders.map((r) => (
             <div key={r.id} className="reminder-row">
               <div>
-                <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
-                {r.repeat_rule && (
-                  <span className="chip" style={{ marginTop: 8, display: "inline-block" }}>
-                    {formatRepeatLabel(r.repeat_rule)}
-                  </span>
-                )}
+                <ReminderMeta fireAt={r.fire_at} repeatRule={r.repeat_rule} />
               </div>
               <div className="reminder-row-actions">
                 <button

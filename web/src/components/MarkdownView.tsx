@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 
 export function MarkdownView({ content }: { content: string }) {
   if (!content.trim()) {
-    return <p className="muted">No content yet.</p>;
+    return <p style={{ color: "var(--muted)" }}>No content yet.</p>;
   }
   return (
     <div className="markdown-body">

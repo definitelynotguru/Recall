@@ -53,6 +53,30 @@ export function parseBackupJson(text: string): BackupBundle {
   return parsed;
 }
 
+export async function exportBackupBundle(): Promise<BackupBundle> {
+  const notesRes = await apiFetch<{ notes: ApiNote[] }>(
+    "/notes?status=all&limit=all",
+  );
+  const remindersRes = await apiFetch<{ reminders: ApiReminder[] }>(
+    "/reminders?status=all&limit=all",
+  );
+  const tagsRes = await apiFetch<{ tags: ApiTag[] }>("/tags");
+  const noteTagsRes = await apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags");
+  const remindersByNote: Record<string, ApiReminder[]> = {};
+  for (const n of notesRes.notes) remindersByNote[n.id] = [];
+  for (const r of remindersRes.reminders) {
+    if (!remindersByNote[r.note_id]) remindersByNote[r.note_id] = [];
+    remindersByNote[r.note_id].push(r);
+  }
+  return {
+    exported_at: new Date().toISOString(),
+    notes: notesRes.notes,
+    reminders_by_note: remindersByNote,
+    tags: tagsRes.tags,
+    note_tags: noteTagsRes.note_tags,
+  };
+}
+
 export async function importBackup(
   bundle: BackupBundle,
 ): Promise<{ notes: number; reminders: number }> {

@@ -146,7 +146,6 @@ export const refreshTokens = pgTable(
   (t) => [index("refresh_tokens_hash").on(t.tokenHash)],
 );
 
-export type User = typeof users.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
 export type Tag = typeof tags.$inferSelect;

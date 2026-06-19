@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
+import { useOnMount } from "@/hooks/useOnMount";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -46,19 +47,10 @@ export default function NotesPage() {
     setLoading(false);
   }, [debouncedQuery, status, tagFilter]);
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      void loadTags();
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [loadTags]);
-
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [load]);
+  useOnMount(() => {
+    void loadTags();
+    void load();
+  });
 
   const tagsByNote = useMemo(() => {
     const map = new Map<string, ApiTag[]>();

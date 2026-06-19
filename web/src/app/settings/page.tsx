@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DownloadSimple, Copy, UploadSimple, Trash } from "@phosphor-icons/react";
 import {
   importBackup,
+  exportBackupBundle,
   parseBackupJson,
   parseBackupPreview,
   type BackupBundle,
@@ -11,15 +12,17 @@ import {
 } from "@/lib/backup-import";
 import { RequireAuth } from "@/components/RequireAuth";
 import { ImportPreviewDialog } from "@/components/ImportPreviewDialog";
+import { SettingsSection } from "@/components/SettingsSection";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/components/AuthProvider";
-import { apiFetch, ApiNote, ApiNoteTag, ApiReminder, ApiTag } from "@/lib/api-client";
+import { apiFetch, ApiNote, ApiTag } from "@/lib/api-client";
 import {
   loadUserPrefs,
   saveUserPrefs,
   type UserPrefs,
 } from "@/lib/user-prefs";
+import { useOnMount } from "@/hooks/useOnMount";
 
 type SyncDevice = {
   device_id: string;
@@ -89,13 +92,11 @@ export default function SettingsPage() {
     }
   };
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      void loadTags();
-      void loadSyncStatus();
-    }, 0);
+  useOnMount(() => {
+    void loadTags();
+    void loadSyncStatus();
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const res = await apiFetch<{ reports: DebugReportRow[] }>(
           "/debug/reports?limit=20",
@@ -109,9 +110,8 @@ export default function SettingsPage() {
     })();
     return () => {
       cancelled = true;
-      window.clearTimeout(id);
     };
-  }, []);
+  });
 
   const deleteTag = async (tag: ApiTag) => {
     const ok = await confirm({
@@ -126,34 +126,10 @@ export default function SettingsPage() {
     await loadTags();
   };
 
-  const buildBundle = async () => {
-    const notesRes = await apiFetch<{ notes: ApiNote[] }>(
-      "/notes?status=all&limit=all",
-    );
-    const remindersRes = await apiFetch<{ reminders: ApiReminder[] }>(
-      "/reminders?status=all&limit=all",
-    );
-    const tagsRes = await apiFetch<{ tags: ApiTag[] }>("/tags");
-    const noteTagsRes = await apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags");
-    const remindersByNote: Record<string, ApiReminder[]> = {};
-    for (const n of notesRes.notes) remindersByNote[n.id] = [];
-    for (const r of remindersRes.reminders) {
-      if (!remindersByNote[r.note_id]) remindersByNote[r.note_id] = [];
-      remindersByNote[r.note_id].push(r);
-    }
-    return {
-      exported_at: new Date().toISOString(),
-      notes: notesRes.notes,
-      reminders_by_note: remindersByNote,
-      tags: tagsRes.tags,
-      note_tags: noteTagsRes.note_tags,
-    };
-  };
-
   const exportJson = async () => {
     setExporting(true);
     try {
-      const bundle = await buildBundle();
+      const bundle = await exportBackupBundle();
       const blob = new Blob([JSON.stringify(bundle, null, 2)], {
         type: "application/json",
       });
@@ -171,7 +147,7 @@ export default function SettingsPage() {
   const copyJson = async () => {
     setExporting(true);
     try {
-      const bundle = await buildBundle();
+      const bundle = await exportBackupBundle();
       await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -223,8 +199,7 @@ export default function SettingsPage() {
         <p>Defaults, backup, and how notifications work across devices.</p>
       </header>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Sync status</h2>
+      <SettingsSection title="Sync status">
         <p className="settings-muted">
           Last sync times reported by your Android devices.
         </p>
@@ -262,10 +237,9 @@ export default function SettingsPage() {
         >
           Refresh
         </button>
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Tags</h2>
+      <SettingsSection title="Tags">
         <p className="settings-muted">Manage tags used across your notes.</p>
         {tagsLoading ? (
           <p className="settings-muted">Loading…</p>
@@ -288,10 +262,9 @@ export default function SettingsPage() {
             ))}
           </ul>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Reminder defaults</h2>
+      <SettingsSection title="Reminder defaults">
         <p className="settings-muted">
           Used when Fetch reminders finds a date without a time. Timezone:{" "}
           <strong>{tz}</strong> (local).
@@ -340,10 +313,9 @@ export default function SettingsPage() {
           />
           Show “sync on Android” hints after editing reminders
         </label>
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Backup & restore</h2>
+      <SettingsSection title="Backup & restore">
         <p className="settings-muted">
           Export or import all notes and reminders as JSON. Import merges by id (updates
           existing, adds new).
@@ -393,10 +365,9 @@ export default function SettingsPage() {
             {importMsg}
           </p>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Debug reports</h2>
+      <SettingsSection title="Debug reports">
         <p className="settings-muted">
           Reports sent from Android Settings → Send debug report (sync errors, dirty
           counts, no tokens).
@@ -478,23 +449,21 @@ export default function SettingsPage() {
             ))}
           </ul>
         )}
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20 }}>
-        <h2 className="settings-heading">Introduction</h2>
+      <SettingsSection title="Introduction">
         <p className="settings-muted">Replay the three-step welcome tour.</p>
         <button type="button" className="btn btn-secondary" onClick={replayOnboarding}>
           Replay introduction
         </button>
-      </div>
+      </SettingsSection>
 
-      <div className="panel panel-pad">
-        <h2 className="settings-heading">Notifications</h2>
+      <SettingsSection title="Notifications">
         <p className="settings-muted" style={{ margin: 0 }}>
           Reminders created here sync to your Android app. Your phone schedules
           and delivers every notification — this web app never pings you.
         </p>
-      </div>
+      </SettingsSection>
 
       <ImportPreviewDialog
         open={importPreview !== null}

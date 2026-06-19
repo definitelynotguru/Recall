@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 
-export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
 export function useDebouncedNoteSave(noteId: string, title: string, body: string) {
   const [status, setStatus] = useState<SaveStatus>("idle");

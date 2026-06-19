@@ -43,7 +43,7 @@ function clampMinute(m: number) {
   return Math.min(59, Math.max(0, Math.round(m)));
 }
 
-export const ONBOARDING_KEY = "recall_onboarding_done";
+const ONBOARDING_KEY = "recall_onboarding_done";
 
 export function isOnboardingDone(): boolean {
   if (typeof window === "undefined") return true;

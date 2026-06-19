@@ -26,7 +26,7 @@ function getRefreshPepper() {
   return pepper;
 }
 
-export function hashRefreshToken(token: string): string {
+function hashRefreshToken(token: string): string {
   return createHash("sha256")
     .update(token + getRefreshPepper())
     .digest("hex");
@@ -71,7 +71,7 @@ export async function verifyAccessToken(token: string) {
   return { userId: sub, email };
 }
 
-export function generateRefreshToken(): string {
+function generateRefreshToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
@@ -145,5 +145,3 @@ export async function revokeRefreshToken(token: string) {
     .set({ revokedAt: new Date() })
     .where(eq(refreshTokens.tokenHash, hash));
 }
-
-export { MIN_PASSWORD_LENGTH };

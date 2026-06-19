@@ -8,7 +8,7 @@ import {
 /** Gson on Android omits null keys; treat missing as null. */
 const nullableString = z.string().nullish().transform((v) => v ?? null);
 
-export const syncNoteSchema = z.object({
+const syncNoteSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   body: z.string(),
@@ -19,7 +19,7 @@ export const syncNoteSchema = z.object({
   deleted_at: nullableString,
 });
 
-export const syncReminderSchema = z.object({
+const syncReminderSchema = z.object({
   id: z.string().uuid(),
   note_id: z.string().uuid(),
   fire_at: z.string().min(1),
@@ -33,7 +33,7 @@ export const syncReminderSchema = z.object({
   deleted_at: nullableString,
 });
 
-export const syncTagSchema = z.object({
+const syncTagSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(40),
   created_at: z.string(),
@@ -41,7 +41,7 @@ export const syncTagSchema = z.object({
   deleted_at: nullableString,
 });
 
-export const syncNoteTagSchema = z.object({
+const syncNoteTagSchema = z.object({
   id: z.string().uuid(),
   note_id: z.string().uuid(),
   tag_id: z.string().uuid(),
@@ -58,5 +58,3 @@ export const syncSchema = z.object({
   tags: z.array(syncTagSchema).max(500).optional().default([]),
   note_tags: z.array(syncNoteTagSchema).max(10000).optional().default([]),
 });
-
-export type SyncRequestBody = z.infer<typeof syncSchema>;

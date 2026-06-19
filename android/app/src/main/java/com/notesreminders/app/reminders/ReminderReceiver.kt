@@ -107,68 +107,14 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private suspend fun handleDone(context: Context, reminderId: String) {
         val app = context.applicationContext as NotesApp
-        val reminder = app.database.reminderDao().getById(reminderId) ?: return
-        val reconciler = ReminderReconciler(context, app.database.reminderDao())
-
-        reconciler.cancelAlarm(reminderId)
-
-        try {
-            app.api.completeReminder(reminderId)
-        } catch (_: Exception) {
-            val now = java.time.Instant.now().toString()
-            if (reminder.repeatRule != null) {
-                val next = RepeatUtils.computeNextOccurrence(
-                    reminder.repeatRule,
-                    reminder.fireAt,
-                    reminder.timezone,
-                )
-                app.database.reminderDao().upsert(
-                    reminder.copy(
-                        fireAt = next,
-                        status = "active",
-                        isDirty = true,
-                        updatedAt = now,
-                    ),
-                )
-            } else {
-                app.database.reminderDao().upsert(
-                    reminder.copy(
-                        status = "completed",
-                        completedAt = now,
-                        isDirty = true,
-                        updatedAt = now,
-                    ),
-                )
-            }
-            app.syncRepository.sync()
-            return
-        }
-
-        app.syncRepository.sync()
-        reconciler.reconcile()
+        app.notesRepository.completeReminder(reminderId)
         NotificationManagerCompat.from(context).cancel(reminderId.hashCode())
     }
 
     private suspend fun handleSnooze(context: Context, reminderId: String) {
         val app = context.applicationContext as NotesApp
         val snoozeUntil = java.time.Instant.now().plusSeconds(3600).toString()
-
-        try {
-            app.api.snoozeReminder(reminderId, com.notesreminders.app.data.api.SnoozeRequest(snoozeUntil))
-        } catch (_: Exception) {
-            val reminder = app.database.reminderDao().getById(reminderId) ?: return
-            app.database.reminderDao().upsert(
-                reminder.copy(
-                    fireAt = snoozeUntil,
-                    status = "active",
-                    isDirty = true,
-                    updatedAt = java.time.Instant.now().toString(),
-                ),
-            )
-        }
-
-        app.syncRepository.sync()
-        ReminderReconciler(context, app.database.reminderDao()).reconcile()
+        app.notesRepository.snoozeReminder(reminderId, snoozeUntil)
         NotificationManagerCompat.from(context).cancel(reminderId.hashCode())
     }
 

@@ -1,9 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
-  androidOfflineNotePayload,
   resolveNoteMerge,
   resolveReminderMerge,
+  type SyncNoteInput,
 } from "./sync-merge";
+
+function androidOfflineNotePayload(
+  id: string,
+  title: string,
+  body: string,
+  updatedAtIso: string,
+): SyncNoteInput {
+  return {
+    id,
+    title,
+    body,
+    status: "active",
+    pinned_at: null,
+    created_at: updatedAtIso,
+    updated_at: updatedAtIso,
+    deleted_at: null,
+  };
+}
 
 describe("resolveNoteMerge", () => {
   it("inserts when note is new on server", () => {

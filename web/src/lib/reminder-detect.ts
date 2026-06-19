@@ -1,11 +1,11 @@
 import { scanDurationPhrases } from "./duration-patterns";
 import { loadUserPrefs } from "./user-prefs";
 
-export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
+type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
 
-export type DetectConfidence = "high" | "maybe";
+type DetectConfidence = "high" | "maybe";
 
-export type DetectOptions = {
+type DetectOptions = {
   defaultHour?: number;
   defaultMinute?: number;
   /** Pin “now” for tests (relative phrases use local calendar). */

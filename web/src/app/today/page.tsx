@@ -1,20 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderDialog } from "@/components/ReminderDialog";
+import { ReminderMeta } from "@/components/ReminderMeta";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
+import { useOnMount } from "@/hooks/useOnMount";
 import { pickNextReminder } from "@/lib/reminder-detect";
-import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
-import {
-  groupRemindersByDay,
-  formatFireAt,
-} from "@/lib/reminder-utils";
+import { groupRemindersByDay } from "@/lib/reminder-utils";
 
 function snoozeFireAt(minutes: number) {
   const d = new Date();
@@ -39,12 +37,9 @@ export default function TodayPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [load]);
+  useOnMount(() => {
+    void load();
+  });
 
   const groups = groupRemindersByDay(reminders);
   const noteTitle = (id: string) =>
@@ -109,12 +104,7 @@ export default function TodayPage() {
       <div className="timeline-item-body">
         <Link href={`/notes/${r.note_id}`} className="timeline-item-link">
           <h3>{noteTitle(r.note_id)}</h3>
-          <span className="timeline-meta">{formatFireAt(r.fire_at)}</span>
-          {r.repeat_rule && (
-            <span className="chip" style={{ marginTop: 8 }}>
-              {formatRepeatLabel(r.repeat_rule)}
-            </span>
-          )}
+          <ReminderMeta fireAt={r.fire_at} repeatRule={r.repeat_rule} />
         </Link>
         <div className="timeline-item-actions">
           <button

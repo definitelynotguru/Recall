@@ -53,7 +53,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.AppViewModel
-import com.notesreminders.app.ui.screens.HistoryScreen
 import com.notesreminders.app.ui.screens.LoginScreen
 import com.notesreminders.app.ui.screens.NoteDetailScreen
 import com.notesreminders.app.ui.screens.NotesListScreen

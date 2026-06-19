@@ -88,7 +88,7 @@ object ReminderDetect {
             scanPatterns(trimmedBody, trimmedTitle, out, seen, defaults, priorityBoost = 0)
         }
         if (combined.isNotBlank()) {
-            scanRelative(combined, trimmedTitle, out, seen, defaults)
+            scanRelative(combined, trimmedTitle, out, seen, defaults, referenceInstant)
             scanDurations(combined, trimmedTitle, out, seen, defaults, referenceInstant)
         }
 
@@ -213,7 +213,6 @@ object ReminderDetect {
                 priority = priority,
                 confidence = confidence,
                 idOverride = "dur-${fireAt.epochSecond}-${repeat ?: "once"}",
-                usedDefaultTime = false,
             )
         }
     }
@@ -224,8 +223,9 @@ object ReminderDetect {
         out: MutableList<DetectedReminder>,
         seen: MutableSet<String>,
         defaults: Pair<Int, Int>,
+        referenceInstant: java.time.Instant,
     ) {
-        val base = LocalDate.now()
+        val base = referenceInstant.atZone(ZoneId.systemDefault()).toLocalDate()
 
         Regex("""\btomorrow(?:\s+(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?""", RegexOption.IGNORE_CASE)
             .findAll(text).forEach { m ->
@@ -289,6 +289,32 @@ object ReminderDetect {
         )
     }
 
+    private fun scanPatternMatch(
+        text: String,
+        title: String,
+        out: MutableList<DetectedReminder>,
+        seen: MutableSet<String>,
+        defaults: Pair<Int, Int>,
+        m: MatchResult,
+        year: Int,
+        month: Int,
+        day: Int,
+        hour: Int?,
+        minute: Int?,
+        priority: Int,
+        confidence: DetectConfidence = DetectConfidence.HIGH,
+    ) {
+        val ctx = contextAround(text, m.range.first)
+        val (repeat, reason) = inferRepeat(ctx, title)
+        push(
+            out, seen,
+            year, month, day,
+            hour, minute,
+            title.ifBlank { m.value }, reason, m.value, repeat, priority, defaults,
+            confidence = confidence,
+        )
+    }
+
     private fun scanPatterns(
         text: String,
         title: String,
@@ -297,16 +323,15 @@ object ReminderDetect {
         defaults: Pair<Int, Int>,
         priorityBoost: Int = 0,
     ) {
+        val basePriority = 10 + priorityBoost
+
         Regex("""\b(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?""", RegexOption.IGNORE_CASE)
             .findAll(text).forEach { m ->
-                val ctx = contextAround(text, m.range.first)
-                val (repeat, reason) = inferRepeat(ctx, title)
-                push(
-                    out, seen,
+                scanPatternMatch(
+                    text, title, out, seen, defaults, m,
                     m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt(),
-                    m.groupValues[4].toIntOrNull(),
-                    m.groupValues[5].toIntOrNull(),
-                    title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
+                    m.groupValues[4].toIntOrNull(), m.groupValues[5].toIntOrNull(),
+                    basePriority,
                 )
             }
 
@@ -316,13 +341,11 @@ object ReminderDetect {
         ).findAll(text).forEach { m ->
             val month = monthFrom(m.groupValues[2]) ?: return@forEach
             val time = m.groupValues.getOrNull(4)?.let { parseTime(it) }
-            val ctx = contextAround(text, m.range.first)
-            val (repeat, reason) = inferRepeat(ctx, title)
-            push(
-                out, seen,
+            scanPatternMatch(
+                text, title, out, seen, defaults, m,
                 resolveYear(m.groupValues[3].toInt()), month, m.groupValues[1].toInt(),
                 time?.first, time?.second,
-                title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
+                basePriority,
             )
         }
 
@@ -332,13 +355,11 @@ object ReminderDetect {
         ).findAll(text).forEach { m ->
             val month = monthFrom(m.groupValues[1]) ?: return@forEach
             val time = m.groupValues.getOrNull(4)?.let { parseTime(it) }
-            val ctx = contextAround(text, m.range.first)
-            val (repeat, reason) = inferRepeat(ctx, title)
-            push(
-                out, seen,
+            scanPatternMatch(
+                text, title, out, seen, defaults, m,
                 resolveYear(m.groupValues[3].toInt()), month, m.groupValues[2].toInt(),
                 time?.first, time?.second,
-                title.ifBlank { m.value }, reason, m.value, repeat, 10 + priorityBoost, defaults,
+                basePriority,
             )
         }
     }
@@ -384,7 +405,6 @@ object ReminderDetect {
             priority = priority,
             confidence = conf,
             idOverride = "$year-$month-$day-$h$min-${repeat ?: "once"}",
-            usedDefaultTime = usedDefault,
         )
     }
 
@@ -399,7 +419,6 @@ object ReminderDetect {
         priority: Int,
         confidence: DetectConfidence,
         idOverride: String,
-        usedDefaultTime: Boolean,
     ) {
         if (!seen.add(idOverride)) return
         out.add(

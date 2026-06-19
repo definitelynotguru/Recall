@@ -10,7 +10,6 @@ object RecallColors {
     val ParchmentMuted = Color(0xFF9A9488)
     val Copper = Color(0xFFC17F59)
     val CopperDim = Color(0x26C17F59)
-    val Border = Color(0x14E8E4DC)
     val BorderStrong = Color(0x24E8E4DC)
     val Error = Color(0xFFD4726A)
 }

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { DialogShell } from "@/components/DialogShell";
 
 type ConfirmOptions = {
   title?: string;
@@ -51,30 +52,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {open && (
-        <div className="dialog-overlay" onClick={() => close(false)}>
-          <div
-            className="dialog-sheet panel panel-pad"
-            onClick={(e) => e.stopPropagation()}
-            role="alertdialog"
-            aria-labelledby="confirm-title"
-            aria-describedby="confirm-message"
-          >
-            {options.title && (
-              <h2
-                id="confirm-title"
-                className="settings-heading"
-                style={{ marginBottom: 12 }}
-              >
-                {options.title}
-              </h2>
-            )}
-            <p
-              id="confirm-message"
-              style={{ margin: 0, color: "var(--parchment-muted)", fontSize: "0.95rem" }}
-            >
-              {options.message}
-            </p>
-            <div className="dialog-actions">
+        <DialogShell
+          onClose={() => close(false)}
+          title={options.title ?? "Confirm"}
+          role="alertdialog"
+          ariaLabelledBy="confirm-title"
+          ariaDescribedBy="confirm-message"
+          footer={
+            <>
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -84,7 +69,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </button>
               <button
                 type="button"
-                className={`btn ${options.destructive ? "btn-primary" : "btn-primary"}`}
+                className="btn btn-primary"
                 style={
                   options.destructive
                     ? { background: "var(--error)", boxShadow: "none" }
@@ -94,9 +79,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               >
                 {options.confirmLabel ?? "Confirm"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p
+            id="confirm-message"
+            style={{ margin: 0, color: "var(--parchment-muted)", fontSize: "0.95rem" }}
+          >
+            {options.message}
+          </p>
+        </DialogShell>
       )}
     </ConfirmContext.Provider>
   );

@@ -70,10 +70,6 @@ data class NoteTagDto(
     val deleted_at: String?,
 )
 
-data class NotesResponse(val notes: List<NoteDto>)
-
-data class NoteDetailResponse(val note: NoteDto, val reminders: List<ReminderDto>)
-
 data class SyncRequest(
     val device_id: String,
     val last_sync_at: String,
@@ -105,5 +101,3 @@ data class DebugReportResponse(
     val id: String,
     val created_at: String,
 )
-
-data class ErrorResponse(val error: String?)

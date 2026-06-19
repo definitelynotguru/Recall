@@ -3,14 +3,13 @@ package com.notesreminders.app.ui.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallFieldColors
 
 @Composable
 fun ReminderScheduleDialog(
@@ -33,19 +32,9 @@ fun ReminderScheduleDialog(
 ) {
     if (!open) return
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RecallColors.Copper,
-        unfocusedBorderColor = RecallColors.BorderStrong,
-        focusedTextColor = RecallColors.Parchment,
-        unfocusedTextColor = RecallColors.Parchment,
-        focusedLabelColor = RecallColors.ParchmentMuted,
-        unfocusedLabelColor = RecallColors.ParchmentMuted,
-    )
-
-    AlertDialog(
+    RecallAlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = RecallColors.InkSurface,
-        title = { Text(title, color = RecallColors.Parchment) },
+        title = title,
         text = {
             Column {
                 ReminderEditorFields(
@@ -57,7 +46,7 @@ fun ReminderScheduleDialog(
                     use12Hour = use12Hour,
                     repeatRule = repeatRule,
                     onRepeatChange = onRepeatChange,
-                    fieldColors = fieldColors,
+                    fieldColors = recallFieldColors(),
                     defaultHour = defaultHour,
                     defaultMinute = defaultMinute,
                 )
@@ -70,14 +59,10 @@ fun ReminderScheduleDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onSave) {
-                Text("Save", color = RecallColors.Copper)
-            }
+            RecallDialogConfirmButton("Save", onSave)
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = RecallColors.ParchmentMuted)
-            }
+            RecallDialogTextButton("Cancel", onDismiss, RecallColors.ParchmentMuted)
         },
     )
 }

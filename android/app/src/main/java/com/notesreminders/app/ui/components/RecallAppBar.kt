@@ -14,13 +14,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,10 +106,9 @@ fun RecallScreenHeader(
     }
 
     if (showLogoutDialog) {
-        AlertDialog(
+        RecallAlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            containerColor = RecallColors.InkSurface,
-            title = { Text("Sign out?", color = RecallColors.Parchment) },
+            title = "Sign out?",
             text = {
                 Text(
                     "Your notes stay on this phone. Tap Sync before signing out if you have unsaved changes to upload.",
@@ -119,19 +116,16 @@ fun RecallScreenHeader(
                 )
             },
             confirmButton = {
-                TextButton(
+                RecallDialogConfirmButton(
+                    label = "Sign out",
                     onClick = {
                         showLogoutDialog = false
                         onSignOut()
                     },
-                ) {
-                    Text("Sign out", color = RecallColors.Copper)
-                }
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
+                RecallDialogTextButton("Cancel", { showLogoutDialog = false }, RecallColors.ParchmentMuted)
             },
         )
     }

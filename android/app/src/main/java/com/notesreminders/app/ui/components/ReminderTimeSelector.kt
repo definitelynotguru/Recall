@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallTimeFilterChipColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -123,12 +124,7 @@ private fun TimeChip(
         onClick = onClick,
         label = { Text(label) },
         shape = RoundedCornerShape(10.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = RecallColors.Copper,
-            selectedLabelColor = RecallColors.Ink,
-            containerColor = RecallColors.InkElevated,
-            labelColor = RecallColors.ParchmentMuted,
-        ),
+        colors = recallTimeFilterChipColors(),
     )
 }
 

@@ -4,12 +4,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,10 +26,9 @@ fun DetectedRemindersDialog(
 ) {
     if (!open) return
 
-    AlertDialog(
+    RecallAlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = RecallColors.InkSurface,
-        title = { Text("Detected reminders", color = RecallColors.Parchment) },
+        title = "Detected reminders",
         text = {
             Column {
                 if (detected.isEmpty()) {
@@ -53,18 +50,15 @@ fun DetectedRemindersDialog(
         },
         confirmButton = {
             if (detected.isNotEmpty()) {
-                TextButton(
+                RecallDialogConfirmButton(
+                    label = "Add selected",
                     onClick = onConfirm,
                     enabled = selectedIds.isNotEmpty(),
-                ) {
-                    Text("Add selected", color = RecallColors.Copper)
-                }
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = RecallColors.ParchmentMuted)
-            }
+            RecallDialogTextButton("Cancel", onDismiss, RecallColors.ParchmentMuted)
         },
     )
 }

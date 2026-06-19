@@ -43,9 +43,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val isLoggedIn: Boolean
         get() = app.tokenStore.isLoggedIn()
 
-    val userEmail: String?
-        get() = app.tokenStore.userEmail
-
     private val _noteStatus = MutableStateFlow("active")
     val noteStatus: StateFlow<String> = _noteStatus.asStateFlow()
 
@@ -117,6 +114,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val lastSyncAt: StateFlow<String?> = syncCoordinator.lastSyncAt
 
     private var noteSaveJob: Job? = null
+
+    private fun ioLaunch(block: suspend () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) { block() }
+    }
+
+    private fun withReminderSync(
+        autoSync: Boolean = true,
+        block: suspend () -> Unit,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            block()
+            if (autoSync && userPrefs.autoSyncAfterReminder) {
+                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
+            }
+        }
+    }
 
     fun login(email: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
@@ -342,23 +355,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
         app.notesRepository.observeRemindersForNote(noteId)
 
-    fun createTag(name: String, onCreated: ((TagEntity) -> Unit)? = null) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val tag = app.notesRepository.createTag(name)
-            withContext(Dispatchers.Main) { onCreated?.invoke(tag) }
-        }
-    }
-
     fun assignTag(noteId: String, tagId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.assignTag(noteId, tagId)
-        }
+        ioLaunch { app.notesRepository.assignTag(noteId, tagId) }
     }
 
     fun unassignTag(noteId: String, tagId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.unassignTag(noteId, tagId)
-        }
+        ioLaunch { app.notesRepository.unassignTag(noteId, tagId) }
     }
 
     fun createTagAndAssign(noteId: String, name: String, onDone: () -> Unit = {}) {
@@ -370,15 +372,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setNotePinned(id: String, pinned: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.setNotePinned(id, pinned)
-        }
+        ioLaunch { app.notesRepository.setNotePinned(id, pinned) }
     }
 
     fun setNoteArchived(id: String, archived: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.setNoteArchived(id, archived)
-        }
+        ioLaunch { app.notesRepository.setNoteArchived(id, archived) }
     }
 
     fun resolveConflict(conflictId: String, keepLocal: Boolean) {
@@ -401,14 +399,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.reconcileAlarms()
         }
-    }
-
-    suspend fun getNote(id: String): NoteEntity? = withContext(Dispatchers.IO) {
-        app.notesRepository.getNote(id)
-    }
-
-    suspend fun getReminders(noteId: String): List<ReminderEntity> = withContext(Dispatchers.IO) {
-        app.notesRepository.getRemindersForNote(noteId)
     }
 
     fun addRemindersFromDetection(
@@ -436,12 +426,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         autoSync: Boolean = true,
         onDone: (suspend () -> Unit)? = null,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        withReminderSync(autoSync) {
             app.notesRepository.addReminder(noteId, fireAtIso, timezone, repeatRule)
             onDone?.invoke()
-            if (autoSync && userPrefs.autoSyncAfterReminder) {
-                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
-            }
         }
     }
 
@@ -453,12 +440,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         autoSync: Boolean = true,
         onDone: (suspend () -> Unit)? = null,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        withReminderSync(autoSync) {
             app.notesRepository.updateReminder(reminderId, fireAtIso, timezone, repeatRule)
             onDone?.invoke()
-            if (autoSync && userPrefs.autoSyncAfterReminder) {
-                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
-            }
         }
     }
 
@@ -467,12 +451,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         autoSync: Boolean = true,
         onDone: (suspend () -> Unit)? = null,
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
+        withReminderSync(autoSync) {
             app.notesRepository.deleteReminder(reminderId)
             onDone?.invoke()
-            if (autoSync && userPrefs.autoSyncAfterReminder) {
-                withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
-            }
         }
     }
 

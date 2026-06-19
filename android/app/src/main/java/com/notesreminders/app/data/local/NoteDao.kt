@@ -4,17 +4,10 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
-    @Query(
-        "SELECT * FROM notes WHERE deletedAt IS NULL AND status = 'active' " +
-            "ORDER BY pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
-    )
-    fun observeActive(): Flow<List<NoteEntity>>
-
     @Query(
         "SELECT * FROM notes WHERE deletedAt IS NULL AND status = 'active' " +
             "ORDER BY pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
@@ -63,9 +56,6 @@ interface NoteDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(notes: List<NoteEntity>)
-
-    @Update
-    suspend fun update(note: NoteEntity)
 
     @Query("DELETE FROM notes")
     suspend fun clearAll()

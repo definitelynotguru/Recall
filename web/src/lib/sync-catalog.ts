@@ -1,5 +1,5 @@
 import { noteTags, notes, reminders, tags } from "./db/schema";
-import { and, eq, gt, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, or, type AnyColumn } from "drizzle-orm";
 import {
   resolveNoteMerge,
   resolveReminderMerge,
@@ -29,7 +29,7 @@ export type SyncNoteTagInput = {
 export type SyncMode = "full" | "delta";
 
 type Db = ReturnType<typeof getDb>;
-export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 const EPOCH = new Date("1970-01-01T00:00:00.000Z");
 
@@ -64,8 +64,8 @@ async function userOwnsTag(tx: Tx, userId: string, tagId: string): Promise<boole
 }
 
 function changedSinceClause(
-  updatedAtCol: typeof notes.updatedAt,
-  deletedAtCol: typeof notes.deletedAt,
+  updatedAtCol: AnyColumn,
+  deletedAtCol: AnyColumn,
   since: Date,
 ) {
   return or(
@@ -116,7 +116,7 @@ export async function mergeNotesBatch(
   }
 }
 
-export async function mergeNote(
+async function mergeNote(
   tx: Tx,
   userId: string,
   client: SyncNoteInput,
@@ -157,7 +157,7 @@ export async function mergeNote(
     .where(and(eq(notes.id, client.id), eq(notes.userId, userId)));
 }
 
-export async function mergeReminder(
+async function mergeReminder(
   tx: Tx,
   userId: string,
   client: SyncReminderInput,
@@ -227,7 +227,7 @@ export async function mergeRemindersBatch(
   }
 }
 
-export async function mergeTag(
+async function mergeTag(
   tx: Tx,
   userId: string,
   client: SyncTagInput,
@@ -279,7 +279,7 @@ export async function mergeTagsBatch(
   }
 }
 
-export async function mergeNoteTag(
+async function mergeNoteTag(
   tx: Tx,
   userId: string,
   client: SyncNoteTagInput,

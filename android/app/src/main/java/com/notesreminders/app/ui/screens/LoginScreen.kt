@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallFieldColors
+import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
 
 @Composable
 fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
@@ -42,15 +43,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
     var isRegister by rememberSaveable { mutableStateOf(false) }
     val error by viewModel.authError.collectAsState()
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RecallColors.Copper,
-        unfocusedBorderColor = RecallColors.BorderStrong,
-        focusedTextColor = RecallColors.Parchment,
-        unfocusedTextColor = RecallColors.Parchment,
-        cursorColor = RecallColors.Copper,
-        focusedLabelColor = RecallColors.ParchmentMuted,
-        unfocusedLabelColor = RecallColors.ParchmentMuted,
-    )
+    val fieldColors = recallFieldColors()
 
     Box(
         modifier = Modifier
@@ -132,10 +125,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RecallColors.Copper,
-                        contentColor = RecallColors.Ink,
-                    ),
+                    colors = recallPrimaryButtonColors(),
                 ) {
                     Text(
                         if (isRegister) "Create account" else "Open Recall",

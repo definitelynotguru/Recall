@@ -3,7 +3,7 @@ import patterns from "../../shared/duration-patterns.json";
 type DetectConfidence = "high" | "maybe";
 type RepeatRule = "daily" | "weekly" | "monthly" | "yearly" | null;
 
-export type DurationRuleSpec = {
+type DurationRuleSpec = {
   id: string;
   regex: string;
   resolve:
@@ -23,17 +23,17 @@ export type DurationRuleSpec = {
   reason: string;
 };
 
-export const DURATION_NUMBER_WORDS: Record<string, number> = patterns.numberWords;
+const DURATION_NUMBER_WORDS: Record<string, number> = patterns.numberWords;
 
-export const DURATION_RULES: DurationRuleSpec[] = patterns.rules as DurationRuleSpec[];
+const DURATION_RULES: DurationRuleSpec[] = patterns.rules as DurationRuleSpec[];
 
-export function parseCountToken(token: string): number | null {
+function parseCountToken(token: string): number | null {
   const n = Number(token);
   if (!Number.isNaN(n)) return n;
   return DURATION_NUMBER_WORDS[token.toLowerCase()] ?? null;
 }
 
-export type DurationEmitContext = {
+type DurationEmitContext = {
   text: string;
   title: string;
   reference: Date;

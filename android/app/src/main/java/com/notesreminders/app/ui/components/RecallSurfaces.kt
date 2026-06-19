@@ -2,7 +2,6 @@ package com.notesreminders.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +13,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
 
-val RecallShapeMd = RoundedCornerShape(16.dp)
 val RecallShapeLg = RoundedCornerShape(24.dp)
 
 @Composable
@@ -30,17 +28,5 @@ fun RecallPanel(
             .border(1.dp, RecallColors.BorderStrong, RecallShapeLg)
             .padding(20.dp),
         content = content,
-    )
-}
-
-@Composable
-fun RecallAccentBar(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .background(
-                androidx.compose.ui.graphics.Brush.verticalGradient(
-                    colors = listOf(RecallColors.Copper, RecallColors.Copper.copy(alpha = 0f)),
-                ),
-            ),
     )
 }

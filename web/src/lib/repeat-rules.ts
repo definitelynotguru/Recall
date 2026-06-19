@@ -48,7 +48,7 @@ const FREQ_UNIT: Record<Frequency, string> = {
   yearly: "year",
 };
 
-export function parseRepeatRule(raw: string | null): RepeatRule | null {
+function parseRepeatRule(raw: string | null): RepeatRule | null {
   const rule = raw?.trim();
   if (!rule) return null;
 

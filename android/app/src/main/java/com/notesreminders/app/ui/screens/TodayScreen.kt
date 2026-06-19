@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +38,14 @@ import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.NextNudgeCard
+import com.notesreminders.app.ui.components.RecallAlertDialog
+import com.notesreminders.app.ui.components.RecallDialogDestructiveButton
+import com.notesreminders.app.ui.components.RecallDialogTextButton
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
-import com.notesreminders.app.ui.components.parseReminderTimeFields
+import com.notesreminders.app.ui.components.rememberReminderScheduleState
 import com.notesreminders.app.ui.components.pickNextReminder
 import com.notesreminders.app.reminders.RepeatUtils
 import com.notesreminders.app.ui.theme.RecallColors
@@ -64,35 +66,17 @@ fun TodayScreen(
     val syncHint by viewModel.syncHint.collectAsState()
     val hasPendingSync by viewModel.hasPendingSync.collectAsState()
 
-    var showReminderDialog by remember { mutableStateOf(false) }
-    var editingReminder by remember { mutableStateOf<ReminderEntity?>(null) }
-    var reminderDate by remember { mutableStateOf(LocalDate.now().toString()) }
-    var reminderHour by remember { mutableStateOf(9) }
-    var reminderMinute by remember { mutableStateOf(0) }
-    var repeatRule by remember { mutableStateOf("") }
+    val schedule = rememberReminderScheduleState(
+        viewModel.userPrefs.defaultReminderHour,
+        viewModel.userPrefs.defaultReminderMinute,
+    )
     var reminderToDelete by remember { mutableStateOf<String?>(null) }
 
-    fun openEditDialog(reminder: ReminderEntity) {
-        editingReminder = reminder
-        val (d, h, m) = parseReminderTimeFields(reminder.fireAt)
-        reminderDate = d
-        reminderHour = h
-        reminderMinute = m
-        repeatRule = reminder.repeatRule ?: ""
-        showReminderDialog = true
-    }
-
     fun saveReminderFromDialog() {
-        val zone = ZoneId.systemDefault()
-        val local = LocalDate.parse(reminderDate)
-            .atTime(reminderHour.coerceIn(0, 23), reminderMinute.coerceIn(0, 59))
-            .atZone(zone)
-        val fireAt = local.toInstant().toString()
-        val tz = zone.id
-        val repeat = repeatRule.ifBlank { null }
-        showReminderDialog = false
-        val editing = editingReminder
-        editingReminder = null
+        val (fireAt, tz) = schedule.fireAtAndTimezone()
+        val repeat = schedule.repeatRule.ifBlank { null }
+        schedule.dismiss()
+        val editing = schedule.editingReminder
         onRequestExactAlarms()
         if (editing != null) {
             viewModel.updateReminder(editing.id, fireAt, tz, repeat)
@@ -146,7 +130,7 @@ fun TodayScreen(
                                 TimelineReminderCard(
                                     data = item,
                                     onOpenNote = onOpenNote,
-                                    onEdit = { openEditDialog(it) },
+                                    onEdit = { schedule.openEdit(it) },
                                     onDelete = { reminderToDelete = it },
                                     onComplete = { viewModel.completeReminder(it) },
                                     onSnooze = { viewModel.snoozeReminder(it) },
@@ -161,39 +145,34 @@ fun TodayScreen(
     }
 
     ReminderScheduleDialog(
-        open = showReminderDialog,
+        open = schedule.showDialog,
         title = "Edit reminder",
-        reminderDate = reminderDate,
-        onDateChange = { reminderDate = it },
-        hour24 = reminderHour,
-        minute = reminderMinute,
+        reminderDate = schedule.reminderDate,
+        onDateChange = { schedule.reminderDate = it },
+        hour24 = schedule.reminderHour,
+        minute = schedule.reminderMinute,
         onTimeChange = { h, m ->
-            reminderHour = h
-            reminderMinute = m
+            schedule.reminderHour = h
+            schedule.reminderMinute = m
         },
         use12Hour = viewModel.userPrefs.use12HourClock,
-        repeatRule = repeatRule,
-        onRepeatChange = { repeatRule = it },
+        repeatRule = schedule.repeatRule,
+        onRepeatChange = { schedule.repeatRule = it },
         defaultHour = viewModel.userPrefs.defaultReminderHour,
         defaultMinute = viewModel.userPrefs.defaultReminderMinute,
-        showDelete = editingReminder != null,
+        showDelete = schedule.editingReminder != null,
         onDelete = {
-            reminderToDelete = editingReminder!!.id
-            showReminderDialog = false
-            editingReminder = null
+            reminderToDelete = schedule.editingReminder!!.id
+            schedule.dismiss()
         },
-        onDismiss = {
-            showReminderDialog = false
-            editingReminder = null
-        },
+        onDismiss = { schedule.dismiss() },
         onSave = { saveReminderFromDialog() },
     )
 
     reminderToDelete?.let { id ->
-        AlertDialog(
+        RecallAlertDialog(
             onDismissRequest = { reminderToDelete = null },
-            containerColor = RecallColors.InkSurface,
-            title = { Text("Delete reminder?", color = RecallColors.Parchment) },
+            title = "Delete reminder?",
             text = {
                 Text(
                     "This cancels the scheduled nudge on this device.",
@@ -201,19 +180,13 @@ fun TodayScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        reminderToDelete = null
-                        viewModel.deleteReminder(id)
-                    },
-                ) {
-                    Text("Delete", color = RecallColors.Error)
+                RecallDialogDestructiveButton("Delete") {
+                    reminderToDelete = null
+                    viewModel.deleteReminder(id)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { reminderToDelete = null }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
+                RecallDialogTextButton("Cancel", { reminderToDelete = null }, RecallColors.ParchmentMuted)
             },
         )
     }

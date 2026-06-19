@@ -16,9 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +36,9 @@ import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallFieldColors
+import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
+import com.notesreminders.app.ui.theme.recallSwitchColors
 import java.time.ZoneId
 
 @Composable
@@ -69,14 +70,7 @@ fun SettingsScreen(
         uri?.let { viewModel.importBackup(it) { msg -> backupMessage = msg } }
     }
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RecallColors.Copper,
-        unfocusedBorderColor = RecallColors.BorderStrong,
-        focusedTextColor = RecallColors.Parchment,
-        unfocusedTextColor = RecallColors.Parchment,
-        focusedLabelColor = RecallColors.ParchmentMuted,
-        unfocusedLabelColor = RecallColors.ParchmentMuted,
-    )
+    val fieldColors = recallFieldColors()
 
     Column(
         Modifier
@@ -125,10 +119,7 @@ fun SettingsScreen(
                         }
                     },
                     enabled = !updating && activity != null,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RecallColors.Copper,
-                        contentColor = RecallColors.Ink,
-                    ),
+                    colors = recallPrimaryButtonColors(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
                         horizontal = 16.dp,
                         vertical = 6.dp,
@@ -210,10 +201,8 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
-            Spacer(Modifier.height(16.dp))
         }
 
-        Spacer(Modifier.height(16.dp))
         RecallPanel {
             Text("Backup", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
             Spacer(Modifier.height(8.dp))
@@ -226,10 +215,7 @@ fun SettingsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { exportBackup.launch("recall-backup.json") },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RecallColors.Copper,
-                        contentColor = RecallColors.Ink,
-                    ),
+                    colors = recallPrimaryButtonColors(),
                 ) {
                     Text("Export")
                 }
@@ -287,10 +273,7 @@ fun SettingsScreen(
                 Switch(
                     checked = prefs.use12HourClock,
                     onCheckedChange = { prefs.use12HourClock = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = RecallColors.Ink,
-                        checkedTrackColor = RecallColors.Copper,
-                    ),
+                    colors = recallSwitchColors(),
                 )
             }
             Spacer(Modifier.height(12.dp))
@@ -303,10 +286,7 @@ fun SettingsScreen(
                 Switch(
                     checked = prefs.autoSyncAfterReminder,
                     onCheckedChange = { prefs.autoSyncAfterReminder = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = RecallColors.Ink,
-                        checkedTrackColor = RecallColors.Copper,
-                    ),
+                    colors = recallSwitchColors(),
                 )
             }
             Spacer(Modifier.height(12.dp))
@@ -319,10 +299,7 @@ fun SettingsScreen(
                 Switch(
                     checked = prefs.autoSyncAfterNote,
                     onCheckedChange = { prefs.autoSyncAfterNote = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = RecallColors.Ink,
-                        checkedTrackColor = RecallColors.Copper,
-                    ),
+                    colors = recallSwitchColors(),
                 )
             }
         }

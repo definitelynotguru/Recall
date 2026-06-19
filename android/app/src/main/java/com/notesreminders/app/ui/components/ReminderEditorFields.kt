@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallRepeatFilterChipColors
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -88,9 +89,6 @@ private fun QuickChip(label: String, onClick: () -> Unit) {
         selected = false,
         onClick = onClick,
         label = { Text(label) },
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = RecallColors.InkElevated,
-            labelColor = RecallColors.Copper,
-        ),
+        colors = recallRepeatFilterChipColors(),
     )
 }

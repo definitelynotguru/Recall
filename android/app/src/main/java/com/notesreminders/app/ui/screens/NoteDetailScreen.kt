@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Unarchive
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -34,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,11 +41,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,15 +56,20 @@ import com.notesreminders.app.reminders.ReminderDetect
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.DetectedRemindersDialog
 import com.notesreminders.app.ui.components.NextNudgeCard
+import com.notesreminders.app.ui.components.RecallAlertDialog
+import com.notesreminders.app.ui.components.RecallDialogDestructiveButton
+import com.notesreminders.app.ui.components.RecallDialogTextButton
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
-import com.notesreminders.app.ui.components.parseReminderTimeFields
+import com.notesreminders.app.ui.components.rememberReminderScheduleState
 import com.notesreminders.app.ui.components.pickNextReminder
 import com.notesreminders.app.ui.theme.RecallColors
+import com.notesreminders.app.ui.theme.recallFieldColors
+import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
+import com.notesreminders.app.ui.theme.recallSecondaryButtonColors
+import com.notesreminders.app.ui.theme.recallTagFilterChipColors
 import io.noties.markwon.Markwon
-import java.time.LocalDate
-import java.time.ZoneId
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -83,12 +84,10 @@ fun NoteDetailScreen(
     var body by remember(noteId) { mutableStateOf("") }
     var preview by remember(noteId) { mutableStateOf(false) }
     var hasLocalEdits by remember(noteId) { mutableStateOf(false) }
-    var showReminderDialog by remember(noteId) { mutableStateOf(false) }
-    var editingReminder by remember(noteId) { mutableStateOf<ReminderEntity?>(null) }
-    var reminderDate by remember(noteId) { mutableStateOf(LocalDate.now().toString()) }
-    var reminderHour by remember(noteId) { mutableStateOf(9) }
-    var reminderMinute by remember(noteId) { mutableStateOf(0) }
-    var repeatRule by remember(noteId) { mutableStateOf("") }
+    val schedule = rememberReminderScheduleState(
+        viewModel.userPrefs.defaultReminderHour,
+        viewModel.userPrefs.defaultReminderMinute,
+    )
     var showDetectDialog by remember(noteId) { mutableStateOf(false) }
     var detectedList by remember(noteId) { mutableStateOf<List<DetectedReminder>>(emptyList()) }
     var selectedDetected by remember(noteId) { mutableStateOf<Set<String>>(emptySet()) }
@@ -106,16 +105,7 @@ fun NoteDetailScreen(
     val reminders by viewModel.observeRemindersForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
     val selectedTagIds = remember(noteTags) { noteTags.map { it.id }.toSet() }
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = RecallColors.Copper,
-        unfocusedBorderColor = RecallColors.BorderStrong,
-        focusedTextColor = RecallColors.Parchment,
-        unfocusedTextColor = RecallColors.Parchment,
-        focusedLabelColor = RecallColors.ParchmentMuted,
-        unfocusedLabelColor = RecallColors.ParchmentMuted,
-    )
-
-    val scope = rememberCoroutineScope()
+    val fieldColors = recallFieldColors()
 
     LaunchedEffect(observedNote, noteId) {
         val note = observedNote ?: return@LaunchedEffect
@@ -147,35 +137,17 @@ fun NoteDetailScreen(
     }
 
     fun openCreateDialog() {
-        editingReminder = null
-        reminderDate = LocalDate.now().toString()
-        reminderHour = viewModel.userPrefs.defaultReminderHour
-        reminderMinute = viewModel.userPrefs.defaultReminderMinute
-        repeatRule = ""
-        showReminderDialog = true
-    }
-
-    fun openEditDialog(reminder: ReminderEntity) {
-        editingReminder = reminder
-        val (d, h, m) = parseReminderTimeFields(reminder.fireAt)
-        reminderDate = d
-        reminderHour = h
-        reminderMinute = m
-        repeatRule = reminder.repeatRule ?: ""
-        showReminderDialog = true
+        schedule.openNew(
+            viewModel.userPrefs.defaultReminderHour,
+            viewModel.userPrefs.defaultReminderMinute,
+        )
     }
 
     fun saveReminderFromDialog() {
-        val zone = ZoneId.systemDefault()
-        val local = LocalDate.parse(reminderDate)
-            .atTime(reminderHour.coerceIn(0, 23), reminderMinute.coerceIn(0, 59))
-            .atZone(zone)
-        val fireAt = local.toInstant().toString()
-        val tz = zone.id
-        val repeat = repeatRule.ifBlank { null }
-        showReminderDialog = false
-        val editing = editingReminder
-        editingReminder = null
+        val (fireAt, tz) = schedule.fireAtAndTimezone()
+        val repeat = schedule.repeatRule.ifBlank { null }
+        val editing = schedule.editingReminder
+        schedule.dismiss()
         onRequestExactAlarms()
         if (editing != null) {
             viewModel.updateReminder(editing.id, fireAt, tz, repeat)
@@ -317,12 +289,7 @@ fun NoteDetailScreen(
                                 }
                             },
                             label = { Text(tag.name) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = RecallColors.CopperDim,
-                                selectedLabelColor = RecallColors.Copper,
-                                containerColor = RecallColors.InkSurface,
-                                labelColor = RecallColors.ParchmentMuted,
-                            ),
+                            colors = recallTagFilterChipColors(),
                         )
                     }
                 }
@@ -349,10 +316,7 @@ fun NoteDetailScreen(
                             newTagName = ""
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RecallColors.InkSurface,
-                        contentColor = RecallColors.Copper,
-                    ),
+                    colors = recallSecondaryButtonColors(),
                 ) {
                     Text("Add tag")
                 }
@@ -391,10 +355,7 @@ fun NoteDetailScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
                 onClick = { openCreateDialog() },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RecallColors.Copper,
-                    contentColor = RecallColors.Ink,
-                ),
+                colors = recallPrimaryButtonColors(),
             ) {
                 Text("Add reminder")
             }
@@ -418,10 +379,7 @@ fun NoteDetailScreen(
                     showDetectDialog = true
                 },
                 enabled = !fetchingReminders,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RecallColors.InkSurface,
-                    contentColor = RecallColors.Copper,
-                ),
+                colors = recallSecondaryButtonColors(),
             ) {
                 Text(if (fetchingReminders) "Scanning…" else "Fetch reminders")
             }
@@ -451,7 +409,7 @@ fun NoteDetailScreen(
                         }
                     }
                     Row {
-                        IconButton(onClick = { openEditDialog(r) }) {
+                        IconButton(onClick = { schedule.openEdit(r) }) {
                             Icon(
                                 Icons.Default.Edit,
                                 contentDescription = "Edit",
@@ -490,39 +448,34 @@ fun NoteDetailScreen(
     )
 
     ReminderScheduleDialog(
-        open = showReminderDialog,
-        title = if (editingReminder != null) "Edit reminder" else "Schedule nudge",
-        reminderDate = reminderDate,
-        onDateChange = { reminderDate = it },
-        hour24 = reminderHour,
-        minute = reminderMinute,
+        open = schedule.showDialog,
+        title = if (schedule.editingReminder != null) "Edit reminder" else "Schedule nudge",
+        reminderDate = schedule.reminderDate,
+        onDateChange = { schedule.reminderDate = it },
+        hour24 = schedule.reminderHour,
+        minute = schedule.reminderMinute,
         onTimeChange = { h, m ->
-            reminderHour = h
-            reminderMinute = m
+            schedule.reminderHour = h
+            schedule.reminderMinute = m
         },
         use12Hour = viewModel.userPrefs.use12HourClock,
-        repeatRule = repeatRule,
-        onRepeatChange = { repeatRule = it },
+        repeatRule = schedule.repeatRule,
+        onRepeatChange = { schedule.repeatRule = it },
         defaultHour = viewModel.userPrefs.defaultReminderHour,
         defaultMinute = viewModel.userPrefs.defaultReminderMinute,
-        showDelete = editingReminder != null,
+        showDelete = schedule.editingReminder != null,
         onDelete = {
-            reminderToDelete = editingReminder
-            showReminderDialog = false
-            editingReminder = null
+            reminderToDelete = schedule.editingReminder
+            schedule.dismiss()
         },
-        onDismiss = {
-            showReminderDialog = false
-            editingReminder = null
-        },
+        onDismiss = { schedule.dismiss() },
         onSave = { saveReminderFromDialog() },
     )
 
     if (showDeleteNoteDialog) {
-        AlertDialog(
+        RecallAlertDialog(
             onDismissRequest = { showDeleteNoteDialog = false },
-            containerColor = RecallColors.InkSurface,
-            title = { Text("Delete note?", color = RecallColors.Parchment) },
+            title = "Delete note?",
             text = {
                 Text(
                     "This removes the note and all its reminders on this device. Sync to apply on web.",
@@ -530,29 +483,22 @@ fun NoteDetailScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteNoteDialog = false
-                        viewModel.flushNoteSave(noteId, title, body)
-                        viewModel.deleteNote(noteId) { onDeleted() }
-                    },
-                ) {
-                    Text("Delete", color = RecallColors.Error)
+                RecallDialogDestructiveButton("Delete") {
+                    showDeleteNoteDialog = false
+                    viewModel.flushNoteSave(noteId, title, body)
+                    viewModel.deleteNote(noteId) { onDeleted() }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteNoteDialog = false }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
+                RecallDialogTextButton("Cancel", { showDeleteNoteDialog = false }, RecallColors.ParchmentMuted)
             },
         )
     }
 
     reminderToDelete?.let { target ->
-        AlertDialog(
+        RecallAlertDialog(
             onDismissRequest = { reminderToDelete = null },
-            containerColor = RecallColors.InkSurface,
-            title = { Text("Delete reminder?", color = RecallColors.Parchment) },
+            title = "Delete reminder?",
             text = {
                 Text(
                     formatReminderFireAt(target.fireAt),
@@ -560,20 +506,14 @@ fun NoteDetailScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val id = target.id
-                        reminderToDelete = null
-                        viewModel.deleteReminder(id)
-                    },
-                ) {
-                    Text("Delete", color = RecallColors.Error)
+                RecallDialogDestructiveButton("Delete") {
+                    val id = target.id
+                    reminderToDelete = null
+                    viewModel.deleteReminder(id)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { reminderToDelete = null }) {
-                    Text("Cancel", color = RecallColors.ParchmentMuted)
-                }
+                RecallDialogTextButton("Cancel", { reminderToDelete = null }, RecallColors.ParchmentMuted)
             },
         )
     }

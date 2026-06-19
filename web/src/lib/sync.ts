@@ -7,14 +7,10 @@ import {
   mergeRemindersBatch,
   mergeTagsBatch,
   resolveSyncMode,
-  type SyncMode,
   type SyncNoteTagInput,
   type SyncTagInput,
 } from "./sync-catalog";
 import type { SyncNoteInput, SyncReminderInput } from "./sync-merge";
-
-export type { SyncNoteInput as SyncNote, SyncReminderInput as SyncReminder };
-export type { SyncTagInput, SyncNoteTagInput, SyncMode };
 
 export async function processSync(
   userId: string,
