@@ -176,8 +176,10 @@ export default function SettingsPage() {
     setImportMsg(null);
     try {
       const result = await importBackup(pendingBundle);
+      const warningNote =
+        result.warnings.length > 0 ? ` Warnings: ${result.warnings.join(" ")}` : "";
       setImportMsg(
-        `Imported ${result.notes} notes and ${result.reminders} reminders.`,
+        `Imported ${result.notes} notes and ${result.reminders} reminders.${warningNote}`,
       );
       toast("Backup imported");
       setPendingBundle(null);

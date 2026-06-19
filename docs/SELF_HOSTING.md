@@ -99,7 +99,7 @@ New accounts require `REGISTER_SECRET` in the register request body. Options:
 
 Forks can run `web-test` and `build-apk` without maintainer secrets. Do not enable `deploy-web` or `db-push` unless you configure your own Vercel/Neon credentials.
 
-Maintainer production URL (`recall-aevum-s-projects1.vercel.app`) is the upstream author's deployment, not a shared demo service.
+Maintainer production URL (`recall-aevum-s-projects1.vercel.app`) is the upstream author's deployment, not a shared demo service. Forks should set GitHub repository variable `PRODUCTION_URL` / `PRODUCTION_API_URL` for smoke tests and APK builds.
 
 ## Troubleshooting
 

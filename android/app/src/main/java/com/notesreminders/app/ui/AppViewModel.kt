@@ -90,6 +90,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         emptyList(),
     )
 
+    val syncErrors = app.notesRepository.observeSyncErrors().stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList(),
+    )
+
     val hasPendingSync = app.notesRepository.observeHasPendingSync().stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),

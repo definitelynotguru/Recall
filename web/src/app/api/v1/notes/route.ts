@@ -8,7 +8,10 @@ import {
   jsonResponse,
   errorResponse,
   toApiNote,
+  readJsonBody,
+  parseJsonBody,
 } from "@/lib/api-utils";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { eq, and, isNull, desc, ilike, or, sql, inArray } from "drizzle-orm";
 
 const createSchema = z.object({
@@ -76,9 +79,19 @@ export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
+  const rateKey = `notes:${user!.userId}:${getClientIp(request)}`;
+  if (!rateLimit(rateKey, { max: 60, windowMs: 60_000 })) {
+    return errorResponse("Too many requests", 429);
+  }
+
+  const raw = await readJsonBody(request);
+  if (!raw.ok) return raw.response;
+  const parsed = parseJsonBody<unknown>(raw.text);
+  if (parsed instanceof Response) return parsed;
+
   let body: z.infer<typeof createSchema>;
   try {
-    body = createSchema.parse(await request.json());
+    body = createSchema.parse(parsed);
   } catch {
     return errorResponse("Invalid request", 400);
   }

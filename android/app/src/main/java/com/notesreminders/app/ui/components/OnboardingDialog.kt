@@ -13,6 +13,7 @@ import com.notesreminders.app.ui.theme.RecallColors
 fun OnboardingDialog(
     open: Boolean,
     onDismiss: () -> Unit,
+    onRequestNotifications: () -> Unit = {},
 ) {
     if (!open) return
 
@@ -26,10 +27,18 @@ fun OnboardingDialog(
                 Text("2. Fetch reminders — we detect dates and smart repeats", color = RecallColors.ParchmentMuted)
                 Spacer(Modifier.height(8.dp))
                 Text("3. Tap Sync so your phone delivers notifications", color = RecallColors.ParchmentMuted)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "4. Allow notifications and exact alarms when prompted — otherwise reminders stay silent",
+                    color = RecallColors.ParchmentMuted,
+                )
             }
         },
         confirmButton = {
-            RecallDialogConfirmButton("Got it", onDismiss)
+            RecallDialogConfirmButton("Got it", {
+                onRequestNotifications()
+                onDismiss()
+            })
         },
         dismissButton = null,
     )

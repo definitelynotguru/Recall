@@ -30,8 +30,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import com.notesreminders.app.BuildConfig
 import android.app.Activity
+import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
@@ -51,7 +56,9 @@ fun SettingsScreen(
     val syncHint by viewModel.syncHint.collectAsState()
     val hasPendingSync by viewModel.hasPendingSync.collectAsState()
     val conflicts by viewModel.conflicts.collectAsState()
+    val syncErrors by viewModel.syncErrors.collectAsState()
     val prefs = viewModel.userPrefs
+    val context = LocalContext.current
     val zone = ZoneId.systemDefault().id
     var debugMessage by remember { mutableStateOf<String?>(null) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
@@ -151,6 +158,58 @@ fun SettingsScreen(
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Pending local changes — tap Sync in the header",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RecallColors.Copper,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        RecallPanel {
+            Text("Permissions", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Spacer(Modifier.height(8.dp))
+            val notificationsOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            val exactAlarmsOk = !ReminderPermissions.needsExactAlarmPermission(context)
+            Text(
+                if (notificationsOk) "Notifications enabled" else "Notifications disabled — reminders won't appear",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (notificationsOk) RecallColors.ParchmentMuted else RecallColors.Error,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                if (exactAlarmsOk) "Exact alarms allowed" else "Exact alarms off — timing may drift",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (exactAlarmsOk) RecallColors.ParchmentMuted else RecallColors.Error,
+            )
+            if (!exactAlarmsOk) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = {
+                        context.startActivity(ReminderPermissions.exactAlarmSettingsIntent(context))
+                    },
+                ) {
+                    Text("Open alarm settings", color = RecallColors.Copper)
+                }
+            }
+        }
+
+        if (syncErrors.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            RecallPanel {
+                Text("Sync issues", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+                Spacer(Modifier.height(8.dp))
+                syncErrors.take(8).forEach { error ->
+                    Text(
+                        "${error.entityType}: ${error.message}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
+                Text(
+                    "Fix the item locally, then tap Sync. Dirty rows stay queued until they pass validation.",
                     style = MaterialTheme.typography.bodySmall,
                     color = RecallColors.Copper,
                 )

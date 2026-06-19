@@ -103,6 +103,8 @@ fun NoteDetailScreen(
     val noteTags by viewModel.observeTagsForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
     val observedNote by viewModel.observeNote(noteId).collectAsStateWithLifecycle(initialValue = null)
     val reminders by viewModel.observeRemindersForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val conflicts by viewModel.conflicts.collectAsStateWithLifecycle(initialValue = emptyList())
+    val noteConflict = conflicts.firstOrNull { it.noteId == noteId }
     val selectedTagIds = remember(noteTags) { noteTags.map { it.id }.toSet() }
 
     val fieldColors = recallFieldColors()
@@ -216,6 +218,32 @@ fun NoteDetailScreen(
                     contentDescription = "Delete note",
                     tint = RecallColors.Error,
                 )
+            }
+        }
+
+        noteConflict?.let { conflict ->
+            Spacer(Modifier.height(12.dp))
+            RecallPanel {
+                Text(
+                    "Sync conflict on this note",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = RecallColors.Parchment,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Server copy is newer. Choose which version to keep.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RecallColors.ParchmentMuted,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = true) }) {
+                        Text("Keep local", color = RecallColors.Copper)
+                    }
+                    TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = false) }) {
+                        Text("Keep server", color = RecallColors.Copper)
+                    }
+                }
             }
         }
 

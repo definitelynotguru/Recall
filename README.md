@@ -130,15 +130,13 @@ If sync shows **HTTP 400**:
 
 Ensure `API_BASE_URL` in `local.properties` matches your deployed API (trailing path `/api/v1`).
 
-## Before making the repo public
-
-- Run a full git history secret scan (`gitleaks` or `trufflehog`)
-- Rotate `VERCEL_TOKEN` if it was ever pasted in chat
-- Set GitHub secrets: `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` for manual deploy workflow
-
 ## Design
 
-Warm **ink + copper** palette, Syne + Source Sans 3 on web, timeline-first Today view. Preview: `web/public/ui-preview.html`.
+Warm **ink + copper** palette, Syne + Source Sans 3 on web, timeline-first Today view.
+
+## Health check
+
+`GET /api/v1/health` returns `{ status: "ok", db: "connected" }` when Postgres is reachable. Scheduled smoke tests run daily via GitHub Actions.
 
 ## License
 

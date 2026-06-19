@@ -43,6 +43,17 @@ export function ImportPreviewDialog({
         </>
       }
     >
+      {preview.warnings.length > 0 && (
+        <div className="hint-banner" style={{ marginBottom: 16 }}>
+          <div>
+            {preview.warnings.map((warning) => (
+              <p key={warning} style={{ margin: "0 0 6px" }}>
+                {warning}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
       <ul className="import-preview-list">
         <li>
           <strong>{preview.notes}</strong> notes

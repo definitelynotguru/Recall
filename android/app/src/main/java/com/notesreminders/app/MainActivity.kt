@@ -71,7 +71,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestNotificationPermission()
         pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
         pendingSharedText.value = intent.extractSharedText()
 
@@ -99,6 +98,7 @@ class MainActivity : ComponentActivity() {
                                 startActivity(ReminderPermissions.exactAlarmSettingsIntent(this@MainActivity))
                             }
                         },
+                        onRequestNotifications = { requestNotificationPermission() },
                     ) { loggedIn = false }
                 }
             }
@@ -149,6 +149,7 @@ private fun MainShell(
     onNoteOpened: () -> Unit,
     onSharedTextConsumed: () -> Unit,
     onRequestExactAlarms: () -> Unit,
+    onRequestNotifications: () -> Unit,
     onLogout: () -> Unit,
 ) {
     val isOnline by viewModel.isOnline.collectAsState()
@@ -241,7 +242,10 @@ private fun MainShell(
             if (!isOnline) {
                 OfflineSyncBanner(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    onReconnect = { viewModel.refreshConnectivity() },
+                    onReconnect = {
+                        viewModel.refreshConnectivity()
+                        viewModel.syncNow()
+                    },
                 )
             }
             NavHost(
@@ -301,5 +305,6 @@ private fun MainShell(
             viewModel.userPrefs.onboardingDone = true
             showOnboarding = false
         },
+        onRequestNotifications = onRequestNotifications,
     )
 }

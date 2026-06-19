@@ -16,7 +16,7 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
   }, [title, body]);
 
   const flush = useCallback(async () => {
-    if (!noteId) return;
+    if (!noteId) return false;
     const { title: t, body: b } = latest.current;
     setStatus("saving");
     try {
@@ -25,8 +25,10 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
         body: JSON.stringify({ title: t, body: b }),
       });
       setStatus("saved");
+      return true;
     } catch {
       setStatus("error");
+      return false;
     }
   }, [noteId]);
 
@@ -55,5 +57,5 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
     };
   }, [noteId, flush]);
 
-  return { status, flush };
+  return { status, flush, retry: flush };
 }

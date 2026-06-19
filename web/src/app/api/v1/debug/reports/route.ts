@@ -2,11 +2,19 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { debugReports } from "@/lib/db/schema";
 import { requireAuth, jsonResponse } from "@/lib/api-utils";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, lt } from "drizzle-orm";
+
+const REPORT_RETENTION_DAYS = 30;
 
 export async function GET(request: NextRequest) {
   const { user, response } = await requireAuth(request);
   if (response) return response;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - REPORT_RETENTION_DAYS);
+  await db.delete(debugReports).where(
+    lt(debugReports.createdAt, cutoff),
+  );
 
   const limitParam = request.nextUrl.searchParams.get("limit");
   const limit = Math.min(Math.max(Number(limitParam) || 20, 1), 50);

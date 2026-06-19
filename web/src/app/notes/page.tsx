@@ -6,17 +6,20 @@ import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
+import { LoadError } from "@/components/LoadError";
+import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
+import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function NotesPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [allTags, setAllTags] = useState<ApiTag[]>([]);
   const [noteTags, setNoteTags] = useState<ApiNoteTag[]>([]);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -37,19 +40,22 @@ export default function NotesPage() {
     setNoteTags(noteTagsRes.note_tags);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadNotes = useCallback(async () => {
     const params = new URLSearchParams({ status });
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (tagFilter) params.set("tag_id", tagFilter);
     const res = await apiFetch<{ notes: ApiNote[] }>(`/notes?${params}`);
     setNotes(res.notes);
-    setLoading(false);
   }, [debouncedQuery, status, tagFilter]);
+
+  const { loading, error, reload } = useAsyncLoad(loadNotes, [
+    debouncedQuery,
+    status,
+    tagFilter,
+  ]);
 
   useOnMount(() => {
     void loadTags();
-    void load();
   });
 
   const tagsByNote = useMemo(() => {
@@ -77,17 +83,23 @@ export default function NotesPage() {
         }),
       });
       router.push(`/notes/${res.note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not create note", "error");
     } finally {
       setCreating(false);
     }
   };
 
   const patchNote = async (id: string, patch: Record<string, unknown>) => {
-    await apiFetch(`/notes/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    await load();
+    try {
+      await apiFetch(`/notes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      });
+      await reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Update failed", "error");
+    }
   };
 
   return (
@@ -159,7 +171,9 @@ export default function NotesPage() {
         </div>
       )}
 
-      {loading ? (
+      {error ? (
+        <LoadError message={error} onRetry={() => void reload()} />
+      ) : loading ? (
         <>
           <div className="skeleton" />
           <div className="skeleton" />

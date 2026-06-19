@@ -43,6 +43,9 @@ class NotesRepository(
 
     fun observeConflicts(): Flow<List<NoteConflictEntity>> = db.noteConflictDao().observeOpen()
 
+    fun observeSyncErrors(): Flow<List<com.notesreminders.app.data.local.SyncErrorEntity>> =
+        db.syncErrorDao().observeAll()
+
     fun observeHasPendingSync(): Flow<Boolean> =
         combine(
             db.noteDao().observeDirtyCount(),
@@ -76,6 +79,7 @@ class NotesRepository(
         db.reminderDao().clearAll()
         db.noteDao().clearAll()
         db.noteConflictDao().clearAll()
+        db.syncErrorDao().clearAll()
         db.noteTagDao().clearAll()
         db.tagDao().clearAll()
         db.syncMetaDao().clearAll()

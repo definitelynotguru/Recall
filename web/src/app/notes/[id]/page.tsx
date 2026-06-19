@@ -55,7 +55,7 @@ export default function NoteDetailPage() {
   const { loading: authLoading } = useAuth();
   const { confirm } = useConfirm();
   const { toast } = useToast();
-  const { status: saveStatus, flush } = useDebouncedNoteSave(id, title, body);
+  const { status: saveStatus, flush, retry } = useDebouncedNoteSave(id, title, body);
 
   const load = useCallback(async () => {
     try {
@@ -111,19 +111,27 @@ export default function NoteDetailPage() {
       destructive: true,
     });
     if (!ok) return;
-    await apiFetch(`/notes/${id}`, { method: "DELETE" });
-    toast("Note deleted");
-    router.push("/notes");
+    try {
+      await apiFetch(`/notes/${id}`, { method: "DELETE" });
+      toast("Note deleted");
+      router.push("/notes");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not delete note", "error");
+    }
   };
 
   const toggleArchive = async () => {
     const next = noteStatus === "archived" ? "active" : "archived";
-    await apiFetch(`/notes/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: next }),
-    });
-    setNoteStatus(next);
-    toast(next === "archived" ? "Note archived" : "Note restored");
+    try {
+      await apiFetch(`/notes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: next }),
+      });
+      setNoteStatus(next);
+      toast(next === "archived" ? "Note archived" : "Note restored");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not update note", "error");
+    }
   };
 
   const openCreateDialog = () => {
@@ -144,10 +152,14 @@ export default function NoteDetailPage() {
       destructive: true,
     });
     if (!ok) return;
-    await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
-    toast("Reminder deleted");
-    await load();
-    setShowSyncBanner(true);
+    try {
+      await apiFetch(`/reminders/${reminderId}`, { method: "DELETE" });
+      toast("Reminder deleted");
+      await load();
+      setShowSyncBanner(true);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not delete reminder", "error");
+    }
   };
 
   const fetchReminders = async () => {
@@ -168,18 +180,23 @@ export default function NoteDetailPage() {
 
   const addDetectedReminders = async (selected: DetectedReminder[]) => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    for (const d of selected) {
-      await apiFetch<{ reminder: ApiReminder }>(`/notes/${id}/reminders`, {
-        method: "POST",
-        body: JSON.stringify({
-          fire_at: d.fireAt,
-          timezone: tz,
-          repeat_rule: d.repeatRule,
-        }),
-      });
+    try {
+      for (const d of selected) {
+        await apiFetch<{ reminder: ApiReminder }>(`/notes/${id}/reminders`, {
+          method: "POST",
+          body: JSON.stringify({
+            fire_at: d.fireAt,
+            timezone: tz,
+            repeat_rule: d.repeatRule,
+          }),
+        });
+      }
+      await load();
+      setShowSyncBanner(true);
+      toast(`Added ${selected.length} reminder${selected.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not add reminders", "error");
     }
-    await load();
-    setShowSyncBanner(true);
   };
 
   const nextReminder = pickNextReminder(reminders);
@@ -189,23 +206,31 @@ export default function NoteDetailPage() {
   );
 
   const setNoteTagIds = async (tagIds: string[]) => {
-    const res = await apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`, {
-      method: "PUT",
-      body: JSON.stringify({ tag_ids: tagIds }),
-    });
-    setNoteTags(res.tags);
+    try {
+      const res = await apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`, {
+        method: "PUT",
+        body: JSON.stringify({ tag_ids: tagIds }),
+      });
+      setNoteTags(res.tags);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not update tags", "error");
+    }
   };
 
   const createTag = async () => {
     const name = newTagName.trim();
     if (!name) return;
-    const res = await apiFetch<{ tag: ApiTag }>("/tags", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    });
-    setNewTagName("");
-    setAllTags((tags) => [...tags, res.tag].sort((a, b) => a.name.localeCompare(b.name)));
-    await setNoteTagIds([...selectedTagIds, res.tag.id]);
+    try {
+      const res = await apiFetch<{ tag: ApiTag }>("/tags", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      setNewTagName("");
+      setAllTags((tags) => [...tags, res.tag].sort((a, b) => a.name.localeCompare(b.name)));
+      await setNoteTagIds([...selectedTagIds, res.tag.id]);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not create tag", "error");
+    }
   };
 
   if (authLoading || loading) {
@@ -222,10 +247,14 @@ export default function NoteDetailPage() {
       <RequireAuth>
         <div className="empty-state">
           <p>{loadError}</p>
+          <button type="button" className="btn btn-secondary" onClick={() => void load()}>
+            Try again
+          </button>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => router.push("/notes")}
+            style={{ marginLeft: 8 }}
           >
             Back to notes
           </button>
@@ -245,7 +274,19 @@ export default function NoteDetailPage() {
           <Eye size={18} />
           {preview ? "Edit" : "Preview"}
         </button>
-        <span className="save-status">{saveStatusLabel()}</span>
+        <span className="save-status">
+          {saveStatusLabel()}
+          {saveStatus === "error" && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => void retry()}
+              style={{ marginLeft: 8 }}
+            >
+              Retry save
+            </button>
+          )}
+        </span>
         <button
           type="button"
           className="btn btn-secondary"

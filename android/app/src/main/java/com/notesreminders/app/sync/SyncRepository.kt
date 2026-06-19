@@ -57,7 +57,7 @@ class SyncRepository(
             SyncDiagnostics.lastSanitizedReminderCount = sanitized.reminders.size
             SyncDiagnostics.lastError = null
 
-            quarantineSkippedDirtyRows(sanitized.skipped)
+            quarantineSkippedDirtyRows(sanitized.skipped, sanitized.warnings)
 
             val response = api.sync(
                 SyncRequest(
@@ -123,26 +123,10 @@ class SyncRepository(
         return result
     }
 
-    private suspend fun quarantineSkippedDirtyRows(skipped: SkippedSyncIds) {
-        for (id in skipped.noteIds) {
-            db.noteDao().getById(id)?.let { note ->
-                db.noteDao().upsert(note.copy(isDirty = false))
-            }
-        }
-        for (id in skipped.reminderIds) {
-            db.reminderDao().getById(id)?.let { reminder ->
-                db.reminderDao().upsert(reminder.copy(isDirty = false))
-            }
-        }
-        for (id in skipped.tagIds) {
-            db.tagDao().getById(id)?.let { tag ->
-                db.tagDao().upsert(tag.copy(isDirty = false))
-            }
-        }
-        for (id in skipped.noteTagIds) {
-            db.noteTagDao().getById(id)?.let { noteTag ->
-                db.noteTagDao().upsert(noteTag.copy(isDirty = false))
-            }
+    private suspend fun quarantineSkippedDirtyRows(skipped: SkippedSyncIds, warnings: List<String>) {
+        val errors = SyncErrorRecorder.buildErrors(skipped, warnings)
+        if (errors.isNotEmpty()) {
+            db.syncErrorDao().upsertAll(errors)
         }
     }
 

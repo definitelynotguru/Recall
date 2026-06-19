@@ -1,9 +1,11 @@
 package com.notesreminders.app.sync
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -27,6 +29,7 @@ class SyncWorker(
 
     companion object {
         private const val WORK_NAME = "notes_sync"
+        private const val ONCE_WORK_NAME = "notes_sync_once"
 
         private fun networkConstraints(): Constraints =
             Constraints.Builder()
@@ -47,8 +50,13 @@ class SyncWorker(
         fun runOnce(context: Context) {
             val request = OneTimeWorkRequestBuilder<SyncWorker>()
                 .setConstraints(networkConstraints())
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueue(request)
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                ONCE_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                request,
+            )
         }
     }
 }

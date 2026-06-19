@@ -14,8 +14,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TagEntity::class,
         NoteTagEntity::class,
         NoteConflictEntity::class,
+        SyncErrorEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun noteTagDao(): NoteTagDao
     abstract fun noteConflictDao(): NoteConflictDao
+    abstract fun syncErrorDao(): SyncErrorDao
 
     @Transaction
     open suspend fun applySyncMerge(
@@ -94,6 +96,18 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE note_conflicts ADD COLUMN localTitle TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE note_conflicts ADD COLUMN serverTitle TEXT NOT NULL DEFAULT ''")
+            }
+        }
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS sync_errors (" +
+                        "id TEXT NOT NULL PRIMARY KEY, " +
+                        "entityType TEXT NOT NULL, " +
+                        "entityId TEXT NOT NULL, " +
+                        "message TEXT NOT NULL, " +
+                        "detectedAt TEXT NOT NULL)",
+                )
             }
         }
     }

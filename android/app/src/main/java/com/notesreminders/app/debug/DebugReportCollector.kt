@@ -53,7 +53,6 @@ object DebugReportCollector {
             ),
             "auth" to mapOf(
                 "logged_in" to app.tokenStore.isLoggedIn(),
-                "user_email" to app.tokenStore.userEmail,
                 "user_id" to app.tokenStore.userId?.take(8),
             ),
             "network" to app.networkMonitor.snapshot(),

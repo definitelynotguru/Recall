@@ -6,7 +6,7 @@ on:
       api_base_url:
         description: API URL baked into the APK (BuildConfig)
         required: false
-        default: https://recall-aevum-s-projects1.vercel.app/api/v1
+        default: ""
   push:
     branches: [main]
     paths:
@@ -18,9 +18,6 @@ on:
       - "android/**"
       - "shared/**"
       - ".github/workflows/build-apk.yml"
-
-permissions:
-  contents: write
 
 jobs:
   assemble-debug:
@@ -46,14 +43,20 @@ jobs:
 
       - name: Configure SDK and API URL
         working-directory: android
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url || vars.PRODUCTION_API_URL || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}
         run: |
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
-          echo "API_BASE_URL=${{ inputs.api_base_url || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}" >> local.properties
+          echo "API_BASE_URL=${API_BASE_URL}" >> local.properties
           echo "UPDATE_APK_URL=https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.apk }}" >> local.properties
 
       - name: Unit tests
         working-directory: android
         run: chmod +x gradlew && ./gradlew :app:testDebugUnitTest --no-daemon
+
+      - name: Lint
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew :app:lintDebug --no-daemon
 
       - name: Assemble debug APK
         working-directory: android
@@ -73,6 +76,8 @@ jobs:
       - name: Upload to GitHub Release
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
+        permissions:
+          contents: write
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Recall ${{ steps.version.outputs.tag }}

@@ -15,9 +15,28 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: recall
+          POSTGRES_PASSWORD: recall
+          POSTGRES_DB: recall_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U recall -d recall_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: web
+    env:
+      DATABASE_URL: postgresql://recall:recall@localhost:5432/recall_test
+      JWT_SECRET: test-jwt-secret-at-least-32-characters-long
+      REFRESH_PEPPER: test-refresh-pepper-32-chars-min
+      REGISTER_SECRET: test-register-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,8 +45,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - run: npm run db:push
       - run: npm run lint
       - run: npm test
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - run: npm run build

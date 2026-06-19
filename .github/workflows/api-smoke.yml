@@ -1,7 +1,9 @@
-name: Production API smoke
+name: API smoke
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"
 
 jobs:
   smoke:
@@ -9,6 +11,12 @@ jobs:
     env:
       BASE_URL: ${{ vars.PRODUCTION_URL || 'https://recall-aevum-s-projects1.vercel.app' }}
     steps:
+      - name: Health check
+        run: |
+          code=$(curl -s -o /tmp/health.json -w "%{http_code}" "$BASE_URL/api/v1/health")
+          test "$code" = "200"
+          grep -q '"status":"ok"' /tmp/health.json
+
       - name: Login page responds
         run: curl -sf "$BASE_URL/login" -o /dev/null
 
@@ -18,4 +26,9 @@ jobs:
             -X POST "$BASE_URL/api/v1/sync" \
             -H "Content-Type: application/json" \
             -d '{"device_id":"smoke","last_sync_at":"1970-01-01T00:00:00Z","notes":[],"reminders":[]}')
+          test "$code" = "401"
+
+      - name: Sync status requires auth
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/v1/sync/status")
           test "$code" = "401"

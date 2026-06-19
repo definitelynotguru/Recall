@@ -4,12 +4,13 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
+import { LoadError } from "@/components/LoadError";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
-import { useOnMount } from "@/hooks/useOnMount";
+import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { pickNextReminder } from "@/lib/reminder-detect";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 import { groupRemindersByDay } from "@/lib/reminder-utils";
@@ -24,22 +25,18 @@ export default function TodayPage() {
   const { confirm } = useConfirm();
   const { toast } = useToast();
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const loadReminders = useCallback(async () => {
     const res = await apiFetch<{ reminders: ApiReminder[] }>(
       "/reminders?status=active&limit=all",
     );
     setReminders(res.reminders);
-    setLoading(false);
   }, []);
 
-  useOnMount(() => {
-    void load();
-  });
+  const { loading, error, reload } = useAsyncLoad(loadReminders, []);
 
   const groups = groupRemindersByDay(reminders);
   const noteTitle = (id: string) =>
@@ -58,10 +55,13 @@ export default function TodayPage() {
       destructive: true,
     });
     if (!ok) return;
-    setLoading(true);
-    await apiFetch(`/reminders/${id}`, { method: "DELETE" });
-    toast("Reminder deleted");
-    await load();
+    try {
+      await apiFetch(`/reminders/${id}`, { method: "DELETE" });
+      toast("Reminder deleted");
+      await reload();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not delete", "error");
+    }
   };
 
   const completeReminder = async (id: string) => {
@@ -69,8 +69,7 @@ export default function TodayPage() {
     try {
       await apiFetch(`/reminders/${id}/complete`, { method: "POST", body: "{}" });
       toast("Marked complete");
-      setLoading(true);
-      await load();
+      await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not complete", "error");
     } finally {
@@ -86,8 +85,7 @@ export default function TodayPage() {
         body: JSON.stringify({ fire_at: snoozeFireAt(minutes) }),
       });
       toast(`Snoozed ${minutes >= 60 ? `${minutes / 60} hour` : `${minutes} min`}`);
-      setLoading(true);
-      await load();
+      await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not snooze", "error");
     } finally {
@@ -181,7 +179,9 @@ export default function TodayPage() {
         </p>
       </header>
 
-      {loading ? (
+      {error ? (
+        <LoadError message={error} onRetry={() => void reload()} />
+      ) : loading ? (
         <>
           <div className="skeleton" />
           <div className="skeleton" />
@@ -217,8 +217,7 @@ export default function TodayPage() {
             setEditingReminder(null);
           }}
           onSaved={() => {
-            setLoading(true);
-            load();
+            void reload();
           }}
           reminder={editingReminder}
         />

@@ -146,3 +146,24 @@ export function getRefreshFromRequest(request: NextRequest): string | null {
   const match = cookie.match(new RegExp(`${REFRESH_COOKIE}=([^;]+)`));
   return match?.[1] ?? null;
 }
+
+const DEFAULT_MAX_JSON_BYTES = 512_000;
+
+export async function readJsonBody(
+  request: NextRequest,
+  maxBytes = DEFAULT_MAX_JSON_BYTES,
+): Promise<{ ok: true; text: string } | { ok: false; response: Response }> {
+  const rawText = await request.text();
+  if (rawText.length > maxBytes) {
+    return { ok: false, response: errorResponse("Request body too large", 413) };
+  }
+  return { ok: true, text: rawText };
+}
+
+export function parseJsonBody<T>(text: string, label = "request"): T | Response {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return errorResponse(`Invalid ${label}`, 400);
+  }
+}
