@@ -16,15 +16,6 @@ import kotlinx.coroutines.flow.combine
 import java.time.Instant
 import java.util.UUID
 
-data class PendingSyncCounts(
-    val notes: Int,
-    val reminders: Int,
-    val tags: Int,
-    val noteTags: Int,
-) {
-    val total: Int get() = notes + reminders + tags + noteTags
-}
-
 class NotesRepository(
     private val db: AppDatabase,
     private val api: NotesApi,
@@ -33,8 +24,6 @@ class NotesRepository(
     private val reconciler: ReminderReconciler,
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
-
-    fun observeNotes(): Flow<List<NoteEntity>> = db.noteDao().observeActive()
 
     fun observeNotes(status: String, query: String, tagId: String? = null): Flow<List<NoteEntity>> =
         if (tagId.isNullOrBlank()) {
@@ -66,8 +55,13 @@ class NotesRepository(
 
     suspend fun getNote(id: String): NoteEntity? = db.noteDao().getById(id)
 
+    fun observeNote(id: String): Flow<NoteEntity?> = db.noteDao().observeById(id)
+
     suspend fun getRemindersForNote(noteId: String): List<ReminderEntity> =
         db.reminderDao().getByNoteId(noteId)
+
+    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
+        db.reminderDao().observeByNoteId(noteId)
 
     suspend fun prepareForUser(userId: String) {
         val meta = db.syncMetaDao().get()
@@ -226,15 +220,6 @@ class NotesRepository(
 
     suspend fun getLastSyncAt(): String? = db.syncMetaDao().get()?.lastSyncAt
 
-    suspend fun getPendingSyncCounts(): PendingSyncCounts {
-        return PendingSyncCounts(
-            notes = db.noteDao().getDirty().size,
-            reminders = db.reminderDao().getDirty().size,
-            tags = db.tagDao().getDirty().size,
-            noteTags = db.noteTagDao().getDirty().size,
-        )
-    }
-
     suspend fun exportBackupJson(): String {
         val reminders = db.reminderDao().getAllNonDeleted().map { it.toDto() }
         val bundle = BackupBundle(
@@ -359,53 +344,57 @@ class NotesRepository(
         val now = Instant.now().toString()
         try {
             api.completeReminder(id)
+            applyCompleteLocally(reminder, now)
         } catch (_: Exception) {
-            if (reminder.repeatRule != null) {
-                val next = com.notesreminders.app.reminders.RepeatUtils.computeNextOccurrence(
-                    reminder.repeatRule,
-                    reminder.fireAt,
-                    reminder.timezone,
-                )
-                db.reminderDao().upsert(
-                    reminder.copy(
-                        fireAt = next,
-                        status = "active",
-                        isDirty = true,
-                        updatedAt = now,
-                    ),
-                )
-            } else {
-                db.reminderDao().upsert(
-                    reminder.copy(
-                        status = "completed",
-                        completedAt = now,
-                        isDirty = true,
-                        updatedAt = now,
-                    ),
-                )
-            }
-            syncRepository.sync()
-            reconciler.reconcile()
-            return
+            applyCompleteLocally(reminder, now)
         }
         syncRepository.sync()
         reconciler.reconcile()
     }
 
-    suspend fun snoozeReminder(id: String, snoozeUntilIso: String) {
-        val reminder = db.reminderDao().getById(id) ?: return
-        try {
-            api.snoozeReminder(id, com.notesreminders.app.data.api.SnoozeRequest(snoozeUntilIso))
-        } catch (_: Exception) {
+    private suspend fun applyCompleteLocally(reminder: ReminderEntity, now: String) {
+        if (reminder.repeatRule != null) {
+            val next = com.notesreminders.app.reminders.RepeatUtils.computeNextOccurrence(
+                reminder.repeatRule,
+                reminder.fireAt,
+                reminder.timezone,
+            )
             db.reminderDao().upsert(
                 reminder.copy(
-                    fireAt = snoozeUntilIso,
+                    fireAt = next,
                     status = "active",
                     isDirty = true,
-                    updatedAt = Instant.now().toString(),
+                    updatedAt = now,
+                ),
+            )
+        } else {
+            db.reminderDao().upsert(
+                reminder.copy(
+                    status = "completed",
+                    completedAt = now,
+                    isDirty = true,
+                    updatedAt = now,
                 ),
             )
         }
+    }
+
+    suspend fun snoozeReminder(id: String, snoozeUntilIso: String) {
+        val reminder = db.reminderDao().getById(id) ?: return
+        reconciler.cancelAlarm(id)
+        val now = Instant.now().toString()
+        try {
+            api.snoozeReminder(id, com.notesreminders.app.data.api.SnoozeRequest(snoozeUntilIso))
+        } catch (_: Exception) {
+        }
+        db.reminderDao().upsert(
+            reminder.copy(
+                fireAt = snoozeUntilIso,
+                status = "active",
+                isDirty = true,
+                updatedAt = now,
+            ),
+        )
         syncRepository.sync()
         reconciler.reconcile()
     }

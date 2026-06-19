@@ -82,7 +82,7 @@ fun NoteDetailScreen(
     var title by remember(noteId) { mutableStateOf("") }
     var body by remember(noteId) { mutableStateOf("") }
     var preview by remember(noteId) { mutableStateOf(false) }
-    var reminders by remember(noteId) { mutableStateOf<List<ReminderEntity>>(emptyList()) }
+    var hasLocalEdits by remember(noteId) { mutableStateOf(false) }
     var showReminderDialog by remember(noteId) { mutableStateOf(false) }
     var editingReminder by remember(noteId) { mutableStateOf<ReminderEntity?>(null) }
     var reminderDate by remember(noteId) { mutableStateOf(LocalDate.now().toString()) }
@@ -102,6 +102,8 @@ fun NoteDetailScreen(
 
     val allTags by viewModel.tags.collectAsStateWithLifecycle()
     val noteTags by viewModel.observeTagsForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val observedNote by viewModel.observeNote(noteId).collectAsStateWithLifecycle(initialValue = null)
+    val reminders by viewModel.observeRemindersForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
     val selectedTagIds = remember(noteTags) { noteTags.map { it.id }.toSet() }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
@@ -115,27 +117,26 @@ fun NoteDetailScreen(
 
     val scope = rememberCoroutineScope()
 
-    fun refreshReminders() {
-        scope.launch {
-            reminders = viewModel.getReminders(noteId)
-        }
-    }
-
-    LaunchedEffect(noteId) {
-        val note = viewModel.getNote(noteId)
-        if (note != null) {
+    LaunchedEffect(observedNote, noteId) {
+        val note = observedNote ?: return@LaunchedEffect
+        if (!hasLocalEdits) {
             title = note.title
             body = note.body
             isPinned = note.pinnedAt != null
             isArchived = note.status == "archived"
         }
-        reminders = viewModel.getReminders(noteId)
     }
 
     LaunchedEffect(title, body) {
         if (saveStatus == "Unsaved…") {
             delay(600)
             saveStatus = "Saved"
+        }
+    }
+
+    LaunchedEffect(saveStatus) {
+        if (saveStatus == "Saved") {
+            hasLocalEdits = false
         }
     }
 
@@ -177,13 +178,9 @@ fun NoteDetailScreen(
         editingReminder = null
         onRequestExactAlarms()
         if (editing != null) {
-            viewModel.updateReminder(editing.id, fireAt, tz, repeat) {
-                refreshReminders()
-            }
+            viewModel.updateReminder(editing.id, fireAt, tz, repeat)
         } else {
-            viewModel.addReminder(noteId, fireAt, tz, repeat) {
-                refreshReminders()
-            }
+            viewModel.addReminder(noteId, fireAt, tz, repeat)
         }
     }
 
@@ -262,6 +259,7 @@ fun NoteDetailScreen(
                 value = title,
                 onValueChange = {
                     title = it
+                    hasLocalEdits = true
                     saveStatus = "Unsaved…"
                     viewModel.scheduleNoteSave(noteId, title, body)
                 },
@@ -281,6 +279,7 @@ fun NoteDetailScreen(
                     value = body,
                     onValueChange = {
                         body = it
+                        hasLocalEdits = true
                         saveStatus = "Unsaved…"
                         viewModel.scheduleNoteSave(noteId, title, body)
                     },
@@ -486,7 +485,6 @@ fun NoteDetailScreen(
             showDetectDialog = false
             viewModel.addRemindersFromDetection(noteId, picks) {
                 fetchingReminders = false
-                refreshReminders()
             }
         },
     )
@@ -566,7 +564,7 @@ fun NoteDetailScreen(
                     onClick = {
                         val id = target.id
                         reminderToDelete = null
-                        viewModel.deleteReminder(id) { refreshReminders() }
+                        viewModel.deleteReminder(id)
                     },
                 ) {
                     Text("Delete", color = RecallColors.Error)

@@ -15,7 +15,7 @@ import {
   getAccessToken,
   setAccessToken,
 } from "@/lib/api-client";
-import { isOnboardingDone } from "@/lib/user-prefs";
+import { clearOnboardingDone, isOnboardingDone } from "@/lib/user-prefs";
 import { OnboardingDialog } from "./OnboardingDialog";
 
 type User = { id: string; email: string };
@@ -145,7 +145,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         showOnboarding,
         dismissOnboarding: () => setShowOnboarding(false),
-        replayOnboarding: () => setShowOnboarding(true),
+        replayOnboarding: () => {
+          clearOnboardingDone();
+          setShowOnboarding(true);
+        },
         login,
         register,
         logout,

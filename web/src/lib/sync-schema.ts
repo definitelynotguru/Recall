@@ -51,12 +51,12 @@ export const syncNoteTagSchema = z.object({
 });
 
 export const syncSchema = z.object({
-  device_id: z.string().min(1),
+  device_id: z.string().min(1).max(128),
   last_sync_at: z.string(),
-  notes: z.array(syncNoteSchema),
-  reminders: z.array(syncReminderSchema),
-  tags: z.array(syncTagSchema).optional().default([]),
-  note_tags: z.array(syncNoteTagSchema).optional().default([]),
+  notes: z.array(syncNoteSchema).max(5000),
+  reminders: z.array(syncReminderSchema).max(10000),
+  tags: z.array(syncTagSchema).max(500).optional().default([]),
+  note_tags: z.array(syncNoteTagSchema).max(10000).optional().default([]),
 });
 
 export type SyncRequestBody = z.infer<typeof syncSchema>;

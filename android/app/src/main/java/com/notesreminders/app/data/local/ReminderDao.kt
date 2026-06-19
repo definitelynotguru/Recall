@@ -40,6 +40,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE noteId = :noteId AND deletedAt IS NULL")
     suspend fun getByNoteId(noteId: String): List<ReminderEntity>
 
+    @Query("SELECT * FROM reminders WHERE noteId = :noteId AND deletedAt IS NULL")
+    fun observeByNoteId(noteId: String): Flow<List<ReminderEntity>>
+
     @Query("SELECT * FROM reminders WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): ReminderEntity?
 

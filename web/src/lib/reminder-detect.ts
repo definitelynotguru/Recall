@@ -565,11 +565,6 @@ export function formatConfidenceLabel(c: DetectConfidence): string {
   return c === "high" ? "Likely" : "Maybe";
 }
 
-export function formatRepeatLabel(repeat: RepeatRule): string {
-  if (!repeat) return "Once";
-  return repeat.charAt(0).toUpperCase() + repeat.slice(1);
-}
-
 export function isDuplicateOfExisting(
   detected: DetectedReminder,
   existing: { fire_at: string; repeat_rule: string | null }[],

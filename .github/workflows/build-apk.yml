@@ -13,6 +13,11 @@ on:
       - "android/**"
       - "shared/**"
       - ".github/workflows/build-apk.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "shared/**"
+      - ".github/workflows/build-apk.yml"
 
 permissions:
   contents: write
@@ -30,12 +35,21 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      - name: Read app version
+        id: version
+        working-directory: android
+        run: |
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "apk=recall-${VERSION_NAME}-debug.apk" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION_NAME}-debug" >> "$GITHUB_OUTPUT"
+
       - name: Configure SDK and API URL
         working-directory: android
         run: |
           echo "sdk.dir=${ANDROID_HOME}" >> local.properties
           echo "API_BASE_URL=${{ inputs.api_base_url || 'https://recall-aevum-s-projects1.vercel.app/api/v1' }}" >> local.properties
-          echo "UPDATE_APK_URL=https://github.com/definitelynotguru/Recall/releases/download/v1.0.4-debug/recall-1.0.4-debug.apk" >> local.properties
+          echo "UPDATE_APK_URL=https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.version.outputs.apk }}" >> local.properties
 
       - name: Unit tests
         working-directory: android
@@ -48,26 +62,26 @@ jobs:
       - name: Rename APK
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk \
-            android/app/build/outputs/apk/debug/recall-1.0.4-debug.apk
+            "android/app/build/outputs/apk/debug/${{ steps.version.outputs.apk }}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: recall-debug-apk
-          path: android/app/build/outputs/apk/debug/recall-1.0.4-debug.apk
+          path: android/app/build/outputs/apk/debug/${{ steps.version.outputs.apk }}
           if-no-files-found: error
 
       - name: Upload to GitHub Release
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.4-debug
-          name: Recall v1.0.4-debug
-          files: android/app/build/outputs/apk/debug/recall-1.0.4-debug.apk
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Recall ${{ steps.version.outputs.tag }}
+          files: android/app/build/outputs/apk/debug/${{ steps.version.outputs.apk }}
           make_latest: true
           overwrite_files: true
 
       - name: Summary
         run: |
           echo "### Recall debug APK" >> "$GITHUB_STEP_SUMMARY"
-          echo "Artifact: **recall-debug-apk** · Release: **v1.0.4-debug**" >> "$GITHUB_STEP_SUMMARY"
-          ls -lh android/app/build/outputs/apk/debug/recall-1.0.4-debug.apk
+          echo "Artifact: **recall-debug-apk** · Release: **${{ steps.version.outputs.tag }}**" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh "android/app/build/outputs/apk/debug/${{ steps.version.outputs.apk }}"

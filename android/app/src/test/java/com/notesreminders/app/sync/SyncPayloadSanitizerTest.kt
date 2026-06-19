@@ -15,11 +15,11 @@ class SyncPayloadSanitizerTest {
   private val tagId = UUID.randomUUID().toString()
 
   @Test
-  fun dropsInvalidNoteUuid() {
+  fun tracksSkippedInvalidNoteIds() {
     val note = sampleNote(id = "not-uuid")
     val result = sanitizeNotesOnly(listOf(note))
-    assertEquals(0, result.notes.size)
-    assertTrue(result.warnings.any { it.contains("invalid id") })
+    assertEquals(1, result.skipped.noteIds.size)
+    assertTrue(result.skipped.noteIds.contains("not-uuid"))
   }
 
   @Test

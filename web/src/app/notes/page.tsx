@@ -47,7 +47,10 @@ export default function NotesPage() {
   }, [debouncedQuery, status, tagFilter]);
 
   useEffect(() => {
-    void loadTags();
+    const id = window.setTimeout(() => {
+      void loadTags();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [loadTags]);
 
   useEffect(() => {

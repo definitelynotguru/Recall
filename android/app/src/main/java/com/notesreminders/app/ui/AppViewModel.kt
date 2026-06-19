@@ -12,15 +12,13 @@ import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
-import com.notesreminders.app.data.api.ApiErrorParser
 import android.app.Activity
 import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.debug.DebugReportCollector
 import com.notesreminders.app.update.AppUpdater
 import com.notesreminders.app.reminders.DetectedReminder
-import com.notesreminders.app.sync.SyncDiagnostics
 import com.notesreminders.app.sync.SyncWorker
-import com.notesreminders.app.ui.components.OFFLINE_SYNC_MESSAGE
+import com.notesreminders.app.ui.sync.SyncCoordinator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,15 +29,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as NotesApp
 
@@ -55,10 +52,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _noteQuery = MutableStateFlow("")
     val noteQuery: StateFlow<String> = _noteQuery.asStateFlow()
 
+    private val debouncedNoteQuery = _noteQuery
+        .debounce(250)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     private val _noteTagFilter = MutableStateFlow<String?>(null)
     val noteTagFilter: StateFlow<String?> = _noteTagFilter.asStateFlow()
 
-    val notes = combine(_noteStatus, _noteQuery, _noteTagFilter) { status, query, tagId ->
+    val notes = combine(_noteStatus, debouncedNoteQuery, _noteTagFilter) { status, query, tagId ->
         Triple(status, query, tagId)
     }.flatMapLatest { (status, query, tagId) ->
         app.notesRepository.observeNotes(status, query, tagId)
@@ -106,17 +107,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val userPrefs: UserPrefs = app.userPrefs
 
+    private val syncCoordinator = SyncCoordinator(app, viewModelScope)
+
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
 
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
-
-    private val _syncHint = MutableStateFlow<String?>(null)
-    val syncHint: StateFlow<String?> = _syncHint.asStateFlow()
-
-    private val _lastSyncAt = MutableStateFlow<String?>(null)
-    val lastSyncAt: StateFlow<String?> = _lastSyncAt.asStateFlow()
+    val isSyncing: StateFlow<Boolean> = syncCoordinator.isSyncing
+    val syncHint: StateFlow<String?> = syncCoordinator.syncHint
+    val lastSyncAt: StateFlow<String?> = syncCoordinator.lastSyncAt
 
     private var noteSaveJob: Job? = null
 
@@ -182,66 +180,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 app.notesRepository.clearLocalData()
             }
             app.tokenStore.clear()
-            _syncHint.value = null
+            syncCoordinator.clearHint()
             onDone()
         }
     }
 
     fun refreshConnectivity() {
-        app.networkMonitor.refresh()
+        syncCoordinator.refreshConnectivity()
         if (app.networkMonitor.currentIsOnline()) {
-            if (_syncHint.value == OFFLINE_SYNC_MESSAGE) {
-                _syncHint.value = null
-            }
             reconcileAlarms()
         }
     }
 
     fun syncNow(showSuccess: Boolean = true) {
-        if (_isSyncing.value) return
-        app.networkMonitor.refresh()
-        if (!app.networkMonitor.currentIsOnline()) {
-            _syncHint.value = OFFLINE_SYNC_MESSAGE
-            return
-        }
-        viewModelScope.launch {
+        syncCoordinator.syncNow(showSuccess) {
             noteSaveJob?.let { job ->
                 job.cancel()
                 job.join()
             }
-            if (!app.networkMonitor.currentIsOnline()) {
-                _syncHint.value = OFFLINE_SYNC_MESSAGE
-                return@launch
-            }
-            _isSyncing.value = true
-            _syncHint.value = "Syncing…"
-            val result = withContext(Dispatchers.IO) {
-                app.notesRepository.syncNow()
-            }
-            _isSyncing.value = false
-            _syncHint.value = result.fold(
-                onSuccess = {
-                    _lastSyncAt.value = withContext(Dispatchers.IO) {
-                        app.notesRepository.getLastSyncAt()
-                    }
-                    if (showSuccess) {
-                        val time = ZonedDateTime.now(ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ofPattern("h:mm a"))
-                        "Synced at $time · pulls notes from web"
-                    } else {
-                        null
-                    }
-                },
-                onFailure = { err ->
-                    val msg = ApiErrorParser.syncFailureMessage(err)
-                    val skipped = SyncDiagnostics.lastWarnings.size
-                    if (skipped > 0) {
-                        "$msg · Skipped $skipped invalid local item(s) — Settings → Send debug report"
-                    } else {
-                        msg
-                    }
-                },
-            )
         }
     }
 
@@ -282,7 +238,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     app.notesRepository.reconcileAlarms()
                     val payload = DebugReportCollector.collect(
                         app,
-                        lastSyncHint = _syncHint.value,
+                        lastSyncHint = syncCoordinator.syncHint.value,
                     )
                     app.api.submitDebugReport(payload)
                 }
@@ -361,8 +317,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val noteCount = bundle.notes.orEmpty().size
                     val reminderCount = bundle.reminders_by_note.orEmpty().values.sumOf { it.size }
                     val tagCount = bundle.tags.orEmpty().size
-                    "Imported $noteCount notes, $reminderCount reminders, $tagCount tags · sync pending"
+                    "Imported $noteCount notes, $reminderCount reminders, $tagCount tags · syncing…"
                 }
+            }
+            result.onSuccess {
+                syncNow(showSuccess = false)
             }
             onResult(result.getOrElse { "Import failed: ${it.message ?: "unknown error"}" })
         }
@@ -376,6 +335,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> =
         app.notesRepository.observeTagsForNote(noteId)
+
+    fun observeNote(noteId: String): Flow<NoteEntity?> =
+        app.notesRepository.observeNote(noteId)
+
+    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
+        app.notesRepository.observeRemindersForNote(noteId)
 
     fun createTag(name: String, onCreated: ((TagEntity) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -419,6 +384,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun resolveConflict(conflictId: String, keepLocal: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.resolveConflict(conflictId, keepLocal)
+            withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
         }
     }
 

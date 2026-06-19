@@ -5,8 +5,8 @@ import { Sparkle, X } from "@phosphor-icons/react";
 import {
   DetectedReminder,
   formatConfidenceLabel,
-  formatRepeatLabel,
 } from "@/lib/reminder-detect";
+import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { formatFireAt } from "@/lib/reminder-utils";
 
 type Props = {

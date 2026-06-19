@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteConflictEntity::class,
     ],
     version = 5,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao

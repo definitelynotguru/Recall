@@ -90,8 +90,10 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    void loadTags();
-    void loadSyncStatus();
+    const id = window.setTimeout(() => {
+      void loadTags();
+      void loadSyncStatus();
+    }, 0);
     let cancelled = false;
     (async () => {
       try {
@@ -107,6 +109,7 @@ export default function SettingsPage() {
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(id);
     };
   }, []);
 

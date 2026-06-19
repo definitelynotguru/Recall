@@ -93,17 +93,7 @@ async function insertRefreshToken(tx: Tx, userId: string) {
 }
 
 export async function createRefreshToken(userId: string) {
-  const token = generateRefreshToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + REFRESH_DAYS);
-
-  await db.insert(refreshTokens).values({
-    userId,
-    tokenHash: hashRefreshToken(token),
-    expiresAt,
-  });
-
-  return { token, expiresAt };
+  return getDb().transaction(async (tx) => insertRefreshToken(tx, userId));
 }
 
 export async function rotateRefreshToken(oldToken: string) {

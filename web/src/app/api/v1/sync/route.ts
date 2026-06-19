@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { deviceSyncState } from "@/lib/db/schema";
 import { processSync } from "@/lib/sync";
 import { syncSchema } from "@/lib/sync-schema";
 import {
@@ -13,14 +11,27 @@ import {
   toApiReminder,
   toApiTag,
 } from "@/lib/api-utils";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
+
+const MAX_SYNC_BYTES = 5_000_000;
 
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
+  const rateKey = `sync:${user!.userId}:${getClientIp(request)}`;
+  if (!rateLimit(rateKey, { max: 30, windowMs: 60_000 })) {
+    return errorResponse("Too many sync requests — try again in a minute", 429);
+  }
+
+  const rawText = await request.text();
+  if (rawText.length > MAX_SYNC_BYTES) {
+    return errorResponse("Sync payload too large", 413);
+  }
+
   let body: z.infer<typeof syncSchema>;
   try {
-    body = syncSchema.parse(await request.json());
+    body = syncSchema.parse(JSON.parse(rawText));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return jsonResponse(
@@ -43,8 +54,10 @@ export async function POST(request: NextRequest) {
     tags: mergedTags,
     noteTags: mergedNoteTags,
     sync_mode,
+    server_time,
   } = await processSync(
     user!.userId,
+    body.device_id,
     body.last_sync_at,
     body.notes,
     body.reminders,
@@ -52,21 +65,8 @@ export async function POST(request: NextRequest) {
     body.note_tags,
   );
 
-  const serverTime = new Date();
-  await db
-    .insert(deviceSyncState)
-    .values({
-      userId: user!.userId,
-      deviceId: body.device_id,
-      lastSyncAt: serverTime,
-    })
-    .onConflictDoUpdate({
-      target: [deviceSyncState.userId, deviceSyncState.deviceId],
-      set: { lastSyncAt: serverTime },
-    });
-
   return jsonResponse({
-    server_time: serverTime.toISOString(),
+    server_time: server_time.toISOString(),
     sync_mode,
     notes: mergedNotes.map(toApiNote),
     reminders: mergedReminders.map(toApiReminder),

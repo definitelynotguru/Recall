@@ -1,10 +1,11 @@
 import { getDb } from "./db";
+import { deviceSyncState } from "./db/schema";
 import {
   fetchCatalogForClient,
-  mergeNote,
-  mergeNoteTag,
-  mergeReminder,
-  mergeTag,
+  mergeNoteTagsBatch,
+  mergeNotesBatch,
+  mergeRemindersBatch,
+  mergeTagsBatch,
   resolveSyncMode,
   type SyncMode,
   type SyncNoteTagInput,
@@ -17,6 +18,7 @@ export type { SyncTagInput, SyncNoteTagInput, SyncMode };
 
 export async function processSync(
   userId: string,
+  deviceId: string,
   lastSyncAt: string,
   incomingNotes: SyncNoteInput[],
   incomingReminders: SyncReminderInput[],
@@ -24,22 +26,28 @@ export async function processSync(
   incomingNoteTags: SyncNoteTagInput[] = [],
 ) {
   const { mode, since } = resolveSyncMode(lastSyncAt);
+  const serverTime = new Date();
 
   const catalog = await getDb().transaction(async (tx) => {
-    for (const n of incomingNotes) {
-      await mergeNote(tx, userId, n);
-    }
-    for (const r of incomingReminders) {
-      await mergeReminder(tx, userId, r);
-    }
-    for (const t of incomingTags) {
-      await mergeTag(tx, userId, t);
-    }
-    for (const nt of incomingNoteTags) {
-      await mergeNoteTag(tx, userId, nt);
-    }
+    await mergeNotesBatch(tx, userId, incomingNotes);
+    await mergeRemindersBatch(tx, userId, incomingReminders);
+    await mergeTagsBatch(tx, userId, incomingTags);
+    await mergeNoteTagsBatch(tx, userId, incomingNoteTags);
+
+    await tx
+      .insert(deviceSyncState)
+      .values({
+        userId,
+        deviceId,
+        lastSyncAt: serverTime,
+      })
+      .onConflictDoUpdate({
+        target: [deviceSyncState.userId, deviceSyncState.deviceId],
+        set: { lastSyncAt: serverTime },
+      });
+
     return fetchCatalogForClient(tx, userId, mode, since);
   });
 
-  return { ...catalog, sync_mode: mode };
+  return { ...catalog, sync_mode: mode, server_time: serverTime };
 }

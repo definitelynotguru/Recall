@@ -10,12 +10,22 @@ import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
 import com.notesreminders.app.data.toDto
 
+data class SkippedSyncIds(
+    val noteIds: Set<String> = emptySet(),
+    val reminderIds: Set<String> = emptySet(),
+    val tagIds: Set<String> = emptySet(),
+    val noteTagIds: Set<String> = emptySet(),
+) {
+    val total: Int get() = noteIds.size + reminderIds.size + tagIds.size + noteTagIds.size
+}
+
 data class SanitizeResult(
     val notes: List<NoteDto>,
     val reminders: List<ReminderDto>,
     val tags: List<TagDto>,
     val noteTags: List<NoteTagDto>,
     val warnings: List<String>,
+    val skipped: SkippedSyncIds = SkippedSyncIds(),
 )
 
 object SyncPayloadSanitizer {
@@ -33,10 +43,15 @@ object SyncPayloadSanitizer {
         val notes = mutableListOf<NoteDto>()
         val noteIds = knownNoteIds.toMutableSet()
         val tagIds = mutableSetOf<String>()
+        val skippedNoteIds = mutableSetOf<String>()
+        val skippedReminderIds = mutableSetOf<String>()
+        val skippedTagIds = mutableSetOf<String>()
+        val skippedNoteTagIds = mutableSetOf<String>()
 
         for (note in dirtyNotes) {
             if (!isUuid(note.id)) {
                 warnings.add("Skipped note with invalid id: ${note.id.take(24)}")
+                skippedNoteIds.add(note.id)
                 continue
             }
             notes.add(note.toDto())
@@ -46,10 +61,12 @@ object SyncPayloadSanitizer {
         for (tag in dirtyTags) {
             if (!isUuid(tag.id)) {
                 warnings.add("Skipped tag with invalid id: ${tag.id.take(24)}")
+                skippedTagIds.add(tag.id)
                 continue
             }
             if (tag.name.isBlank()) {
                 warnings.add("Skipped tag ${tag.id.take(8)}… empty name")
+                skippedTagIds.add(tag.id)
                 continue
             }
             tagIds.add(tag.id)
@@ -59,18 +76,22 @@ object SyncPayloadSanitizer {
         for (reminder in dirtyReminders) {
             if (!isUuid(reminder.id)) {
                 warnings.add("Skipped reminder with invalid id: ${reminder.id.take(24)}")
+                skippedReminderIds.add(reminder.id)
                 continue
             }
             if (!isUuid(reminder.noteId)) {
                 warnings.add("Skipped reminder ${reminder.id.take(8)}… invalid note_id")
+                skippedReminderIds.add(reminder.id)
                 continue
             }
             if (reminder.noteId !in noteIds) {
                 warnings.add("Skipped orphan reminder ${reminder.id.take(8)}… (note missing)")
+                skippedReminderIds.add(reminder.id)
                 continue
             }
             if (reminder.fireAt.isBlank()) {
                 warnings.add("Skipped reminder ${reminder.id.take(8)}… empty fire_at")
+                skippedReminderIds.add(reminder.id)
                 continue
             }
             reminders.add(reminder.toDto())
@@ -84,20 +105,35 @@ object SyncPayloadSanitizer {
         for (noteTag in dirtyNoteTags) {
             if (!isUuid(noteTag.id)) {
                 warnings.add("Skipped note_tag with invalid id: ${noteTag.id.take(24)}")
+                skippedNoteTagIds.add(noteTag.id)
                 continue
             }
             if (!isUuid(noteTag.noteId) || noteTag.noteId !in noteIds) {
                 warnings.add("Skipped orphan note_tag ${noteTag.id.take(8)}…")
+                skippedNoteTagIds.add(noteTag.id)
                 continue
             }
             if (!isUuid(noteTag.tagId) || noteTag.tagId !in tagIds) {
                 warnings.add("Skipped note_tag ${noteTag.id.take(8)}… unknown tag")
+                skippedNoteTagIds.add(noteTag.id)
                 continue
             }
             noteTags.add(noteTag.toDto())
         }
 
-        return SanitizeResult(notes, reminders, tags, noteTags, warnings)
+        return SanitizeResult(
+            notes,
+            reminders,
+            tags,
+            noteTags,
+            warnings,
+            SkippedSyncIds(
+                noteIds = skippedNoteIds,
+                reminderIds = skippedReminderIds,
+                tagIds = skippedTagIds,
+                noteTagIds = skippedNoteTagIds,
+            ),
+        )
     }
 
     private fun isUuid(value: String): Boolean = UUID_RE.matches(value)

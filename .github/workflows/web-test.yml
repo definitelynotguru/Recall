@@ -26,6 +26,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm test
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

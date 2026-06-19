@@ -57,6 +57,8 @@ class SyncRepository(
             SyncDiagnostics.lastSanitizedReminderCount = sanitized.reminders.size
             SyncDiagnostics.lastError = null
 
+            quarantineSkippedDirtyRows(sanitized.skipped)
+
             val response = api.sync(
                 SyncRequest(
                     device_id = deviceId,
@@ -115,8 +117,33 @@ class SyncRepository(
         }.onFailure {
             SyncDiagnostics.lastError = it.message
         }
-        reconciler.reconcile()
+        if (result.isSuccess) {
+            reconciler.reconcile()
+        }
         return result
+    }
+
+    private suspend fun quarantineSkippedDirtyRows(skipped: SkippedSyncIds) {
+        for (id in skipped.noteIds) {
+            db.noteDao().getById(id)?.let { note ->
+                db.noteDao().upsert(note.copy(isDirty = false))
+            }
+        }
+        for (id in skipped.reminderIds) {
+            db.reminderDao().getById(id)?.let { reminder ->
+                db.reminderDao().upsert(reminder.copy(isDirty = false))
+            }
+        }
+        for (id in skipped.tagIds) {
+            db.tagDao().getById(id)?.let { tag ->
+                db.tagDao().upsert(tag.copy(isDirty = false))
+            }
+        }
+        for (id in skipped.noteTagIds) {
+            db.noteTagDao().getById(id)?.let { noteTag ->
+                db.noteTagDao().upsert(noteTag.copy(isDirty = false))
+            }
+        }
     }
 
     fun getDeviceId(): String {
