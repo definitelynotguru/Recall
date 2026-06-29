@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const rateKey = `debug:${user!.userId}:${getClientIp(request)}`;
-  if (!rateLimit(rateKey)) {
+  if (!(await rateLimit(rateKey))) {
     return errorResponse("Too many debug reports — try again in a minute", 429);
   }
 

@@ -133,11 +133,11 @@ export const REFRESH_COOKIE = "refresh_token";
 export function setRefreshCookie(token: string) {
   const maxAge = 90 * 24 * 60 * 60;
   const secure = process.env.NODE_ENV === "production";
-  return `${REFRESH_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
+  return `${REFRESH_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
 export function clearRefreshCookie() {
-  return `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  return `${REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }
 
 export function getRefreshFromRequest(request: NextRequest): string | null {
@@ -145,6 +145,19 @@ export function getRefreshFromRequest(request: NextRequest): string | null {
   if (!cookie) return null;
   const match = cookie.match(new RegExp(`${REFRESH_COOKIE}=([^;]+)`));
   return match?.[1] ?? null;
+}
+
+/**
+ * CSRF guard for cookie-based flows. Bearer-token requests are CSRF-immune;
+ * this only matters when the refresh token is read from the HttpOnly cookie.
+ * Allows same-origin fetches and same-origin navigations (none); rejects
+ * cross-site when the browser advertises Sec-Fetch-Site. Absent header is
+ * allowed (legacy clients).
+ */
+export function isSameOriginRequest(request: NextRequest): boolean {
+  const site = request.headers.get("sec-fetch-site");
+  if (!site) return true;
+  return site === "same-origin" || site === "none";
 }
 
 const DEFAULT_MAX_JSON_BYTES = 512_000;

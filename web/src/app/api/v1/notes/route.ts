@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const rateKey = `notes:${user!.userId}:${getClientIp(request)}`;
-  if (!rateLimit(rateKey, { max: 60, windowMs: 60_000 })) {
+  if (!(await rateLimit(rateKey, { max: 60, windowMs: 60_000 }))) {
     return errorResponse("Too many requests", 429);
   }
 

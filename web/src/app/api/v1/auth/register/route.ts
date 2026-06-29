@@ -20,7 +20,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  if (!rateLimit(`register:${ip}`)) {
+  if (!(await rateLimit(`register:${ip}`))) {
     return errorResponse("Too many requests", 429);
   }
 
