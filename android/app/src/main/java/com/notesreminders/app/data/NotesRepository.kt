@@ -403,5 +403,35 @@ class NotesRepository(
         reconciler.reconcile()
     }
 
-    suspend fun syncNow(): Result<Unit> = syncRepository.sync()
+    suspend fun syncNow(): Result<Unit> {
+        val outcome = syncRepository.sync()
+        return if (outcome.success) {
+            Result.success(Unit)
+        } else {
+            Result.failure(outcome.error ?: RuntimeException("Sync failed"))
+        }
+    }
+
+    suspend fun retrySyncError(error: com.notesreminders.app.data.local.SyncErrorEntity) {
+        when (error.entityType) {
+            "note" -> db.noteDao().getById(error.entityId)?.let {
+                db.noteDao().upsert(it.copy(isDirty = true))
+            }
+            "reminder" -> db.reminderDao().getById(error.entityId)?.let {
+                db.reminderDao().upsert(it.copy(isDirty = true))
+            }
+            "tag" -> db.tagDao().getById(error.entityId)?.let {
+                db.tagDao().upsert(it.copy(isDirty = true))
+            }
+            "note_tag" -> db.noteTagDao().getById(error.entityId)?.let {
+                db.noteTagDao().upsert(it.copy(isDirty = true))
+            }
+        }
+        db.syncErrorDao().deleteById(error.id)
+        syncRepository.sync()
+    }
+
+    suspend fun discardSyncError(error: com.notesreminders.app.data.local.SyncErrorEntity) {
+        db.syncErrorDao().deleteById(error.id)
+    }
 }

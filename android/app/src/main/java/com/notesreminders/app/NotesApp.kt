@@ -8,6 +8,7 @@ import com.notesreminders.app.data.api.ApiClient
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.net.NetworkMonitor
+import com.notesreminders.app.reminders.NotificationChannels
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
 import com.notesreminders.app.sync.SyncWorker
@@ -27,6 +28,7 @@ class NotesApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        NotificationChannels.ensureChannels(this)
         tokenStore = TokenStore(this)
         userPrefs = UserPrefs(this)
         database = Room.databaseBuilder(this, AppDatabase::class.java, "notes.db")
@@ -36,6 +38,7 @@ class NotesApp : Application() {
                 AppDatabase.MIGRATION_3_4,
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
             )
             .build()
         api = ApiClient.create(tokenStore)

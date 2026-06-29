@@ -23,13 +23,43 @@ class SyncWorker(
         val app = applicationContext as NotesApp
         if (!app.tokenStore.isLoggedIn()) return Result.success()
         if (!app.networkMonitor.currentIsOnline()) return Result.success()
-        return app.syncRepository.sync()
-            .fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
+
+        val outcome = app.syncRepository.sync()
+        if (outcome.success) return Result.success()
+
+        val status = outcome.httpStatus
+        val isPermanentClientError = status != null && status in 400..499 && status != 429
+        val isRetryable = status == 429 || (status != null && status in 500..599) || outcome.isNetworkError
+
+        if (isPermanentClientError) {
+            recordPermanentFailure(app, status)
+            return Result.failure()
+        }
+        if (isRetryable) {
+            if (runAttemptCount >= MAX_RETRY_ATTEMPTS) {
+                recordPermanentFailure(app, status)
+                return Result.failure()
+            }
+            return Result.retry()
+        }
+        // Unknown failure: retry up to the cap, then give up.
+        if (runAttemptCount >= MAX_RETRY_ATTEMPTS) {
+            recordPermanentFailure(app, status)
+            return Result.failure()
+        }
+        return Result.retry()
+    }
+
+    private suspend fun recordPermanentFailure(app: NotesApp, httpStatus: Int?) {
+        val label = httpStatus?.let { "HTTP $it" } ?: "network or unknown error"
+        val error = SyncErrorRecorder.buildSyncFailure("permanent sync failure ($label)")
+        app.database.syncErrorDao().upsertAll(listOf(error))
     }
 
     companion object {
         private const val WORK_NAME = "notes_sync"
         private const val ONCE_WORK_NAME = "notes_sync_once"
+        private const val MAX_RETRY_ATTEMPTS = 5
 
         private fun networkConstraints(): Constraints =
             Constraints.Builder()
@@ -60,3 +90,4 @@ class SyncWorker(
         }
     }
 }
+

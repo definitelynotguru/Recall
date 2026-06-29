@@ -1,7 +1,5 @@
 package com.notesreminders.app.reminders
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -89,6 +87,7 @@ class ReminderReceiver : BroadcastReceiver() {
             .setContentIntent(openPending)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setGroup(NotificationChannels.GROUP_KEY)
             .addAction(0, context.getString(R.string.action_done), donePending)
             .addAction(0, context.getString(R.string.action_snooze), snoozePending)
             .build()
@@ -119,15 +118,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     private fun createChannel(context: Context) {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.reminder_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = context.getString(R.string.reminder_channel_desc)
-        }
-        val nm = context.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(channel)
+        NotificationChannels.ensureChannels(context)
     }
 
     companion object {

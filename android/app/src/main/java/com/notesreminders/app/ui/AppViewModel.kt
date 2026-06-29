@@ -392,6 +392,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun retrySyncError(error: com.notesreminders.app.data.local.SyncErrorEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            app.notesRepository.retrySyncError(error)
+            withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
+        }
+    }
+
+    fun discardSyncError(error: com.notesreminders.app.data.local.SyncErrorEntity) {
+        ioLaunch { app.notesRepository.discardSyncError(error) }
+    }
+
     fun deleteNote(id: String, onDone: () -> Unit) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
