@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
@@ -71,6 +72,18 @@ export default function NotesPage() {
     return map;
   }, [allTags, noteTags]);
 
+  const listRef = useRef<HTMLDivElement>(null);
+  // useVirtualizer returns unmemoizable functions; React Compiler skips it (compiler not enabled here).
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: notes.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 96,
+    overscan: 6,
+    // Matches the .note-row margin-bottom that absolute positioning neutralizes.
+    gap: 2,
+  });
+
   const createNote = async () => {
     setCreating(true);
     try {
@@ -84,7 +97,12 @@ export default function NotesPage() {
       });
       router.push(`/notes/${res.note.id}`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not create note", "error");
+      toast(e instanceof Error ? e.message : "Could not create note", "error", {
+        label: "Retry",
+        onClick: () => {
+          void createNote();
+        },
+      });
     } finally {
       setCreating(false);
     }
@@ -98,7 +116,12 @@ export default function NotesPage() {
       });
       await reload();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Update failed", "error");
+      toast(e instanceof Error ? e.message : "Update failed", "error", {
+        label: "Retry",
+        onClick: () => {
+          void patchNote(id, patch);
+        },
+      });
     }
   };
 
@@ -190,62 +213,82 @@ export default function NotesPage() {
           </button>
         </div>
       ) : (
-        <div>
-          {notes.map((n, i) => (
-            <div
-              key={n.id}
-              className="note-row"
-              style={{ "--i": i } as React.CSSProperties}
-            >
-              <div className="note-row-accent" />
-              <Link href={`/notes/${n.id}`} className="note-row-body">
-                <h3>{n.title || "Untitled"}</h3>
-                <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
-                {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
-                  <div className="note-row-tags">
-                    {tagsByNote.get(n.id)!.map((tag) => (
-                      <span key={tag.id} className="chip">
-                        {tag.name}
-                      </span>
-                    ))}
+        <div className="notes-scroll" ref={listRef}>
+          <div
+            className="notes-scroll-spacer"
+            style={{ height: virtualizer.getTotalSize() }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem, sliceIndex) => {
+              const n = notes[virtualItem.index];
+              return (
+                <div
+                  key={n.id}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  className="note-row"
+                  style={
+                    {
+                      // Bounded per-slice index keeps the staggered entrance
+                      // delay small; the absolute index would hide far rows.
+                      "--i": sliceIndex,
+                      position: "absolute",
+                      top: virtualItem.start,
+                      left: 0,
+                      width: "100%",
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="note-row-accent" />
+                  <Link href={`/notes/${n.id}`} className="note-row-body">
+                    <h3>{n.title || "Untitled"}</h3>
+                    <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                    {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
+                      <div className="note-row-tags">
+                        {tagsByNote.get(n.id)!.map((tag) => (
+                          <span key={tag.id} className="chip">
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </Link>
+                  <time className="note-row-time">
+                    {new Date(n.updated_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </time>
+                  <div className="note-row-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() =>
+                        patchNote(n.id, {
+                          pinned_at: n.pinned_at ? null : new Date().toISOString(),
+                        })
+                      }
+                      aria-label={n.pinned_at ? "Unpin note" : "Pin note"}
+                    >
+                      {n.pinned_at ? <PushPinSlash size={16} /> : <PushPin size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() =>
+                        patchNote(n.id, {
+                          status: n.status === "archived" ? "active" : "archived",
+                        })
+                      }
+                      aria-label={n.status === "archived" ? "Unarchive note" : "Archive note"}
+                    >
+                      <ArchiveBoxIcon size={16} />
+                      {n.status === "archived" ? "Unarchive" : "Archive"}
+                    </button>
                   </div>
-                )}
-              </Link>
-              <time className="note-row-time">
-                {new Date(n.updated_at).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </time>
-              <div className="note-row-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() =>
-                    patchNote(n.id, {
-                      pinned_at: n.pinned_at ? null : new Date().toISOString(),
-                    })
-                  }
-                  aria-label={n.pinned_at ? "Unpin note" : "Pin note"}
-                >
-                  {n.pinned_at ? <PushPinSlash size={16} /> : <PushPin size={16} />}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() =>
-                    patchNote(n.id, {
-                      status: n.status === "archived" ? "active" : "archived",
-                    })
-                  }
-                  aria-label={n.status === "archived" ? "Unarchive note" : "Archive note"}
-                >
-                  <ArchiveBoxIcon size={16} />
-                  {n.status === "archived" ? "Unarchive" : "Archive"}
-                </button>
-              </div>
-            </div>
-          ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </RequireAuth>

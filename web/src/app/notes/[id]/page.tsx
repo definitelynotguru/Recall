@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { DetectedRemindersDialog } from "@/components/DetectedRemindersDialog";
 import { ReminderDialog } from "@/components/ReminderDialog";
 import { MarkdownView } from "@/components/MarkdownView";
+import { MarkdownToolbar } from "@/components/MarkdownToolbar";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
@@ -56,6 +57,20 @@ export default function NoteDetailPage() {
   const { confirm } = useConfirm();
   const { toast } = useToast();
   const { status: saveStatus, flush, retry } = useDebouncedNoteSave(id, title, body);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const lastSaveStatus = useRef(saveStatus);
+
+  useEffect(() => {
+    if (saveStatus === "error" && lastSaveStatus.current !== "error") {
+      toast("Could not save note", "error", {
+        label: "Retry",
+        onClick: () => {
+          void retry();
+        },
+      });
+    }
+    lastSaveStatus.current = saveStatus;
+  }, [saveStatus, retry, toast]);
 
   const load = useCallback(async () => {
     try {
@@ -103,6 +118,21 @@ export default function NoteDetailPage() {
     }
   };
 
+  const performDelete = async () => {
+    try {
+      await apiFetch(`/notes/${id}`, { method: "DELETE" });
+      toast("Note deleted");
+      router.push("/notes");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not delete note", "error", {
+        label: "Retry",
+        onClick: () => {
+          void performDelete();
+        },
+      });
+    }
+  };
+
   const deleteNote = async () => {
     const ok = await confirm({
       title: "Delete note",
@@ -111,13 +141,7 @@ export default function NoteDetailPage() {
       destructive: true,
     });
     if (!ok) return;
-    try {
-      await apiFetch(`/notes/${id}`, { method: "DELETE" });
-      toast("Note deleted");
-      router.push("/notes");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not delete note", "error");
-    }
+    await performDelete();
   };
 
   const toggleArchive = async () => {
@@ -321,8 +345,10 @@ export default function NoteDetailPage() {
         ) : (
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="body">Body — Markdown</label>
+            <MarkdownToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
             <textarea
               id="body"
+              ref={bodyRef}
               className="mono"
               value={body}
               onChange={(e) => setBody(e.target.value)}

@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-virtual": "^3.14.4",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3",
