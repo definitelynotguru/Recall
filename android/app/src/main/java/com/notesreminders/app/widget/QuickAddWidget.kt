@@ -2,18 +2,16 @@ package com.notesreminders.app.widget
 
 import android.content.Context
 import androidx.compose.ui.unit.dp
-import androidx.glance.Color
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
-import androidx.glance.appwidget.Button
-import androidx.glance.appwidget.ButtonColors
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Column
@@ -27,7 +25,6 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.notesreminders.app.MainActivity
 import com.notesreminders.app.NotesApp
-import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Duration
 import java.time.Instant
 
@@ -46,58 +43,64 @@ class QuickAddWidget : GlanceAppWidget() {
         }
 
         provideContent {
-            Column(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .padding(12.dp)
-                    .background(Color(RecallColors.Ink))
-                    .cornerRadius(16.dp),
-            ) {
-                Text(
-                    "Upcoming",
-                    style = TextStyle(
-                        color = Color(RecallColors.Copper),
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-                Spacer(GlanceModifier.height(6.dp))
-                if (items.isEmpty()) {
+            GlanceTheme {
+                Column(
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .padding(12.dp)
+                        .background(GlanceTheme.colors.surface),
+                ) {
                     Text(
-                        "No reminders",
-                        style = TextStyle(color = Color(RecallColors.ParchmentMuted)),
+                        "Upcoming",
+                        style = TextStyle(
+                            color = GlanceTheme.colors.primary,
+                            fontWeight = FontWeight.Bold,
+                        ),
                     )
-                } else {
-                    items.forEach { item ->
-                        Column(
-                            modifier = GlanceModifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                        ) {
-                            Text(
-                                item.title,
-                                style = TextStyle(
-                                    color = Color(RecallColors.Parchment),
-                                    fontWeight = FontWeight.Medium,
-                                ),
-                            )
-                            Text(
-                                item.relativeTime,
-                                style = TextStyle(color = Color(RecallColors.ParchmentMuted)),
-                            )
+                    Spacer(GlanceModifier.height(6.dp))
+                    if (items.isEmpty()) {
+                        Text(
+                            "No reminders",
+                            style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                        )
+                    } else {
+                        items.forEach { item ->
+                            Column(
+                                modifier = GlanceModifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                            ) {
+                                Text(
+                                    item.title,
+                                    style = TextStyle(
+                                        color = GlanceTheme.colors.onSurface,
+                                        fontWeight = FontWeight.Medium,
+                                    ),
+                                )
+                                Text(
+                                    item.relativeTime,
+                                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                                )
+                            }
                         }
                     }
+                    Spacer(GlanceModifier.height(8.dp))
+                    Text(
+                        "Quick add",
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .clickable(
+                                actionStartActivity<MainActivity>(
+                                    actionParametersOf(QUICK_ADD_KEY to true),
+                                ),
+                            ),
+                        style = TextStyle(
+                            color = GlanceTheme.colors.primary,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
                 }
-                Spacer(GlanceModifier.height(8.dp))
-                Button(
-                    text = "Quick add",
-                    onClick = actionStartActivity<MainActivity>(
-                        actionParametersOf(QUICK_ADD_KEY to true),
-                    ),
-                    colors = ButtonColors(
-                        Color(RecallColors.Copper),
-                        Color(RecallColors.Ink),
-                    ),
-                )
             }
         }
     }
@@ -108,7 +111,7 @@ class QuickAddWidget : GlanceAppWidget() {
 
         suspend fun refreshAll(context: Context) {
             try {
-                GlanceAppWidgetManager(context).updateAll()
+                GlanceAppWidgetManager(context).updateAll<QuickAddWidget>()
             } catch (_: Exception) {
             }
         }
