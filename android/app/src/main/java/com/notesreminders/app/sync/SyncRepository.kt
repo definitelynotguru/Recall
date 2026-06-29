@@ -39,7 +39,6 @@ class SyncRepository(
         val result = runCatching { performSync() }
         if (result.isSuccess) {
             reconciler.reconcile()
-            com.notesreminders.app.widget.QuickAddWidget.refreshAll(appContext)
             SyncDiagnostics.lastError = null
             return SyncOutcome(success = true)
         }
