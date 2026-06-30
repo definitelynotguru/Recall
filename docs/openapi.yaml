@@ -1,0 +1,1521 @@
+openapi: 3.1.0
+info:
+  title: Recall API
+  version: "1.0.4"
+  description: |
+    REST API for Recall, a personal notes + reminders app. Base path is `/api/v1`.
+    Authenticated endpoints require a Bearer JWT access token (`Authorization: Bearer <token>`).
+    Refresh tokens are delivered via an HttpOnly `refresh_token` cookie and may also be
+    supplied in the request body. All timestamps are ISO 8601 (UTC) strings. Errors use the
+    shape `{"error": "<message>"}`; validation errors on sync and debug report additionally
+    include an `issues` array.
+
+    ## Rate limiting
+    A per-process in-memory limiter caps requests per IP / user. When exceeded the API
+    responds with `429 {"error":"Too many requests"}`. Effective limits (per 60s window):
+    - `auth/register`, `auth/login`, `auth/refresh`: 10 / IP
+    - `notes` create: 60 / user+IP
+    - `notes/bulk`, `tags/bulk`: 60 / user+IP
+    - `sync`: 30 / user+IP
+    - `backup/import`: 5 / user+IP
+    - `debug/report`: 10 / user+IP (default limiter)
+    - default (where applied): 10 / key
+
+    ## Payload limits
+    - `sync` and `backup/import` request bodies: 5,000,000 bytes (otherwise `413`).
+    - `notes/bulk` request body: 2,000,000 bytes (otherwise `413`).
+    - `debug/report` request body: 256,000 bytes (otherwise `413`).
+    - Default JSON bodies (e.g. note create): 512,000 bytes (otherwise `413`).
+  contact:
+    name: Recall
+    url: https://github.com/definitelynotguru/Recall
+  license:
+    name: MIT
+servers:
+  - url: /api/v1
+    description: API base path (relative to the deployed web app)
+tags:
+  - name: Auth
+    description: Email + password authentication with JWT access and rotating refresh tokens.
+  - name: Notes
+    description: Markdown notes CRUD, per-note tags, and per-note reminders.
+  - name: Reminders
+    description: Timed nudges attached to notes, with snooze and complete actions.
+  - name: Tags
+    description: User tags and note-tag associations.
+  - name: Sync
+    description: Dirty-upload / last-writer-wins sync and device sync status.
+  - name: Backup
+    description: JSON backup import (restore).
+  - name: Debug
+    description: Client debug reports for troubleshooting sync.
+  - name: Health
+    description: Service and database health check.
+security:
+  - BearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account
+      description: |
+        Creates a user. Requires the server-configured `REGISTER_SECRET` env var to match
+        the request body. Passwords must be at least 12 characters. Responds with an access
+        token and sets the `refresh_token` HttpOnly cookie. Rate limited 10/minute per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created
+          headers:
+            Set-Cookie:
+              description: HttpOnly `refresh_token` cookie (90-day max-age).
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "400":
+          description: Invalid request or password too short
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Registration disabled (no REGISTER_SECRET) or invalid secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      description: |
+        Verifies credentials and issues an access token plus a refresh token (HttpOnly
+        cookie). Rate limited 10/minute per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Credentials accepted
+          headers:
+            Set-Cookie:
+              description: HttpOnly `refresh_token` cookie (90-day max-age).
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token and issue a new access token
+      description: |
+        Accepts a refresh token from the request body or the `refresh_token` cookie. The old
+        token is revoked and a new one is issued (rotation). Rate limited 10/minute per IP.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: Tokens rotated
+          headers:
+            Set-Cookie:
+              description: New HttpOnly `refresh_token` cookie.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Refresh token required, invalid, or expired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token and clear cookie
+      description: |
+        Revokes the supplied refresh token (body or cookie) and clears the `refresh_token`
+        cookie. Always responds `200` even if no token is provided.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200":
+          description: Logged out
+          headers:
+            Set-Cookie:
+              description: Cleared `refresh_token` cookie (Max-Age=0).
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /notes:
+    get:
+      tags: [Notes]
+      summary: List notes
+      description: |
+        Returns notes for the current user, ordered pinned-first then by `updated_at` desc.
+        Soft-deleted notes are excluded.
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status. `all` returns both active and archived.
+          schema:
+            type: string
+            enum: [active, archived, all]
+            default: active
+        - name: q
+          in: query
+          description: Case-insensitive search across title and body.
+          schema: { type: string }
+        - name: tag_id
+          in: query
+          description: Restrict to notes linked to this tag.
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          description: Max notes to return. Use `all` for up to 10,000; otherwise capped at 500.
+          schema:
+            oneOf:
+              - type: integer
+                default: 100
+                maximum: 500
+              - type: string
+                enum: [all]
+      responses:
+        "200":
+          description: Notes list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items: { $ref: "#/components/schemas/Note" }
+        "400":
+          description: Invalid status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Notes]
+      summary: Create a note
+      description: Rate limited 60/minute per user+IP. Request body capped at 512,000 bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NoteCreate" }
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note: { $ref: "#/components/schemas/Note" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /notes/bulk:
+    post:
+      tags: [Notes]
+      summary: Create notes in bulk
+      description: |
+        Creates up to 100 notes in one request. Each item is validated independently and
+        the response contains per-item successes or failures. Rate limited 60/minute per
+        user+IP. Request body capped at 2,000,000 bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notes]
+              properties:
+                notes:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/NoteCreate" }
+      responses:
+        "200":
+          description: Bulk create result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkNotesResponse" }
+        "400":
+          description: Invalid request or too many items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /notes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+    get:
+      tags: [Notes]
+      summary: Get a note with its reminders
+      responses:
+        "200":
+          description: Note and its active reminders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note: { $ref: "#/components/schemas/Note" }
+                  reminders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reminder" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    patch:
+      tags: [Notes]
+      summary: Update a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NoteUpdate" }
+      responses:
+        "200":
+          description: Note updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note: { $ref: "#/components/schemas/Note" }
+        "400":
+          description: Invalid request (e.g. invalid `pinned_at`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      tags: [Notes]
+      summary: Soft-delete a note
+      description: Soft-deletes the note and cancels its reminders (status set to `cancelled`).
+      responses:
+        "200":
+          description: Note deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /notes/{id}/tags:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+    get:
+      tags: [Notes]
+      summary: List tags attached to a note
+      responses:
+        "200":
+          description: Tags for the note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tag" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Notes]
+      summary: Set the tags attached to a note
+      description: |
+        Replaces the note's tag set. Links not in `tag_ids` are soft-deleted; missing links
+        are created. All tag ids must belong to the user. Max 12 tag ids.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tag_ids]
+              properties:
+                tag_ids:
+                  type: array
+                  maxItems: 12
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated tag set for the note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tag" }
+        "400":
+          description: Invalid request or unknown tag id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /notes/{id}/reminders:
+    parameters:
+      - $ref: "#/components/parameters/NoteId"
+    post:
+      tags: [Notes]
+      summary: Create a reminder on a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReminderCreate" }
+      responses:
+        "201":
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder: { $ref: "#/components/schemas/Reminder" }
+        "400":
+          description: Invalid request (e.g. invalid `fire_at`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Note not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /reminders:
+    get:
+      tags: [Reminders]
+      summary: List reminders
+      description: |
+        Returns reminders for the current user (joined to their notes), ordered by `fire_at`
+        ascending. Soft-deleted reminders and notes are excluded.
+      parameters:
+        - name: status
+          in: query
+          description: |
+            Comma-separated statuses to include, or `all`. Defaults to `active`.
+            Allowed values: `active`, `completed`, `cancelled`.
+          schema:
+            type: string
+            default: active
+        - name: limit
+          in: query
+          description: Max reminders to return. Use `all` for up to 10,000; otherwise capped at 500.
+          schema:
+            oneOf:
+              - type: integer
+                default: 100
+                maximum: 500
+              - type: string
+                enum: [all]
+      responses:
+        "200":
+          description: Reminders list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Reminder" }
+        "400":
+          description: Invalid status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /reminders/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ReminderId"
+    patch:
+      tags: [Reminders]
+      summary: Update a reminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReminderUpdate" }
+      responses:
+        "200":
+          description: Reminder updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder: { $ref: "#/components/schemas/Reminder" }
+        "400":
+          description: Invalid request (e.g. invalid `fire_at`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Reminder not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      tags: [Reminders]
+      summary: Soft-delete a reminder
+      description: Soft-deletes the reminder and sets its status to `cancelled`.
+      responses:
+        "200":
+          description: Reminder deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Reminder not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /reminders/{id}/snooze:
+    parameters:
+      - $ref: "#/components/parameters/ReminderId"
+    post:
+      tags: [Reminders]
+      summary: Snooze a reminder to a new fire time
+      description: Sets `status` back to `active` and updates `fire_at`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fire_at]
+              properties:
+                fire_at: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Snoozed reminder
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder: { $ref: "#/components/schemas/Reminder" }
+        "400":
+          description: Invalid `fire_at`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Reminder not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /reminders/{id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/ReminderId"
+    post:
+      tags: [Reminders]
+      summary: Complete a reminder
+      description: |
+        Marks a non-repeating reminder `completed` (sets `completed_at`). For repeating
+        reminders, computes the next `fire_at` from `repeat_rule` and keeps `status` active.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed_at:
+                  type: string
+                  format: date-time
+                  description: Defaults to the server's current time when omitted.
+      responses:
+        "200":
+          description: Completed (or advanced) reminder
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminder: { $ref: "#/components/schemas/Reminder" }
+        "400":
+          description: Invalid `completed_at` or `repeat_rule`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Reminder not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /tags:
+    get:
+      tags: [Tags]
+      summary: List tags
+      description: Returns the user's non-deleted tags, ordered by name ascending.
+      responses:
+        "200":
+          description: Tags list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tag" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Tags]
+      summary: Create a tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagCreate" }
+      responses:
+        "201":
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag: { $ref: "#/components/schemas/Tag" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /tags/bulk:
+    post:
+      tags: [Tags]
+      summary: Create tags in bulk
+      description: |
+        Creates up to 100 tags in one request. Each item is validated independently and
+        the response contains per-item successes or failures. Rate limited 60/minute per
+        user+IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/TagCreate" }
+      responses:
+        "200":
+          description: Bulk create result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkTagsResponse" }
+        "400":
+          description: Invalid request or too many items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /tags/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TagId"
+    patch:
+      tags: [Tags]
+      summary: Rename a tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagUpdate" }
+      responses:
+        "200":
+          description: Tag updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tag: { $ref: "#/components/schemas/Tag" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      tags: [Tags]
+      summary: Soft-delete a tag
+      description: Soft-deletes the tag and soft-deletes its note-tag associations.
+      responses:
+        "200":
+          description: Tag deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Tag not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /note-tags:
+    get:
+      tags: [Tags]
+      summary: List note-tag associations
+      description: Returns the user's non-deleted note-tag links.
+      responses:
+        "200":
+          description: Note-tag associations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note_tags:
+                    type: array
+                    items: { $ref: "#/components/schemas/NoteTag" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /sync:
+    post:
+      tags: [Sync]
+      summary: Sync dirty records and fetch the updated catalog
+      description: |
+        Primary sync endpoint (used by Android and web). Uploads dirty notes, reminders,
+        tags, and note-tags; the server applies last-writer-wins merging (ownership-scoped),
+        records the device's last sync time, and returns the active catalog. With an
+        epoch/invalid `last_sync_at` the response is a `full` catalog; otherwise a `delta`
+        of rows changed since that time. `limit` and `cursor` page the returned catalog
+        while preserving the legacy one-response behavior when `limit` is omitted. Rate
+        limited 30/minute per user+IP. Request body capped at 5,000,000 bytes (otherwise
+        `413`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SyncRequest" }
+      responses:
+        "200":
+          description: Sync result with the updated catalog
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResponse" }
+        "400":
+          description: Invalid sync payload (includes `issues`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /sync/status:
+    get:
+      tags: [Sync]
+      summary: Get device sync status
+      description: Returns the last sync time for each device the user has synced from.
+      responses:
+        "200":
+          description: Device sync state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncStatusResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /backup/import:
+    post:
+      tags: [Backup]
+      summary: Import a JSON backup bundle
+      description: |
+        Restores notes, reminders, tags, and note-tags from a backup bundle in a single
+        transaction. Rate limited 5/minute per user+IP. Request body capped at 5,000,000
+        bytes (otherwise `413`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupImportRequest" }
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupImportResponse" }
+        "400":
+          description: Invalid JSON or backup format
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          description: Import failed (no changes were saved)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /debug/report:
+    post:
+      tags: [Debug]
+      summary: Submit a debug report
+      description: |
+        Stores a client debug payload (sync state, errors, sanitize warnings) for
+        troubleshooting. Reports are retained 30 days. Rate limited 10/minute per user+IP.
+        Request body capped at 256,000 bytes (otherwise `413`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DebugReportRequest" }
+      responses:
+        "201":
+          description: Report stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DebugReportResponse" }
+        "400":
+          description: Invalid report (includes `issues`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DebugErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /debug/reports:
+    get:
+      tags: [Debug]
+      summary: List debug reports
+      description: |
+        Returns the user's recent debug reports, newest first. Reports older than 30 days
+        are pruned on read.
+      parameters:
+        - name: limit
+          in: query
+          description: Number of reports to return (1-50).
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Debug reports
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DebugReportsResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service and database connectivity status. No auth required.
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+        "503":
+          description: Database unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token issued by `/auth/register`, `/auth/login`, or `/auth/refresh`.
+        Send as `Authorization: Bearer <access_token>`. Access tokens expire after 15
+        minutes; rotate via `/auth/refresh`.
+  parameters:
+    NoteId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ReminderId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TagId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    PayloadTooLarge:
+      description: Request body too large
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+      required: [id, email]
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    SyncErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              message: { type: string }
+      required: [error]
+    DebugErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              message: { type: string }
+      required: [error]
+    RegisterRequest:
+      type: object
+      required: [email, password, register_secret]
+      properties:
+        email: { type: string, format: email }
+        password:
+          type: string
+          minLength: 12
+          description: Minimum 12 characters.
+        register_secret:
+          type: string
+          description: Must match the server's `REGISTER_SECRET` env var.
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          description: Optional; falls back to the `refresh_token` cookie.
+    TokenResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+      required: [access_token, refresh_token, user]
+    Note:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        status: { type: string, enum: [active, archived] }
+        pinned_at:
+          type: ["string", "null"]
+          format: date-time
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, user_id, title, body, status, created_at, updated_at]
+    NoteCreate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Optional client-supplied id; generated when omitted.
+        title: { type: string, default: "" }
+        body: { type: string, default: "" }
+        status:
+          type: string
+          enum: [active, archived]
+          default: active
+        pinned_at:
+          type: ["string", "null"]
+          format: date-time
+    NoteUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        body: { type: string }
+        status: { type: string, enum: [active, archived] }
+        pinned_at:
+          type: ["string", "null"]
+          format: date-time
+          description: Send `null` to unpin.
+    BulkNotesResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            oneOf:
+              - type: object
+                required: [ok, note]
+                properties:
+                  ok: { type: boolean, const: true }
+                  note: { $ref: "#/components/schemas/Note" }
+              - type: object
+                required: [ok, index, error]
+                properties:
+                  ok: { type: boolean, const: false }
+                  index: { type: integer, minimum: 0 }
+                  error: { type: string }
+        created: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+      required: [results, created, failed]
+    Reminder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        note_id: { type: string, format: uuid }
+        fire_at: { type: string, format: date-time }
+        timezone: { type: string, default: UTC }
+        repeat_rule:
+          type: ["string", "null"]
+          maxLength: 120
+        intensity:
+          type: string
+          enum: [gentle, persistent, escalating]
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+        completed_at:
+          type: ["string", "null"]
+          format: date-time
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+        note_title:
+          type: string
+          description: Present only in `GET /reminders` list responses.
+      required: [id, user_id, note_id, fire_at, timezone, intensity, status, created_at, updated_at]
+    ReminderCreate:
+      type: object
+      required: [fire_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Optional client-supplied id; generated when omitted.
+        fire_at: { type: string, format: date-time }
+        timezone: { type: string, default: UTC }
+        repeat_rule:
+          type: ["string", "null"]
+          maxLength: 120
+        intensity:
+          type: string
+          enum: [gentle, persistent, escalating]
+          default: gentle
+    ReminderUpdate:
+      type: object
+      properties:
+        fire_at: { type: string, format: date-time }
+        timezone: { type: string }
+        repeat_rule:
+          type: ["string", "null"]
+          maxLength: 120
+        intensity:
+          type: string
+          enum: [gentle, persistent, escalating]
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+    Tag:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 40 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, user_id, name, created_at, updated_at]
+    TagCreate:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Optional client-supplied id; generated when omitted.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+    TagUpdate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+    BulkTagsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            oneOf:
+              - type: object
+                required: [ok, tag]
+                properties:
+                  ok: { type: boolean, const: true }
+                  tag: { $ref: "#/components/schemas/Tag" }
+              - type: object
+                required: [ok, index, error]
+                properties:
+                  ok: { type: boolean, const: false }
+                  index: { type: integer, minimum: 0 }
+                  error: { type: string }
+        created: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+      required: [results, created, failed]
+    NoteTag:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        note_id: { type: string, format: uuid }
+        tag_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, user_id, note_id, tag_id, created_at, updated_at]
+    SyncNote:
+      type: object
+      required: [id, title, body, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        status: { type: string, enum: [active, archived] }
+        pinned_at:
+          type: ["string", "null"]
+          format: date-time
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+    SyncReminder:
+      type: object
+      required: [id, note_id, fire_at, timezone, intensity, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        note_id: { type: string, format: uuid }
+        fire_at: { type: string, minLength: 1, format: date-time }
+        timezone: { type: string }
+        repeat_rule:
+          type: ["string", "null"]
+        intensity:
+          type: string
+          enum: [gentle, persistent, escalating]
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+        completed_at:
+          type: ["string", "null"]
+          format: date-time
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+    SyncTag:
+      type: object
+      required: [id, name, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+    SyncNoteTag:
+      type: object
+      required: [id, note_id, tag_id, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        note_id: { type: string, format: uuid }
+        tag_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at:
+          type: ["string", "null"]
+          format: date-time
+    SyncRequest:
+      type: object
+      required: [device_id, last_sync_at, notes, reminders]
+      properties:
+        device_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        last_sync_at:
+          type: string
+          description: ISO timestamp; an epoch value triggers a full catalog response.
+        notes:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/SyncNote" }
+        reminders:
+          type: array
+          maxItems: 10000
+          items: { $ref: "#/components/schemas/SyncReminder" }
+        tags:
+          type: array
+          maxItems: 500
+          default: []
+          items: { $ref: "#/components/schemas/SyncTag" }
+        note_tags:
+          type: array
+          maxItems: 10000
+          default: []
+          items: { $ref: "#/components/schemas/SyncNoteTag" }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Optional page size for catalog rows returned by the sync response.
+        cursor:
+          type: string
+          description: Opaque cursor from the previous sync response.
+    SyncResponse:
+      type: object
+      description: |
+        The full (or delta) active catalog after merging the uploaded dirty records. When
+        `limit` is omitted, the response preserves the legacy behavior and returns all
+        eligible rows. When `limit` is present, `next_cursor` and `has_more` indicate
+        whether another page is available.
+      properties:
+        server_time: { type: string, format: date-time }
+        sync_mode:
+          type: string
+          enum: [full, delta]
+        notes:
+          type: array
+          items: { $ref: "#/components/schemas/Note" }
+        reminders:
+          type: array
+          items: { $ref: "#/components/schemas/Reminder" }
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
+        note_tags:
+          type: array
+          items: { $ref: "#/components/schemas/NoteTag" }
+        next_cursor:
+          type: ["string", "null"]
+          description: Cursor to pass as `cursor` on the next paged sync request.
+        has_more:
+          type: boolean
+          description: True when more catalog rows are available after this page.
+      required: [server_time, sync_mode, notes, reminders, tags, note_tags, has_more]
+    SyncStatusResponse:
+      type: object
+      properties:
+        server_time: { type: string, format: date-time }
+        devices:
+          type: array
+          items:
+            type: object
+            properties:
+              device_id: { type: string }
+              last_sync_at: { type: string, format: date-time }
+      required: [server_time, devices]
+    BackupImportRequest:
+      type: object
+      description: Backup bundle produced by the web/Android export feature.
+      required: [notes, reminders_by_note]
+      properties:
+        exported_at:
+          type: string
+          format: date-time
+        notes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        reminders_by_note:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+          description: Map of note id to reminder objects.
+        tags:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        note_tags:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    BackupImportResponse:
+      type: object
+      properties:
+        notes:
+          type: integer
+          description: Number of notes imported.
+        reminders:
+          type: integer
+          description: Number of reminders imported.
+        warnings:
+          type: array
+          items: { type: string }
+      required: [notes, reminders, warnings]
+    DebugReportRequest:
+      type: object
+      required: [payload]
+      properties:
+        device_id:
+          type: string
+          maxLength: 128
+        app_version:
+          type: string
+          maxLength: 64
+        api_base_url:
+          type: string
+          maxLength: 512
+        payload:
+          type: object
+          additionalProperties: true
+          description: Arbitrary client debug data (sync state, errors, warnings).
+    DebugReportResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+      required: [id, created_at]
+    DebugReportsResponse:
+      type: object
+      properties:
+        reports:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              device_id: { type: string }
+              app_version: { type: string }
+              api_base_url: { type: string }
+              payload:
+                type: object
+                additionalProperties: true
+              created_at: { type: string, format: date-time }
+              summary:
+                type: string
+                description: Human-readable summary derived from the payload.
+      required: [reports]
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        db:
+          type: string
+          enum: [connected]
+      required: [status, db]

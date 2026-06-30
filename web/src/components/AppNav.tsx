@@ -10,6 +10,7 @@ import {
   SignOut,
 } from "@phosphor-icons/react";
 import { useAuth } from "./AuthProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV = [
   { href: "/today", label: "Today", icon: CalendarBlank },
@@ -43,6 +44,7 @@ export function AppNav() {
             {label}
           </Link>
         ))}
+        <ThemeToggle />
       </nav>
 
       <div className="sidebar-footer" style={{ marginTop: "auto" }}>
