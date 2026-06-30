@@ -1,5 +1,5 @@
 import { noteTags, notes, reminders, tags } from "./db/schema";
-import { and, eq, gt, inArray, isNotNull, isNull, or, type AnyColumn } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or, type AnyColumn } from "drizzle-orm";
 import {
   resolveNoteMerge,
   resolveReminderMerge,
@@ -359,36 +359,168 @@ export async function mergeNoteTagsBatch(
   }
 }
 
+type CatalogRow = { id: string; updatedAt: Date };
+
+/**
+ * Compute the pagination metadata for a full-catalog page. `next_cursor` is the
+ * max `${updatedAt.toISOString()}|${id}` key across all returned rows, set only
+ * when at least one entity type filled the `limit` (i.e. there may be more).
+ * Without a limit, everything is returned and the cursor is null.
+ */
+export function computePaginationCursor(
+  rowGroups: CatalogRow[][],
+  limit?: number,
+): { next_cursor: string | null; has_more: boolean } {
+  if (!limit) {
+    return { next_cursor: null, has_more: false };
+  }
+  const hasMore = rowGroups.some((rows) => rows.length === limit);
+  if (!hasMore) {
+    return { next_cursor: null, has_more: false };
+  }
+  let maxKey = "";
+  for (const rows of rowGroups) {
+    for (const row of rows) {
+      const key = `${row.updatedAt.toISOString()}|${row.id}`;
+      if (key > maxKey) maxKey = key;
+    }
+  }
+  return { next_cursor: maxKey || null, has_more: true };
+}
+
+function afterCursorCondition(
+  updatedAtCol: AnyColumn,
+  idCol: AnyColumn,
+  cursorDate: Date,
+  cursorId: string,
+) {
+  return or(
+    gt(updatedAtCol, cursorDate),
+    and(eq(updatedAtCol, cursorDate), gt(idCol, cursorId)),
+  );
+}
+
+export type CatalogFetchOptions = { limit?: number; cursor?: string };
+
 export async function fetchCatalogForClient(
   tx: Tx,
   userId: string,
   mode: SyncMode,
   since: Date,
+  opts?: CatalogFetchOptions,
 ) {
   if (mode === "full") {
+    const limit = opts?.limit;
+    const cursor = opts?.cursor;
+
+    if (limit === undefined && cursor === undefined) {
+      const [allNotes, allReminders, allTags, allNoteTags] = await Promise.all([
+        tx
+          .select()
+          .from(notes)
+          .where(and(eq(notes.userId, userId), isNull(notes.deletedAt))),
+        tx
+          .select()
+          .from(reminders)
+          .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt))),
+        tx
+          .select()
+          .from(tags)
+          .where(and(eq(tags.userId, userId), isNull(tags.deletedAt))),
+        tx
+          .select()
+          .from(noteTags)
+          .where(and(eq(noteTags.userId, userId), isNull(noteTags.deletedAt))),
+      ]);
+      return {
+        notes: allNotes,
+        reminders: allReminders,
+        tags: allTags,
+        noteTags: allNoteTags,
+        next_cursor: null,
+        has_more: false,
+      };
+    }
+
+    let cursorDate: Date | null = null;
+    let cursorId: string | null = null;
+    if (cursor) {
+      const sep = cursor.indexOf("|");
+      cursorDate = new Date(cursor.slice(0, sep));
+      cursorId = cursor.slice(sep + 1);
+    }
+    const hasCursor = cursorDate !== null && cursorId !== null;
+
+    const notesOrdered = tx
+      .select()
+      .from(notes)
+      .where(
+        and(
+          eq(notes.userId, userId),
+          isNull(notes.deletedAt),
+          hasCursor
+            ? afterCursorCondition(notes.updatedAt, notes.id, cursorDate!, cursorId!)
+            : undefined,
+        ),
+      )
+      .orderBy(asc(notes.updatedAt), asc(notes.id));
+    const remindersOrdered = tx
+      .select()
+      .from(reminders)
+      .where(
+        and(
+          eq(reminders.userId, userId),
+          isNull(reminders.deletedAt),
+          hasCursor
+            ? afterCursorCondition(reminders.updatedAt, reminders.id, cursorDate!, cursorId!)
+            : undefined,
+        ),
+      )
+      .orderBy(asc(reminders.updatedAt), asc(reminders.id));
+    const tagsOrdered = tx
+      .select()
+      .from(tags)
+      .where(
+        and(
+          eq(tags.userId, userId),
+          isNull(tags.deletedAt),
+          hasCursor
+            ? afterCursorCondition(tags.updatedAt, tags.id, cursorDate!, cursorId!)
+            : undefined,
+        ),
+      )
+      .orderBy(asc(tags.updatedAt), asc(tags.id));
+    const noteTagsOrdered = tx
+      .select()
+      .from(noteTags)
+      .where(
+        and(
+          eq(noteTags.userId, userId),
+          isNull(noteTags.deletedAt),
+          hasCursor
+            ? afterCursorCondition(noteTags.updatedAt, noteTags.id, cursorDate!, cursorId!)
+            : undefined,
+        ),
+      )
+      .orderBy(asc(noteTags.updatedAt), asc(noteTags.id));
+
     const [allNotes, allReminders, allTags, allNoteTags] = await Promise.all([
-      tx
-        .select()
-        .from(notes)
-        .where(and(eq(notes.userId, userId), isNull(notes.deletedAt))),
-      tx
-        .select()
-        .from(reminders)
-        .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt))),
-      tx
-        .select()
-        .from(tags)
-        .where(and(eq(tags.userId, userId), isNull(tags.deletedAt))),
-      tx
-        .select()
-        .from(noteTags)
-        .where(and(eq(noteTags.userId, userId), isNull(noteTags.deletedAt))),
+      limit ? notesOrdered.limit(limit) : notesOrdered,
+      limit ? remindersOrdered.limit(limit) : remindersOrdered,
+      limit ? tagsOrdered.limit(limit) : tagsOrdered,
+      limit ? noteTagsOrdered.limit(limit) : noteTagsOrdered,
     ]);
+
+    const pagination = computePaginationCursor(
+      [allNotes, allReminders, allTags, allNoteTags],
+      limit,
+    );
     return {
       notes: allNotes,
       reminders: allReminders,
       tags: allTags,
       noteTags: allNoteTags,
+      ...pagination,
     };
   }
 
@@ -426,5 +558,7 @@ export async function fetchCatalogForClient(
     reminders: reminderRows,
     tags: tagRows,
     noteTags: noteTagRows,
+    next_cursor: null,
+    has_more: false,
   };
 }

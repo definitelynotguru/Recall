@@ -57,4 +57,6 @@ export const syncSchema = z.object({
   reminders: z.array(syncReminderSchema).max(10000),
   tags: z.array(syncTagSchema).max(500).optional().default([]),
   note_tags: z.array(syncNoteTagSchema).max(10000).optional().default([]),
+  limit: z.number().int().min(1).max(5000).optional(),
+  cursor: z.string().optional(),
 });

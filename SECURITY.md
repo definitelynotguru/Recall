@@ -33,6 +33,15 @@ Include:
 - `REGISTER_SECRET` gates new account creation; leave unset or strong in production.
 - Debug reports may include user email and sync diagnostics — disable or restrict access if you do not need them.
 
+## CSRF protection
+
+Recall's API uses two complementary CSRF defenses depending on how a request is authenticated:
+
+- **Bearer access tokens:** All state-changing endpoints (`/notes`, `/reminders`, `/sync`, `/tags`, `/backup/import`, `/debug/report`) require a `Bearer` access token in the `Authorization` header. Bearer tokens are not sent automatically by the browser, so these endpoints are immune to CSRF.
+- **Refresh cookie:** The 90-day refresh token is stored in an `HttpOnly`, `SameSite=Strict` cookie. `SameSite=Strict` prevents the cookie from being sent on cross-site or top-level navigations. The `/auth/refresh` and `/auth/logout` endpoints additionally enforce same-origin on cookie-based calls: when the refresh token is read from the cookie (rather than the JSON body), a `Sec-Fetch-Site` header that is present and not `same-origin` or `none` is rejected with `401`. This blocks cross-site forged refresh/logout requests while still allowing legitimate same-origin fetch calls from the web app.
+
+When a refresh token is supplied in the JSON body (e.g. from the Android app, which stores it client-side), the same-origin check is skipped because the request is not cookie-authenticated.
+
 ## Secrets in CI
 
 Forks should not enable maintainer deploy workflows without their own Vercel/Neon credentials. Never commit `.env.local`, `local.properties`, or tokens.

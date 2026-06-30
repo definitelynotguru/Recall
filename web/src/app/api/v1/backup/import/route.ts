@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const rateKey = `backup-import:${user!.userId}:${getClientIp(request)}`;
-  if (!rateLimit(rateKey, { max: 5, windowMs: 60_000 })) {
+  if (!(await rateLimit(rateKey, { max: 5, windowMs: 60_000 }))) {
     return errorResponse("Too many import requests — try again in a minute", 429);
   }
 

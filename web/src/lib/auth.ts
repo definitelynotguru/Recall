@@ -145,3 +145,19 @@ export async function revokeRefreshToken(token: string) {
     .set({ revokedAt: new Date() })
     .where(eq(refreshTokens.tokenHash, hash));
 }
+
+const MIN_SECRET_LENGTH = 32;
+
+/** Non-throwing check that auth secrets are present and strong enough. */
+export function validateAuthSecrets(): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || jwtSecret.length < MIN_SECRET_LENGTH) {
+    errors.push("JWT_SECRET must be at least 32 characters");
+  }
+  const pepper = process.env.REFRESH_PEPPER;
+  if (!pepper || pepper.length < MIN_SECRET_LENGTH) {
+    errors.push("REFRESH_PEPPER must be at least 32 characters");
+  }
+  return { ok: errors.length === 0, errors };
+}

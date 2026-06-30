@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const rateKey = `sync:${user!.userId}:${getClientIp(request)}`;
-  if (!rateLimit(rateKey, { max: 30, windowMs: 60_000 })) {
+  if (!(await rateLimit(rateKey, { max: 30, windowMs: 60_000 }))) {
     return errorResponse("Too many sync requests — try again in a minute", 429);
   }
 
@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
     noteTags: mergedNoteTags,
     sync_mode,
     server_time,
+    next_cursor,
+    has_more,
   } = await processSync(
     user!.userId,
     body.device_id,
@@ -63,6 +65,7 @@ export async function POST(request: NextRequest) {
     body.reminders,
     body.tags,
     body.note_tags,
+    { limit: body.limit, cursor: body.cursor },
   );
 
   return jsonResponse({
@@ -72,5 +75,7 @@ export async function POST(request: NextRequest) {
     reminders: mergedReminders.map(toApiReminder),
     tags: mergedTags.map(toApiTag),
     note_tags: mergedNoteTags.map(toApiNoteTag),
+    next_cursor,
+    has_more,
   });
 }

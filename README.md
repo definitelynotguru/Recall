@@ -110,7 +110,7 @@ API_BASE_URL=http://10.0.2.2:3000/api/v1
 
 ## API overview
 
-Base path: `/api/v1`
+Base path: `/api/v1`. See [docs/API_VERSIONING.md](docs/API_VERSIONING.md) for the versioning and deprecation policy.
 
 | Area | Endpoints |
 |------|-----------|

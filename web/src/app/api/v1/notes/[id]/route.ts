@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db, getDb } from "@/lib/db";
-import { notes, reminders } from "@/lib/db/schema";
+import { notes, reminders, noteTags } from "@/lib/db/schema";
 import {
   requireAuth,
   jsonResponse,
@@ -137,6 +137,11 @@ export async function DELETE(
       .where(
         and(eq(reminders.noteId, id), eq(reminders.userId, user!.userId)),
       );
+
+    await tx
+      .update(noteTags)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(and(eq(noteTags.noteId, id), eq(noteTags.userId, user!.userId)));
   });
 
   return jsonResponse({ ok: true });

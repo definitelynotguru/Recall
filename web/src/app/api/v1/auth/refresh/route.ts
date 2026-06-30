@@ -5,6 +5,7 @@ import {
   errorResponse,
   setRefreshCookie,
   getRefreshFromRequest,
+  isSameOriginRequest,
 } from "@/lib/api-utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -14,7 +15,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  if (!rateLimit(`refresh:${ip}`)) {
+  if (!(await rateLimit(`refresh:${ip}`))) {
     return errorResponse("Too many requests", 429);
   }
 
@@ -26,9 +27,15 @@ export async function POST(request: NextRequest) {
     return errorResponse("Invalid request", 400);
   }
 
+  const fromCookie = !body.refresh_token;
   const token = body.refresh_token ?? getRefreshFromRequest(request);
   if (!token) {
     return errorResponse("Refresh token required", 401);
+  }
+
+  // Cookie-based refresh is vulnerable to CSRF; require same-origin.
+  if (fromCookie && !isSameOriginRequest(request)) {
+    return errorResponse("Unauthorized", 401);
   }
 
   const result = await rotateRefreshToken(token);

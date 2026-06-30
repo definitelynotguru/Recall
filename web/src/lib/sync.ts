@@ -7,6 +7,7 @@ import {
   mergeRemindersBatch,
   mergeTagsBatch,
   resolveSyncMode,
+  type CatalogFetchOptions,
   type SyncNoteTagInput,
   type SyncTagInput,
 } from "./sync-catalog";
@@ -20,6 +21,7 @@ export async function processSync(
   incomingReminders: SyncReminderInput[],
   incomingTags: SyncTagInput[] = [],
   incomingNoteTags: SyncNoteTagInput[] = [],
+  opts?: CatalogFetchOptions,
 ) {
   const { mode, since } = resolveSyncMode(lastSyncAt);
   const serverTime = new Date();
@@ -42,7 +44,7 @@ export async function processSync(
         set: { lastSyncAt: serverTime },
       });
 
-    return fetchCatalogForClient(tx, userId, mode, since);
+    return fetchCatalogForClient(tx, userId, mode, since, opts);
   });
 
   return { ...catalog, sync_mode: mode, server_time: serverTime };
