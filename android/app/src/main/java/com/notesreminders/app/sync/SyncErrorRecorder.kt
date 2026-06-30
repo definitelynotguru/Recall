@@ -4,35 +4,42 @@ import com.notesreminders.app.data.local.SyncErrorEntity
 import java.time.Instant
 
 object SyncErrorRecorder {
-    fun buildErrors(skipped: SkippedSyncIds, warnings: List<String>, now: String = Instant.now().toString()): List<SyncErrorEntity> {
+    fun buildErrors(skipped: List<SkippedRow>, warnings: List<String>, now: String = Instant.now().toString()): List<SyncErrorEntity> {
         val errors = mutableListOf<SyncErrorEntity>()
 
-        fun record(type: String, id: String, defaultMessage: String) {
-            val message = warnings.firstOrNull { it.contains(id.take(8)) } ?: defaultMessage
+        for (row in skipped) {
+            val defaultMessage = defaultForType(row.type)
+            val message = warnings.firstOrNull { it.contains(row.id.take(8)) } ?: defaultMessage
             errors.add(
                 SyncErrorEntity(
-                    id = "$type:$id",
-                    entityType = type,
-                    entityId = id,
+                    id = "${row.type}:${row.id}",
+                    entityType = row.type,
+                    entityId = row.id,
                     message = message,
                     detectedAt = now,
+                    payload = row.payload,
                 ),
             )
         }
 
-        for (id in skipped.noteIds) {
-            record("note", id, "Note could not sync — fix or delete it locally")
-        }
-        for (id in skipped.reminderIds) {
-            record("reminder", id, "Reminder could not sync — check note link and fire time")
-        }
-        for (id in skipped.tagIds) {
-            record("tag", id, "Tag could not sync — name may be invalid")
-        }
-        for (id in skipped.noteTagIds) {
-            record("note_tag", id, "Tag link could not sync — note or tag may be missing")
-        }
-
         return errors
+    }
+
+    fun buildSyncFailure(message: String, now: String = Instant.now().toString()): SyncErrorEntity =
+        SyncErrorEntity(
+            id = "sync:failure",
+            entityType = "sync",
+            entityId = "sync",
+            message = message,
+            detectedAt = now,
+            payload = null,
+        )
+
+    private fun defaultForType(type: String): String = when (type) {
+        "note" -> "Note could not sync — fix or delete it locally"
+        "reminder" -> "Reminder could not sync — check note link and fire time"
+        "tag" -> "Tag could not sync — name may be invalid"
+        "note_tag" -> "Tag link could not sync — note or tag may be missing"
+        else -> "Item could not sync"
     }
 }

@@ -162,6 +162,14 @@ fun SettingsScreen(
                     color = RecallColors.Copper,
                 )
             }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { viewModel.syncNow() },
+                enabled = !syncing,
+                colors = recallPrimaryButtonColors(),
+            ) {
+                Text(if (syncing) "Syncing…" else "Sync now")
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -198,21 +206,47 @@ fun SettingsScreen(
         if (syncErrors.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             RecallPanel {
-                Text("Sync issues", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+                Text("Dead-letter / skipped items", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
                 Spacer(Modifier.height(8.dp))
-                syncErrors.take(8).forEach { error ->
+                Text(
+                    "Rows that failed validation and were not uploaded. Retry re-queues the item; Discard drops the report.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = RecallColors.ParchmentMuted,
+                )
+                Spacer(Modifier.height(10.dp))
+                syncErrors.take(12).forEach { error ->
                     Text(
-                        "${error.entityType}: ${error.message}",
+                        "${error.entityType} · ${error.entityId.take(8)}\u2026",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = RecallColors.Parchment,
+                    )
+                    Text(
+                        error.message,
                         style = MaterialTheme.typography.bodySmall,
                         color = RecallColors.ParchmentMuted,
                     )
-                    Spacer(Modifier.height(6.dp))
+                    error.payload?.let { payload ->
+                        Text(
+                            "Payload: ${payload.take(80)}${if (payload.length > 80) "\u2026" else ""}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = RecallColors.ParchmentMuted,
+                        )
+                    }
+                    Text(
+                        "Detected ${error.detectedAt.take(10)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = RecallColors.ParchmentMuted,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { viewModel.retrySyncError(error) }) {
+                            Text("Retry", color = RecallColors.Copper)
+                        }
+                        TextButton(onClick = { viewModel.discardSyncError(error) }) {
+                            Text("Discard", color = RecallColors.ParchmentMuted)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                 }
-                Text(
-                    "Fix the item locally, then tap Sync. Dirty rows stay queued until they pass validation.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = RecallColors.Copper,
-                )
             }
         }
 

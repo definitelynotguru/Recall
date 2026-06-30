@@ -56,9 +56,17 @@ jobs:
         working-directory: android
         run: chmod +x gradlew && ./gradlew :app:testDebugUnitTest --no-daemon
 
+      - name: Detekt
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew detekt --no-daemon
+
       - name: Lint
         working-directory: android
         run: chmod +x gradlew && ./gradlew :app:lintDebug --no-daemon
+
+      - name: Compile Android UI tests
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew :app:assembleDebugAndroidTest --no-daemon
 
       - name: Assemble debug APK
         working-directory: android

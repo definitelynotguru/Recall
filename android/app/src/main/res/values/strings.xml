@@ -3,6 +3,11 @@
     <string name="app_name">Recall</string>
     <string name="reminder_channel_name">Reminders</string>
     <string name="reminder_channel_desc">Note reminders</string>
+    <string name="sync_channel_name">Sync alerts</string>
+    <string name="sync_channel_desc">Sync status and failures</string>
+    <string name="backup_channel_name">Backup</string>
+    <string name="backup_channel_desc">Backup export and import activity</string>
+    <string name="notification_group_name">Recall</string>
     <string name="action_done">Done</string>
     <string name="action_snooze">Snooze 1h</string>
 </resources>

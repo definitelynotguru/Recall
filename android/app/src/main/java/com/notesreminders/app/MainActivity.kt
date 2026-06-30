@@ -67,12 +67,18 @@ class MainActivity : ComponentActivity() {
 
     private val pendingNoteId = mutableStateOf<String?>(null)
     private val pendingSharedText = mutableStateOf<String?>(null)
+    private val pendingQuickAdd = mutableStateOf(false)
+
+    companion object {
+        const val EXTRA_QUICK_ADD = "quick_add"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
         pendingSharedText.value = intent.extractSharedText()
+        pendingQuickAdd.value = intent.getBooleanExtra(EXTRA_QUICK_ADD, false)
 
         setContent {
             NotesTheme {
@@ -80,6 +86,7 @@ class MainActivity : ComponentActivity() {
                 var loggedIn by remember { mutableStateOf(viewModel.isLoggedIn) }
                 val launchNoteId = pendingNoteId.value
                 val launchSharedText = pendingSharedText.value
+                val launchQuickAdd = pendingQuickAdd.value
 
                 if (!loggedIn) {
                     LoginScreen(viewModel) { loggedIn = true }
@@ -91,8 +98,10 @@ class MainActivity : ComponentActivity() {
                         viewModel = viewModel,
                         launchNoteId = launchNoteId,
                         launchSharedText = launchSharedText,
+                        launchQuickAdd = launchQuickAdd,
                         onNoteOpened = { pendingNoteId.value = null },
                         onSharedTextConsumed = { pendingSharedText.value = null },
+                        onQuickAddConsumed = { pendingQuickAdd.value = false },
                         onRequestExactAlarms = {
                             if (ReminderPermissions.needsExactAlarmPermission(this@MainActivity)) {
                                 startActivity(ReminderPermissions.exactAlarmSettingsIntent(this@MainActivity))
@@ -115,6 +124,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         pendingNoteId.value = intent.getStringExtra(ReminderReceiver.EXTRA_NOTE_ID)
         pendingSharedText.value = intent.extractSharedText()
+        pendingQuickAdd.value = intent.getBooleanExtra(EXTRA_QUICK_ADD, false)
     }
 
     private fun Intent.extractSharedText(): String? {
@@ -146,8 +156,10 @@ private fun MainShell(
     viewModel: AppViewModel,
     launchNoteId: String?,
     launchSharedText: String?,
+    launchQuickAdd: Boolean,
     onNoteOpened: () -> Unit,
     onSharedTextConsumed: () -> Unit,
+    onQuickAddConsumed: () -> Unit,
     onRequestExactAlarms: () -> Unit,
     onRequestNotifications: () -> Unit,
     onLogout: () -> Unit,
@@ -177,6 +189,14 @@ private fun MainShell(
             viewModel.createNoteFromText(launchSharedText) { noteId ->
                 nav.navigate("note/$noteId") { launchSingleTop = true }
                 onSharedTextConsumed()
+            }
+        }
+    }
+    LaunchedEffect(launchQuickAdd) {
+        if (launchQuickAdd) {
+            viewModel.createNote { noteId ->
+                nav.navigate("note/$noteId") { launchSingleTop = true }
+                onQuickAddConsumed()
             }
         }
     }

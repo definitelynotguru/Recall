@@ -18,8 +18,8 @@ class SyncPayloadSanitizerTest {
   fun tracksSkippedInvalidNoteIds() {
     val note = sampleNote(id = "not-uuid")
     val result = sanitizeNotesOnly(listOf(note))
-    assertEquals(1, result.skipped.noteIds.size)
-    assertTrue(result.skipped.noteIds.contains("not-uuid"))
+    assertEquals(1, result.skipped.size)
+    assertTrue(result.skipped.any { it.type == "note" && it.id == "not-uuid" && it.payload != null })
   }
 
   @Test
