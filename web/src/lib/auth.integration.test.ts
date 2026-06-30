@@ -13,6 +13,8 @@ import {
 } from "./auth";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
+process.env.JWT_SECRET ??= "test-jwt-secret-32-characters-long";
+process.env.REFRESH_PEPPER ??= "test-refresh-pepper-32-characters";
 
 describe.skipIf(!hasDb)("auth integration", () => {
   // 77777777-... prefix avoids colliding with sync.integration.test user uuids.
