@@ -15,6 +15,7 @@ info:
     responds with `429 {"error":"Too many requests"}`. Effective limits (per 60s window):
     - `auth/register`, `auth/login`, `auth/refresh`: 10 / IP
     - `notes` create: 60 / user+IP
+    - `notes/bulk`, `tags/bulk`: 60 / user+IP
     - `sync`: 30 / user+IP
     - `backup/import`: 5 / user+IP
     - `debug/report`: 10 / user+IP (default limiter)
@@ -22,6 +23,7 @@ info:
 
     ## Payload limits
     - `sync` and `backup/import` request bodies: 5,000,000 bytes (otherwise `413`).
+    - `notes/bulk` request body: 2,000,000 bytes (otherwise `413`).
     - `debug/report` request body: 256,000 bytes (otherwise `413`).
     - Default JSON bodies (e.g. note create): 512,000 bytes (otherwise `413`).
   contact:
@@ -286,6 +288,43 @@ paths:
                   note: { $ref: "#/components/schemas/Note" }
         "400":
           description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /notes/bulk:
+    post:
+      tags: [Notes]
+      summary: Create notes in bulk
+      description: |
+        Creates up to 100 notes in one request. Each item is validated independently and
+        the response contains per-item successes or failures. Rate limited 60/minute per
+        user+IP. Request body capped at 2,000,000 bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notes]
+              properties:
+                notes:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/NoteCreate" }
+      responses:
+        "200":
+          description: Bulk create result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkNotesResponse" }
+        "400":
+          description: Invalid request or too many items
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
@@ -677,6 +716,41 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /tags/bulk:
+    post:
+      tags: [Tags]
+      summary: Create tags in bulk
+      description: |
+        Creates up to 100 tags in one request. Each item is validated independently and
+        the response contains per-item successes or failures. Rate limited 60/minute per
+        user+IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tags]
+              properties:
+                tags:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/TagCreate" }
+      responses:
+        "200":
+          description: Bulk create result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkTagsResponse" }
+        "400":
+          description: Invalid request or too many items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /tags/{id}:
     parameters:
       - $ref: "#/components/parameters/TagId"
@@ -756,8 +830,10 @@ paths:
         tags, and note-tags; the server applies last-writer-wins merging (ownership-scoped),
         records the device's last sync time, and returns the active catalog. With an
         epoch/invalid `last_sync_at` the response is a `full` catalog; otherwise a `delta`
-        of rows changed since that time. Rate limited 30/minute per user+IP. Request body
-        capped at 5,000,000 bytes (otherwise `413`).
+        of rows changed since that time. `limit` and `cursor` page the returned catalog
+        while preserving the legacy one-response behavior when `limit` is omitted. Rate
+        limited 30/minute per user+IP. Request body capped at 5,000,000 bytes (otherwise
+        `413`).
       requestBody:
         required: true
         content:
@@ -1051,6 +1127,28 @@ components:
           type: ["string", "null"]
           format: date-time
           description: Send `null` to unpin.
+    BulkNotesResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            oneOf:
+              - type: object
+                required: [ok, note]
+                properties:
+                  ok: { type: boolean, const: true }
+                  note: { $ref: "#/components/schemas/Note" }
+              - type: object
+                required: [ok, index, error]
+                properties:
+                  ok: { type: boolean, const: false }
+                  index: { type: integer, minimum: 0 }
+                  error: { type: string }
+        created: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+      required: [results, created, failed]
     Reminder:
       type: object
       properties:
@@ -1143,6 +1241,28 @@ components:
           type: string
           minLength: 1
           maxLength: 40
+    BulkTagsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            oneOf:
+              - type: object
+                required: [ok, tag]
+                properties:
+                  ok: { type: boolean, const: true }
+                  tag: { $ref: "#/components/schemas/Tag" }
+              - type: object
+                required: [ok, index, error]
+                properties:
+                  ok: { type: boolean, const: false }
+                  index: { type: integer, minimum: 0 }
+                  error: { type: string }
+        created: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+      required: [results, created, failed]
     NoteTag:
       type: object
       properties:
@@ -1251,12 +1371,21 @@ components:
           maxItems: 10000
           default: []
           items: { $ref: "#/components/schemas/SyncNoteTag" }
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Optional page size for catalog rows returned by the sync response.
+        cursor:
+          type: string
+          description: Opaque cursor from the previous sync response.
     SyncResponse:
       type: object
       description: |
-        The full (or delta) active catalog after merging the uploaded dirty records. There
-        is no cursor pagination: a `full` sync returns every non-deleted row for the user,
-        and a `delta` sync returns every row changed since `last_sync_at` in one response.
+        The full (or delta) active catalog after merging the uploaded dirty records. When
+        `limit` is omitted, the response preserves the legacy behavior and returns all
+        eligible rows. When `limit` is present, `next_cursor` and `has_more` indicate
+        whether another page is available.
       properties:
         server_time: { type: string, format: date-time }
         sync_mode:
@@ -1274,7 +1403,13 @@ components:
         note_tags:
           type: array
           items: { $ref: "#/components/schemas/NoteTag" }
-      required: [server_time, sync_mode, notes, reminders, tags, note_tags]
+        next_cursor:
+          type: ["string", "null"]
+          description: Cursor to pass as `cursor` on the next paged sync request.
+        has_more:
+          type: boolean
+          description: True when more catalog rows are available after this page.
+      required: [server_time, sync_mode, notes, reminders, tags, note_tags, has_more]
     SyncStatusResponse:
       type: object
       properties:
