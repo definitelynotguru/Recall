@@ -21,15 +21,16 @@ private val RecallDark = darkColorScheme(
 )
 
 private val RecallLight = lightColorScheme(
-    primary = Color(0xFFA86542),
-    onPrimary = Color.White,
-    background = Color(0xFFF4F1EB),
-    onBackground = Color(0xFF1A1814),
-    surface = Color.White,
-    onSurface = Color(0xFF1A1814),
-    surfaceVariant = Color(0xFFEDE8E0),
-    onSurfaceVariant = Color(0xFF6B6560),
-    outline = Color(0x1A1A1814),
+    primary = RecallColors.Copper,
+    onPrimary = Color(0xFF020202),
+    background = Color(0xFFFAFAFA),
+    onBackground = Color(0xFF020202),
+    surface = Color(0xFFF6F1E7),
+    onSurface = Color(0xFF020202),
+    surfaceVariant = Color(0xFFD6D3D2),
+    onSurfaceVariant = Color(0xFF5C5855),
+    outline = Color(0xFFB8B3B0),
+    error = RecallColors.Error,
 )
 
 @Composable

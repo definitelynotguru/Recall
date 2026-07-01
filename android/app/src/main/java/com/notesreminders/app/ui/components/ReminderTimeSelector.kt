@@ -123,7 +123,7 @@ private fun TimeChip(
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = recallTimeFilterChipColors(),
     )
 }

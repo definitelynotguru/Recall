@@ -1,2 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources />
+<resources>
+    <color name="bg">#020202</color>
+    <color name="surface">#101010</color>
+    <color name="text">#EEEEEE</color>
+    <color name="text_muted">#8A8380</color>
+    <color name="accent">#EF6F2E</color>
+    <color name="accent_dark">#EE6018</color>
+    <color name="accent_deep">#D15010</color>
+    <color name="border">#3D3A39</color>
+    <color name="error">#D4726A</color>
+</resources>

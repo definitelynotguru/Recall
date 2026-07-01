@@ -247,7 +247,7 @@ private fun SwipeableNoteRow(
                 Modifier
                     .fillMaxSize()
                     .padding(vertical = 6.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(RecallColors.Error.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
