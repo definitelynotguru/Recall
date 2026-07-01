@@ -7,7 +7,9 @@ import {
   ArchiveBoxIcon,
   ArchiveTrayIcon,
   Eye,
+  Info,
   PencilSimple,
+  Question,
   Sparkle,
   Trash,
 } from "@phosphor-icons/react";
@@ -23,6 +25,8 @@ import { SyncHintBanner } from "@/components/SyncHintBanner";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
 import { WikiLinkAutocomplete } from "@/components/WikiLinkAutocomplete";
 import { Backlinks } from "@/components/Backlinks";
+import { NoteInfoPanel } from "@/components/NoteInfoPanel";
+import { MarkdownCheatSheet } from "@/components/MarkdownCheatSheet";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
@@ -72,6 +76,10 @@ export default function NoteDetailPage() {
   const [localSaveStatus, setLocalSaveStatus] = useState<
     "idle" | "pending" | "saved"
   >("idle");
+  const [showInfo, setShowInfo] = useState(false);
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [createdAt, setCreatedAt] = useState("");
+  const [updatedAt, setUpdatedAt] = useState("");
   const { user, loading: authLoading } = useAuth();
   const isLocal = !user;
   const { confirm } = useConfirm();
@@ -190,6 +198,8 @@ export default function NoteDetailPage() {
         setTitle(note.title);
         setBody(note.body);
         setNoteStatus(note.status === "archived" ? "archived" : "active");
+        setCreatedAt(note.created_at);
+        setUpdatedAt(note.updated_at);
         setReminders([]);
         const localNotes = await getLocalNotes();
         setAllNotes(localNotes);
@@ -202,6 +212,8 @@ export default function NoteDetailPage() {
       setTitle(res.note.title);
       setBody(res.note.body);
       setNoteStatus(res.note.status === "archived" ? "archived" : "active");
+      setCreatedAt(res.note.created_at);
+      setUpdatedAt(res.note.updated_at);
       setReminders(res.reminders.filter((r) => r.status === "active"));
       const [tagsRes, noteTagsRes, allNotesRes] = await Promise.all([
         apiFetch<{ tags: ApiTag[] }>("/tags"),
@@ -451,6 +463,22 @@ export default function NoteDetailPage() {
           <Eye size={18} />
           {preview ? "Edit" : "Preview"}
         </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setShowCheatSheet(true)}
+          aria-label="Markdown cheat sheet"
+        >
+          <Question size={18} />
+        </button>
+        <button
+          type="button"
+          className={`btn btn-secondary ${showInfo ? "active" : ""}`}
+          onClick={() => setShowInfo(!showInfo)}
+          aria-label="Note info"
+        >
+          <Info size={18} />
+        </button>
         <span className="save-status">
           {saveStatusLabel()}
           {saveStatus === "error" && (
@@ -520,6 +548,14 @@ export default function NoteDetailPage() {
       </div>
 
       <Backlinks notes={allNotes} currentTitle={title} />
+
+      {showInfo && (
+        <NoteInfoPanel
+          body={body}
+          createdAt={createdAt}
+          updatedAt={updatedAt}
+        />
+      )}
 
       {!isLocal && <NextNudgeCard reminder={nextReminder} scope="note" />}
 
@@ -636,6 +672,11 @@ export default function NoteDetailPage() {
         suggestions={detected}
         onClose={() => setDetectOpen(false)}
         onAdd={addDetectedReminders}
+      />
+
+      <MarkdownCheatSheet
+        open={showCheatSheet}
+        onClose={() => setShowCheatSheet(false)}
       />
     </RequireAuth>
   );
