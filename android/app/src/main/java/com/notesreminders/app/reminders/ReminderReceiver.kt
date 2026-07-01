@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.ZonedDateTime
+import java.time.ZoneId
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -26,7 +28,10 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 when (action) {
                     ACTION_DONE -> handleDone(context, reminderId)
-                    ACTION_SNOOZE -> handleSnooze(context, reminderId)
+                    ACTION_SNOOZE -> {
+                        val snoozeUntil = intent.getStringExtra(EXTRA_SNOOZE_UNTIL)
+                        handleSnooze(context, reminderId, snoozeUntil)
+                    }
                     else -> showNotification(context, reminderId, noteId)
                 }
             } finally {
@@ -82,6 +87,47 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // Smart snooze: +30 min
+        val snooze30Intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE
+            putExtra(EXTRA_REMINDER_ID, reminderId)
+            putExtra(EXTRA_NOTE_ID, noteId)
+            putExtra(EXTRA_SNOOZE_UNTIL, Instant.now().plusSeconds(1800).toString())
+        }
+        val snooze30Pending = PendingIntent.getBroadcast(
+            context,
+            (reminderId + "snooze30").hashCode(),
+            snooze30Intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        // Smart snooze: Tonight 7pm or Tomorrow 9am based on current time
+        val now = ZonedDateTime.now(ZoneId.systemDefault())
+        val isPast5pm = now.hour >= 17
+        val smartSnoozeTime = if (isPast5pm) {
+            now.withHour(19).withMinute(0).withSecond(0).withNano(0)
+                .let { if (it.isBefore(now)) it.plusDays(1) else it }
+        } else {
+            now.plusDays(1).withHour(9).withMinute(0).withSecond(0).withNano(0)
+        }
+        val smartSnoozeLabel = if (isPast5pm)
+            context.getString(R.string.action_snooze_tonight)
+        else
+            context.getString(R.string.action_snooze_tomorrow)
+
+        val smartSnoozeIntent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE
+            putExtra(EXTRA_REMINDER_ID, reminderId)
+            putExtra(EXTRA_NOTE_ID, noteId)
+            putExtra(EXTRA_SNOOZE_UNTIL, smartSnoozeTime.toInstant().toString())
+        }
+        val smartSnoozePending = PendingIntent.getBroadcast(
+            context,
+            (reminderId + "snooze_smart").hashCode(),
+            smartSnoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
@@ -91,6 +137,8 @@ class ReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setGroup(NotificationChannels.GROUP_KEY)
             .addAction(0, context.getString(R.string.action_done), donePending)
+            .addAction(0, context.getString(R.string.action_snooze_30m), snooze30Pending)
+            .addAction(0, smartSnoozeLabel, smartSnoozePending)
             .addAction(0, context.getString(R.string.action_snooze), snoozePending)
             .build()
 
@@ -149,9 +197,9 @@ class ReminderReceiver : BroadcastReceiver() {
         NotificationManagerCompat.from(context).cancel(reminderId.hashCode())
     }
 
-    private suspend fun handleSnooze(context: Context, reminderId: String) {
+    private suspend fun handleSnooze(context: Context, reminderId: String, snoozeUntilIso: String?) {
         val app = context.applicationContext as NotesApp
-        val snoozeUntil = java.time.Instant.now().plusSeconds(3600).toString()
+        val snoozeUntil = snoozeUntilIso ?: java.time.Instant.now().plusSeconds(3600).toString()
         app.notesRepository.snoozeReminder(reminderId, snoozeUntil)
         NotificationManagerCompat.from(context).cancel(reminderId.hashCode())
     }
@@ -163,6 +211,7 @@ class ReminderReceiver : BroadcastReceiver() {
     companion object {
         const val EXTRA_REMINDER_ID = "reminder_id"
         const val EXTRA_NOTE_ID = "note_id"
+        const val EXTRA_SNOOZE_UNTIL = "snooze_until"
         const val CHANNEL_ID = "reminders"
         const val ACTION_DONE = "com.notesreminders.app.ACTION_DONE"
         const val ACTION_SNOOZE = "com.notesreminders.app.ACTION_SNOOZE"

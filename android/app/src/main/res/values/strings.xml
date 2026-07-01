@@ -10,4 +10,7 @@
     <string name="notification_group_name">Recall</string>
     <string name="action_done">Done</string>
     <string name="action_snooze">Snooze 1h</string>
+    <string name="action_snooze_30m">+30 min</string>
+    <string name="action_snooze_tonight">Tonight 7pm</string>
+    <string name="action_snooze_tomorrow">Tomorrow 9am</string>
 </resources>
