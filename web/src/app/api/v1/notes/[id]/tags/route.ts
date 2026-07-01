@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
 import { noteTags, notes, tags } from "@/lib/db/schema";
 import { requireAuth, jsonResponse, errorResponse, toApiTag } from "@/lib/api-utils";
@@ -85,7 +84,7 @@ export async function PUT(
 
   for (const tagId of wanted) {
     await db.insert(noteTags).values({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       userId: user!.userId,
       noteId: id,
       tagId,

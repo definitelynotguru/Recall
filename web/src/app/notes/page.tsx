@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { v4 as uuidv4 } from "uuid";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -123,7 +122,7 @@ export default function NotesPage() {
       const res = await apiFetch<{ note: ApiNote }>("/notes", {
         method: "POST",
         body: JSON.stringify({
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           title: "Untitled",
           body: "",
         }),

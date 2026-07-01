@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { DownloadSimple, Copy, UploadSimple, Trash } from "@phosphor-icons/react";
 import {
   importBackup,
@@ -11,7 +12,6 @@ import {
   type BackupPreview,
 } from "@/lib/backup-import";
 import { RequireAuth } from "@/components/RequireAuth";
-import { ImportPreviewDialog } from "@/components/ImportPreviewDialog";
 import { SettingsSection } from "@/components/SettingsSection";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
@@ -23,6 +23,14 @@ import {
   type UserPrefs,
 } from "@/lib/user-prefs";
 import { useOnMount } from "@/hooks/useOnMount";
+
+const ImportPreviewDialog = dynamic(
+  () =>
+    import("@/components/ImportPreviewDialog").then(
+      (m) => m.ImportPreviewDialog,
+    ),
+  { ssr: false },
+);
 
 type SyncDevice = {
   device_id: string;

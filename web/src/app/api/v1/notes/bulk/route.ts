@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
 import { notes } from "@/lib/db/schema";
 import {
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
     const item = itemParse.data;
     const now = new Date();
-    const id = item.id ?? uuidv4();
+    const id = item.id ?? crypto.randomUUID();
     const pinnedAt = item.pinned_at ? new Date(item.pinned_at) : null;
     try {
       const [row] = await db

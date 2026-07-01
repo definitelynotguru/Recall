@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
 import { notes, reminders } from "@/lib/db/schema";
 import {
@@ -55,7 +54,7 @@ export async function POST(
   if (!note) return errorResponse("Note not found", 404);
 
   const now = new Date();
-  const id = body.id ?? uuidv4();
+  const id = body.id ?? crypto.randomUUID();
 
   const [row] = await db
     .insert(reminders)

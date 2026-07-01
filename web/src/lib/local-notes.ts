@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+
 import type { ApiNote } from "./api-client";
 
 const DB_NAME = "recall-local";
@@ -100,7 +100,7 @@ export async function countLocalNotes(): Promise<number> {
 export function createLocalNote(): ApiNote {
   const now = new Date().toISOString();
   return {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     title: "",
     body: "",
     status: "active",

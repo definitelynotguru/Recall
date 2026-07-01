@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Check, Clock, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
-import { ReminderDialog } from "@/components/ReminderDialog";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
@@ -14,6 +14,11 @@ import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { pickNextReminder } from "@/lib/reminder-detect";
 import { apiFetch, ApiReminder } from "@/lib/api-client";
 import { groupRemindersByDay } from "@/lib/reminder-utils";
+
+const ReminderDialog = dynamic(
+  () => import("@/components/ReminderDialog").then((m) => m.ReminderDialog),
+  { ssr: false },
+);
 
 function snoozeFireAt(minutes: number) {
   const d = new Date();

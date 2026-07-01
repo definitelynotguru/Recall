@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,18 +16,11 @@ import {
 } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
-import { DetectedRemindersDialog } from "@/components/DetectedRemindersDialog";
-import { ReminderDialog } from "@/components/ReminderDialog";
-import { MarkdownView } from "@/components/MarkdownView";
 import { MarkdownToolbar } from "@/components/MarkdownToolbar";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
-import { WikiLinkAutocomplete } from "@/components/WikiLinkAutocomplete";
-import { Backlinks } from "@/components/Backlinks";
-import { NoteInfoPanel } from "@/components/NoteInfoPanel";
-import { MarkdownCheatSheet } from "@/components/MarkdownCheatSheet";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
@@ -46,6 +40,41 @@ import {
   putLocalNote,
 } from "@/lib/local-notes";
 import { buildTitleToIdMap } from "@/lib/wiki-links";
+
+const MarkdownView = dynamic(
+  () => import("@/components/MarkdownView").then((m) => m.MarkdownView),
+  { ssr: false },
+);
+const DetectedRemindersDialog = dynamic(
+  () =>
+    import("@/components/DetectedRemindersDialog").then(
+      (m) => m.DetectedRemindersDialog,
+    ),
+  { ssr: false },
+);
+const ReminderDialog = dynamic(
+  () => import("@/components/ReminderDialog").then((m) => m.ReminderDialog),
+  { ssr: false },
+);
+const WikiLinkAutocomplete = dynamic(
+  () =>
+    import("@/components/WikiLinkAutocomplete").then(
+      (m) => m.WikiLinkAutocomplete,
+    ),
+  { ssr: false },
+);
+const Backlinks = dynamic(
+  () => import("@/components/Backlinks").then((m) => m.Backlinks),
+  { ssr: false },
+);
+const NoteInfoPanel = dynamic(
+  () => import("@/components/NoteInfoPanel").then((m) => m.NoteInfoPanel),
+  { ssr: false },
+);
+const MarkdownCheatSheet = dynamic(
+  () => import("@/components/MarkdownCheatSheet").then((m) => m.MarkdownCheatSheet),
+  { ssr: false },
+);
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -94,6 +123,8 @@ export default function NoteDetailPage() {
   const lastSaveStatus = useRef(saveStatus);
   const localSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const localLoaded = useRef(false);
+  const allNotesLoading = useRef(false);
+  const allNotesLoaded = useRef(false);
 
   const titleToIdMap = useMemo(
     () => buildTitleToIdMap(allNotes),
@@ -160,6 +191,7 @@ export default function NoteDetailPage() {
         !textAfterBracket.includes("\n")
       ) {
         const rect = el.getBoundingClientRect();
+        void ensureAllNotes();
         setWikiAc({
           query: textAfterBracket,
           position: { top: rect.bottom + 4, left: rect.left },
@@ -189,7 +221,7 @@ export default function NoteDetailPage() {
   const load = useCallback(async () => {
     try {
       if (isLocal) {
-        const note = await getLocalNote(id);
+        const [note] = await Promise.all([getLocalNote(id)]);
         if (!note) {
           setLoadError("Note not found");
           return;
@@ -201,28 +233,22 @@ export default function NoteDetailPage() {
         setCreatedAt(note.created_at);
         setUpdatedAt(note.updated_at);
         setReminders([]);
-        const localNotes = await getLocalNotes();
-        setAllNotes(localNotes);
         return;
       }
-      const res = await apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(
-        `/notes/${id}`,
-      );
-      setLoadError("");
-      setTitle(res.note.title);
-      setBody(res.note.body);
-      setNoteStatus(res.note.status === "archived" ? "archived" : "active");
-      setCreatedAt(res.note.created_at);
-      setUpdatedAt(res.note.updated_at);
-      setReminders(res.reminders.filter((r) => r.status === "active"));
-      const [tagsRes, noteTagsRes, allNotesRes] = await Promise.all([
+      const [noteRes, tagsRes, noteTagsRes] = await Promise.all([
+        apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(`/notes/${id}`),
         apiFetch<{ tags: ApiTag[] }>("/tags"),
         apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`),
-        apiFetch<{ notes: ApiNote[] }>("/notes?limit=all"),
       ]);
+      setLoadError("");
+      setTitle(noteRes.note.title);
+      setBody(noteRes.note.body);
+      setNoteStatus(noteRes.note.status === "archived" ? "archived" : "active");
+      setCreatedAt(noteRes.note.created_at);
+      setUpdatedAt(noteRes.note.updated_at);
+      setReminders(noteRes.reminders.filter((r) => r.status === "active"));
       setAllTags(tagsRes.tags);
       setNoteTags(noteTagsRes.tags);
-      setAllNotes(allNotesRes.notes);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load note";
       setLoadError(message);
@@ -233,6 +259,26 @@ export default function NoteDetailPage() {
       setLoading(false);
     }
   }, [id, router, isLocal]);
+
+  const ensureAllNotes = useCallback(async () => {
+    if (allNotesLoaded.current || allNotesLoading.current) return;
+    allNotesLoading.current = true;
+    try {
+      if (isLocal) {
+        setAllNotes(await getLocalNotes());
+      } else {
+        const res = await apiFetch<{ notes: ApiNote[] }>("/notes?limit=all");
+        setAllNotes(res.notes);
+      }
+      allNotesLoaded.current = true;
+    } finally {
+      allNotesLoading.current = false;
+    }
+  }, [isLocal]);
+
+  useEffect(() => {
+    if (!loading && !loadError) void ensureAllNotes();
+  }, [loading, loadError, ensureAllNotes]);
 
   useOnMount(() => {
     if (!authLoading) void load();

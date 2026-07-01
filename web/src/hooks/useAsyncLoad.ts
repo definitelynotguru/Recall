@@ -25,24 +25,21 @@ export function useAsyncLoad(loadFn: () => Promise<void>, deps: unknown[]) {
 
   useEffect(() => {
     let cancelled = false;
-    const id = window.setTimeout(() => {
-      void (async () => {
-        setLoading(true);
-        setError("");
-        try {
-          await loadRef.current();
-        } catch (e) {
-          if (!cancelled) {
-            setError(e instanceof Error ? e.message : "Something went wrong");
-          }
-        } finally {
-          if (!cancelled) setLoading(false);
+    void (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        await loadRef.current();
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Something went wrong");
         }
-      })();
-    }, 0);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => {
       cancelled = true;
-      window.clearTimeout(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- caller supplies deps
   }, [reload, ...deps]);
