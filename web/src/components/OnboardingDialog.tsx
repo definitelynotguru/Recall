@@ -43,21 +43,21 @@ export function OnboardingDialog({ open, onClose }: Props) {
 
         <ol className="onboarding-steps">
           <li>
-            <NotePencil size={22} color="var(--copper)" />
+            <NotePencil size={22} color="var(--accent)" />
             <div>
               <strong>Write notes</strong>
               <p>Markdown on web or phone. Dates can live in the title or body.</p>
             </div>
           </li>
           <li>
-            <Sparkle size={22} color="var(--copper)" />
+            <Sparkle size={22} color="var(--accent)" />
             <div>
               <strong>Fetch reminders</strong>
               <p>We detect birthdays, meetings, and Day/Month/Year blocks — smart repeats included.</p>
             </div>
           </li>
           <li>
-            <DeviceMobile size={22} color="var(--copper)" />
+            <DeviceMobile size={22} color="var(--accent)" />
             <div>
               <strong>Sync on Android</strong>
               <p>

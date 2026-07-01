@@ -84,7 +84,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         >
           <p
             id="confirm-message"
-            style={{ margin: 0, color: "var(--parchment-muted)", fontSize: "0.95rem" }}
+            style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.95rem" }}
           >
             {options.message}
           </p>

@@ -57,7 +57,7 @@ export default function LoginPage() {
             fontSize: "0.7rem",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "var(--copper)",
+            color: "var(--accent)",
             margin: "0 0 24px",
           }}
         >
@@ -84,7 +84,7 @@ export default function LoginPage() {
           >
             {mode === "login" ? "Welcome back" : "Create your vault"}
           </h2>
-          <p style={{ color: "var(--parchment-muted)", margin: "0 0 28px", fontSize: "0.9rem" }}>
+          <p style={{ color: "var(--text-muted)", margin: "0 0 28px", fontSize: "0.9rem" }}>
             Syncs across web and your phone.
           </p>
 

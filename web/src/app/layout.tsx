@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Syne, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
+import { Syne, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
@@ -13,14 +13,14 @@ const syne = Syne({
   weight: ["500", "600", "700", "800"],
 });
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-source",
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
 });
 
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
 });
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f0e0c",
+  themeColor: "#020202",
 };
 
 export default function RootLayout({
@@ -50,7 +50,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${sourceSans.variable} ${plexMono.variable}`}
+      className={`${syne.variable} ${geist.variable} ${geistMono.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

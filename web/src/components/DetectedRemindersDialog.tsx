@@ -96,10 +96,10 @@ function DetectedRemindersDialogContent({
                 gap: 8,
               }}
             >
-              <Sparkle size={22} weight="duotone" color="var(--copper)" />
+              <Sparkle size={22} weight="duotone" color="var(--accent)" />
               Detected reminders
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--parchment-muted)" }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               We read dates and times in your note and guessed smart repeats (e.g.
               birthdays → yearly).
             </p>
@@ -110,7 +110,7 @@ function DetectedRemindersDialogContent({
         </div>
 
         {suggestions.length === 0 ? (
-          <p style={{ color: "var(--parchment-muted)", margin: "0 0 20px" }}>
+          <p style={{ color: "var(--text-muted)", margin: "0 0 20px" }}>
             No dates or times found. Try lines like{" "}
             <code style={{ fontSize: "0.8rem" }}>Day: 22 · Month: October · Year: 2026</code>{" "}
             or <code style={{ fontSize: "0.8rem" }}>tomorrow at 9am</code> /{" "}
@@ -149,7 +149,7 @@ function DetectedRemindersDialogContent({
                       style={{
                         margin: "8px 0 0",
                         fontSize: "0.8rem",
-                        color: "var(--parchment-muted)",
+                        color: "var(--text-muted)",
                       }}
                     >
                       {s.reason}

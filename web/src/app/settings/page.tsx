@@ -437,7 +437,7 @@ export default function SettingsPage() {
                     style={{
                       marginTop: 10,
                       padding: 12,
-                      background: "var(--ink-elevated)",
+                      background: "var(--surface)",
                       borderRadius: 8,
                       fontSize: "0.72rem",
                       overflow: "auto",
