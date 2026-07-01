@@ -130,6 +130,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setColor(0xFFEF6F2E.toInt())
             .setContentTitle(title)
             .setContentText(body.ifBlank { "Tap to open note" })
             .setContentIntent(openPending)

@@ -13,7 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.theme.RecallColors
 
-val RecallShapeLg = RoundedCornerShape(24.dp)
+val RecallShapeLg = RoundedCornerShape(12.dp)
 
 @Composable
 fun RecallPanel(
