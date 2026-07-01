@@ -16,6 +16,7 @@ import {
   setAccessToken,
 } from "@/lib/api-client";
 import { clearOnboardingDone, isOnboardingDone } from "@/lib/user-prefs";
+import { getLocalNotes, clearLocalNotes } from "@/lib/local-notes";
 import { OnboardingDialog } from "./OnboardingDialog";
 
 type User = { id: string; email: string };
@@ -91,6 +92,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [user]);
 
+  const migrateLocalNotes = useCallback(async () => {
+    try {
+      const localNotes = await getLocalNotes();
+      if (localNotes.length === 0) return 0;
+      for (const note of localNotes) {
+        await apiFetch("/notes", {
+          method: "POST",
+          body: JSON.stringify({
+            id: note.id,
+            title: note.title,
+            body: note.body,
+            status: note.status,
+            pinned_at: note.pinned_at,
+          }),
+        });
+      }
+      await clearLocalNotes();
+      return localNotes.length;
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const login = async (email: string, password: string) => {
     const res = await fetch("/api/v1/auth/login", {
       method: "POST",
@@ -102,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) throw new Error(data.error ?? "Login failed");
     setAccessToken(data.access_token);
     setUser(data.user);
+    await migrateLocalNotes();
     if (!isOnboardingDone()) setShowOnboarding(true);
   };
 
@@ -124,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) throw new Error(data.error ?? "Registration failed");
     setAccessToken(data.access_token);
     setUser(data.user);
+    await migrateLocalNotes();
     setShowOnboarding(true);
   };
 

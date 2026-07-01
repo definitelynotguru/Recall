@@ -5,10 +5,16 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { AppNav } from "./AppNav";
 
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+export function RequireAuth({
+  children,
+  allowLocal = false,
+}: {
+  children: React.ReactNode;
+  allowLocal?: boolean;
+}) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const redirecting = !loading && !user;
+  const redirecting = !loading && !user && !allowLocal;
 
   useEffect(() => {
     if (redirecting) {
@@ -16,7 +22,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     }
   }, [redirecting, router]);
 
-  if (loading || redirecting || !user) {
+  if (loading || redirecting) {
     return (
       <div className="app-layout">
         <main className="main-content">

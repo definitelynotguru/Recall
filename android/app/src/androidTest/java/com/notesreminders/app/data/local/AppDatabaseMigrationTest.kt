@@ -165,8 +165,31 @@ class AppDatabaseMigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrate1To7FreshUpgrade() {
-        helper.createDatabase("m17", 1).apply {
+    fun migrate7To8AddsReminderModeColumns() {
+        helper.createDatabase("m78", 7).apply {
+            execSQL(
+                "INSERT INTO reminders (id, userId, noteId, fireAt, timezone, repeatRule, " +
+                    "intensity, status, completedAt, createdAt, updatedAt, deletedAt, isDirty) " +
+                    "VALUES ('r1', 'u1', 'n1', '2026-01-01T00:00:00Z', 'UTC', NULL, 'gentle', " +
+                    "'active', NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL, 0)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m78", 8, false, AppDatabase.MIGRATION_7_8)
+        val cols = columnsOf(db, "reminders")
+        assertTrue(cols.contains("reminderMode"))
+        assertTrue(cols.contains("nagIntervalMinutes"))
+        val c = db.query("SELECT intensity FROM reminders WHERE id = 'r1'")
+        assertTrue(c.moveToFirst())
+        assertTrue(c.getString(0) == "gentle")
+        c.close()
+        db.close()
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate1To8FreshUpgrade() {
+        helper.createDatabase("m18", 1).apply {
             execSQL(
                 "CREATE TABLE notes (id TEXT NOT NULL PRIMARY KEY, userId TEXT NOT NULL, " +
                     "title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, " +
@@ -180,8 +203,8 @@ class AppDatabaseMigrationTest {
             close()
         }
         val db = helper.runMigrationsAndValidate(
-            "m17",
-            7,
+            "m18",
+            8,
             false,
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
@@ -189,9 +212,12 @@ class AppDatabaseMigrationTest {
             AppDatabase.MIGRATION_4_5,
             AppDatabase.MIGRATION_5_6,
             AppDatabase.MIGRATION_6_7,
+            AppDatabase.MIGRATION_7_8,
         )
         assertTrue(columnsOf(db, "notes").contains("pinnedAt"))
         assertTrue(columnsOf(db, "sync_errors").contains("payload"))
+        assertTrue(columnsOf(db, "reminders").contains("reminderMode"))
+        assertTrue(columnsOf(db, "reminders").contains("nagIntervalMinutes"))
         assertTrue(tableExists(db, "tags"))
         assertTrue(tableExists(db, "note_tags"))
         assertTrue(tableExists(db, "note_conflicts"))

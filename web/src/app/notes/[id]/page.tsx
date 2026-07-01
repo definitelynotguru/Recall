@@ -20,6 +20,9 @@ import { MarkdownToolbar } from "@/components/MarkdownToolbar";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
+import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
+import { WikiLinkAutocomplete } from "@/components/WikiLinkAutocomplete";
+import { Backlinks } from "@/components/Backlinks";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
@@ -32,6 +35,13 @@ import {
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
 import { useOnMount } from "@/hooks/useOnMount";
 import { loadUserPrefs } from "@/lib/user-prefs";
+import {
+  deleteLocalNote,
+  getLocalNote,
+  getLocalNotes,
+  putLocalNote,
+} from "@/lib/local-notes";
+import { buildTitleToIdMap } from "@/lib/wiki-links";
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -53,12 +63,34 @@ export default function NoteDetailPage() {
   const [newTagName, setNewTagName] = useState("");
   const [fetching, setFetching] = useState(false);
   const [showSyncBanner, setShowSyncBanner] = useState(false);
-  const { loading: authLoading } = useAuth();
+  const [allNotes, setAllNotes] = useState<ApiNote[]>([]);
+  const [wikiAc, setWikiAc] = useState<{
+    query: string;
+    position: { top: number; left: number };
+    insertOffset: number;
+  } | null>(null);
+  const [localSaveStatus, setLocalSaveStatus] = useState<
+    "idle" | "pending" | "saved"
+  >("idle");
+  const { user, loading: authLoading } = useAuth();
+  const isLocal = !user;
   const { confirm } = useConfirm();
   const { toast } = useToast();
-  const { status: saveStatus, flush, retry } = useDebouncedNoteSave(id, title, body);
+  const { status: saveStatus, flush, retry } = useDebouncedNoteSave(
+    id,
+    title,
+    body,
+    !isLocal,
+  );
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const lastSaveStatus = useRef(saveStatus);
+  const localSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localLoaded = useRef(false);
+
+  const titleToIdMap = useMemo(
+    () => buildTitleToIdMap(allNotes),
+    [allNotes],
+  );
 
   useEffect(() => {
     if (saveStatus === "error" && lastSaveStatus.current !== "error") {
@@ -72,8 +104,97 @@ export default function NoteDetailPage() {
     lastSaveStatus.current = saveStatus;
   }, [saveStatus, retry, toast]);
 
+  // Debounced save to IndexedDB in local mode
+  useEffect(() => {
+    if (!isLocal) {
+      localLoaded.current = false;
+      return;
+    }
+    if (!localLoaded.current) {
+      localLoaded.current = true;
+      return;
+    }
+    setLocalSaveStatus("pending");
+    if (localSaveTimer.current) clearTimeout(localSaveTimer.current);
+    localSaveTimer.current = setTimeout(() => {
+      void (async () => {
+        const existing = await getLocalNote(id);
+        if (!existing) return;
+        await putLocalNote({
+          ...existing,
+          title,
+          body,
+          updated_at: new Date().toISOString(),
+        });
+        setLocalSaveStatus("saved");
+      })();
+    }, 700);
+    return () => {
+      if (localSaveTimer.current) clearTimeout(localSaveTimer.current);
+    };
+  }, [isLocal, id, title, body]);
+
+  const handleBodyChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    const newValue = e.target.value;
+    setBody(newValue);
+
+    const el = e.target;
+    const cursorPos = el.selectionStart;
+    const textBeforeCursor = newValue.slice(0, cursorPos);
+    const lastBracket = textBeforeCursor.lastIndexOf("[[");
+
+    if (lastBracket !== -1) {
+      const textAfterBracket = textBeforeCursor.slice(lastBracket + 2);
+      if (
+        !textAfterBracket.includes("]]") &&
+        !textAfterBracket.includes("\n")
+      ) {
+        const rect = el.getBoundingClientRect();
+        setWikiAc({
+          query: textAfterBracket,
+          position: { top: rect.bottom + 4, left: rect.left },
+          insertOffset: lastBracket,
+        });
+        return;
+      }
+    }
+    setWikiAc(null);
+  };
+
+  const handleWikiSelect = (note: { id: string; title: string }) => {
+    if (!wikiAc) return;
+    const linkText = `[[${note.title}]]`;
+    const start = wikiAc.insertOffset;
+    const end = start + 2 + wikiAc.query.length;
+    const newBody = body.slice(0, start) + linkText + body.slice(end);
+    setBody(newBody);
+    setWikiAc(null);
+    const newCursorPos = start + linkText.length;
+    requestAnimationFrame(() => {
+      bodyRef.current?.focus();
+      bodyRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    });
+  };
+
   const load = useCallback(async () => {
     try {
+      if (isLocal) {
+        const note = await getLocalNote(id);
+        if (!note) {
+          setLoadError("Note not found");
+          return;
+        }
+        setLoadError("");
+        setTitle(note.title);
+        setBody(note.body);
+        setNoteStatus(note.status === "archived" ? "archived" : "active");
+        setReminders([]);
+        const localNotes = await getLocalNotes();
+        setAllNotes(localNotes);
+        return;
+      }
       const res = await apiFetch<{ note: ApiNote; reminders: ApiReminder[] }>(
         `/notes/${id}`,
       );
@@ -82,12 +203,14 @@ export default function NoteDetailPage() {
       setBody(res.note.body);
       setNoteStatus(res.note.status === "archived" ? "archived" : "active");
       setReminders(res.reminders.filter((r) => r.status === "active"));
-      const [tagsRes, noteTagsRes] = await Promise.all([
+      const [tagsRes, noteTagsRes, allNotesRes] = await Promise.all([
         apiFetch<{ tags: ApiTag[] }>("/tags"),
         apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`),
+        apiFetch<{ notes: ApiNote[] }>("/notes?limit=all"),
       ]);
       setAllTags(tagsRes.tags);
       setNoteTags(noteTagsRes.tags);
+      setAllNotes(allNotesRes.notes);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load note";
       setLoadError(message);
@@ -97,13 +220,23 @@ export default function NoteDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, router]);
+  }, [id, router, isLocal]);
 
   useOnMount(() => {
     if (!authLoading) void load();
   });
 
   const saveStatusLabel = () => {
+    if (isLocal) {
+      switch (localSaveStatus) {
+        case "pending":
+          return "Unsaved changes…";
+        case "saved":
+          return "Saved";
+        default:
+          return "";
+      }
+    }
     switch (saveStatus) {
       case "pending":
         return "Unsaved changes…";
@@ -120,6 +253,12 @@ export default function NoteDetailPage() {
 
   const performDelete = async () => {
     try {
+      if (isLocal) {
+        await deleteLocalNote(id);
+        toast("Note deleted");
+        router.push("/notes");
+        return;
+      }
       await apiFetch(`/notes/${id}`, { method: "DELETE" });
       toast("Note deleted");
       router.push("/notes");
@@ -147,6 +286,18 @@ export default function NoteDetailPage() {
   const toggleArchive = async () => {
     const next = noteStatus === "archived" ? "active" : "archived";
     try {
+      if (isLocal) {
+        const existing = await getLocalNote(id);
+        if (!existing) return;
+        await putLocalNote({
+          ...existing,
+          status: next,
+          updated_at: new Date().toISOString(),
+        });
+        setNoteStatus(next);
+        toast(next === "archived" ? "Note archived" : "Note restored");
+        return;
+      }
       await apiFetch(`/notes/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
@@ -259,7 +410,7 @@ export default function NoteDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <RequireAuth>
+      <RequireAuth allowLocal>
         <div className="skeleton" style={{ height: 120 }} />
         <div className="skeleton" />
       </RequireAuth>
@@ -268,7 +419,7 @@ export default function NoteDetailPage() {
 
   if (loadError) {
     return (
-      <RequireAuth>
+      <RequireAuth allowLocal>
         <div className="empty-state">
           <p>{loadError}</p>
           <button type="button" className="btn btn-secondary" onClick={() => void load()}>
@@ -288,7 +439,9 @@ export default function NoteDetailPage() {
   }
 
   return (
-    <RequireAuth>
+    <RequireAuth allowLocal>
+      {isLocal && <LocalOnlyBanner />}
+
       <div className="toolbar">
         <button type="button" className="btn btn-secondary" onClick={() => router.back()}>
           <ArrowLeft size={18} />
@@ -341,7 +494,7 @@ export default function NoteDetailPage() {
         </div>
 
         {preview ? (
-          <MarkdownView content={body} />
+          <MarkdownView content={body} noteTitles={titleToIdMap} />
         ) : (
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="body">Body — Markdown</label>
@@ -351,101 +504,118 @@ export default function NoteDetailPage() {
               ref={bodyRef}
               className="mono"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={handleBodyChange}
             />
+            {wikiAc && (
+              <WikiLinkAutocomplete
+                notes={allNotes}
+                query={wikiAc.query}
+                position={wikiAc.position}
+                onSelect={handleWikiSelect}
+                onClose={() => setWikiAc(null)}
+              />
+            )}
           </div>
         )}
       </div>
 
-      <NextNudgeCard reminder={nextReminder} scope="note" />
+      <Backlinks notes={allNotes} currentTitle={title} />
 
-      <div className="panel panel-pad" style={{ marginBottom: 28 }}>
-        <h2 className="settings-heading">Tags</h2>
-        <div className="tag-picker">
-          {allTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              className={`chip tag-chip ${selectedTagIds.has(tag.id) ? "selected" : ""}`}
-              onClick={() => {
-                const next = selectedTagIds.has(tag.id)
-                  ? [...selectedTagIds].filter((id) => id !== tag.id)
-                  : [...selectedTagIds, tag.id];
-                setNoteTagIds(next);
-              }}
-            >
-              {tag.name}
+      {!isLocal && <NextNudgeCard reminder={nextReminder} scope="note" />}
+
+      {!isLocal && (
+        <div className="panel panel-pad" style={{ marginBottom: 28 }}>
+          <h2 className="settings-heading">Tags</h2>
+          <div className="tag-picker">
+            {allTags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={`chip tag-chip ${selectedTagIds.has(tag.id) ? "selected" : ""}`}
+                onClick={() => {
+                  const next = selectedTagIds.has(tag.id)
+                    ? [...selectedTagIds].filter((id) => id !== tag.id)
+                    : [...selectedTagIds, tag.id];
+                  setNoteTagIds(next);
+                }}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+          <div className="reminder-actions-row" style={{ marginTop: 12 }}>
+            <input
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="New tag"
+              maxLength={40}
+            />
+            <button type="button" className="btn btn-secondary" onClick={createTag}>
+              Add tag
             </button>
-          ))}
+          </div>
         </div>
-        <div className="reminder-actions-row" style={{ marginTop: 12 }}>
-          <input
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            placeholder="New tag"
-            maxLength={40}
-          />
-          <button type="button" className="btn btn-secondary" onClick={createTag}>
-            Add tag
-          </button>
-        </div>
-      </div>
+      )}
 
-      <header className="page-header" style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: "1.35rem" }}>Reminders</h1>
-      </header>
+      {!isLocal && (
+        <>
+          <header className="page-header" style={{ marginBottom: 20 }}>
+            <h1 style={{ fontSize: "1.35rem" }}>Reminders</h1>
+          </header>
 
-      {showSyncBanner && <SyncHintBanner />}
+          {showSyncBanner && <SyncHintBanner />}
 
-      <div className="reminder-actions-row">
-        <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
-          Add reminder
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={fetchReminders}
-          disabled={fetching}
-        >
-          <Sparkle size={18} weight="duotone" />
-          {fetching ? "Scanning…" : "Fetch reminders"}
-        </button>
-      </div>
+          <div className="reminder-actions-row">
+            <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
+              Add reminder
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={fetchReminders}
+              disabled={fetching}
+            >
+              <Sparkle size={18} weight="duotone" />
+              {fetching ? "Scanning…" : "Fetch reminders"}
+            </button>
+          </div>
 
-      <div style={{ marginTop: 20 }}>
-        {reminders.length === 0 ? (
-          <p style={{ color: "var(--parchment-muted)", fontSize: "0.9rem" }}>
-            No reminders on this note yet.
-          </p>
-        ) : (
-          reminders.map((r) => (
-            <div key={r.id} className="reminder-row">
-              <div>
-                <ReminderMeta fireAt={r.fire_at} repeatRule={r.repeat_rule} />
-              </div>
-              <div className="reminder-row-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => openEditDialog(r)}
-                  aria-label="Edit reminder"
-                >
-                  <PencilSimple size={16} />
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => deleteReminder(r.id)}
-                  aria-label="Delete reminder"
-                >
-                  <Trash size={16} />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+          <div style={{ marginTop: 20 }}>
+            {reminders.length === 0 ? (
+              <p style={{ color: "var(--parchment-muted)", fontSize: "0.9rem" }}>
+                No reminders on this note yet.
+              </p>
+            ) : (
+              reminders.map((r) => (
+                <div key={r.id} className="reminder-row">
+                  <div>
+                    <ReminderMeta fireAt={r.fire_at} repeatRule={r.repeat_rule} />
+                  </div>
+                  <div className="reminder-row-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => openEditDialog(r)}
+                      aria-label="Edit reminder"
+                    >
+                      <PencilSimple size={16} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => deleteReminder(r.id)}
+                      aria-label="Delete reminder"
+                    >
+                      <Trash size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
 
       <ReminderDialog
         noteId={id}

@@ -66,6 +66,8 @@ export function toApiReminder(row: {
   timezone: string;
   repeatRule: string | null;
   intensity: string;
+  reminderMode: string;
+  nagIntervalMinutes: number | null;
   status: string;
   completedAt: Date | null;
   createdAt: Date;
@@ -81,6 +83,8 @@ export function toApiReminder(row: {
     timezone: row.timezone,
     repeat_rule: row.repeatRule,
     intensity: row.intensity,
+    reminder_mode: row.reminderMode,
+    nag_interval_minutes: row.nagIntervalMinutes,
     status: row.status,
     completed_at: row.completedAt?.toISOString() ?? null,
     created_at: row.createdAt.toISOString(),

@@ -55,6 +55,8 @@ export const reminders = pgTable(
     timezone: text("timezone").notNull().default("UTC"),
     repeatRule: text("repeat_rule"),
     intensity: text("intensity").notNull().default("gentle"),
+    reminderMode: text("reminder_mode").notNull().default("once"),
+    nagIntervalMinutes: integer("nag_interval_minutes"),
     status: text("status").notNull().default("active"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

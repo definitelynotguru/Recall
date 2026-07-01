@@ -5,7 +5,12 @@ import { apiFetch } from "@/lib/api-client";
 
 type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
-export function useDebouncedNoteSave(noteId: string, title: string, body: string) {
+export function useDebouncedNoteSave(
+  noteId: string,
+  title: string,
+  body: string,
+  enabled = true,
+) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const latest = useRef({ title, body });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,7 +21,7 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
   }, [title, body]);
 
   const flush = useCallback(async () => {
-    if (!noteId) return false;
+    if (!noteId || !enabled) return false;
     const { title: t, body: b } = latest.current;
     setStatus("saving");
     try {
@@ -30,10 +35,10 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
       setStatus("error");
       return false;
     }
-  }, [noteId]);
+  }, [noteId, enabled]);
 
   useEffect(() => {
-    if (!noteId) return;
+    if (!noteId || !enabled) return;
     if (!loaded.current) {
       loaded.current = true;
       return;
@@ -48,7 +53,7 @@ export function useDebouncedNoteSave(noteId: string, title: string, body: string
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [noteId, title, body, flush]);
+  }, [noteId, title, body, flush, enabled]);
 
   useEffect(() => {
     return () => {

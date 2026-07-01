@@ -97,7 +97,13 @@ export function ReminderDialog({
 function initialReminderFields(reminder?: ApiReminder | null) {
   if (reminder) {
     const { date, time } = fireAtToLocalFields(reminder.fire_at);
-    return { date, time, repeat: reminder.repeat_rule ?? "" };
+    return {
+      date,
+      time,
+      repeat: reminder.repeat_rule ?? "",
+      reminderMode: reminder.reminder_mode ?? "once",
+      nagIntervalMinutes: reminder.nag_interval_minutes ?? 5,
+    };
   }
 
   const prefs = loadUserPrefs();
@@ -108,6 +114,8 @@ function initialReminderFields(reminder?: ApiReminder | null) {
     date: `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`,
     time: `${pad(prefs.defaultReminderHour)}:${pad(prefs.defaultReminderMinute)}`,
     repeat: "",
+    reminderMode: "once",
+    nagIntervalMinutes: 5,
   };
 }
 
@@ -125,6 +133,10 @@ function ReminderDialogContent({
   const [repeat, setRepeat] = useState(initial.repeat);
   const [repeatPreset, setRepeatPreset] = useState<string>(() =>
     resolveRepeatPreset(initial.repeat),
+  );
+  const [reminderMode, setReminderMode] = useState(initial.reminderMode);
+  const [nagIntervalMinutes, setNagIntervalMinutes] = useState(
+    initial.nagIntervalMinutes,
   );
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -150,6 +162,9 @@ function ReminderDialogContent({
         fire_at: local.toISOString(),
         timezone: tz,
         repeat_rule: repeat || null,
+        reminder_mode: reminderMode,
+        nag_interval_minutes:
+          reminderMode === "persistent" ? nagIntervalMinutes : null,
       };
       if (isEdit && reminder) {
         await apiFetch<{ reminder: ApiReminder }>(`/reminders/${reminder.id}`, {
@@ -317,6 +332,30 @@ function ReminderDialogContent({
             <p className="settings-muted" style={{ margin: "8px 0 0", fontSize: "0.82rem" }}>
               {formatRepeatLabel(repeat)}
             </p>
+          )}
+        </div>
+        <div className="field">
+          <label htmlFor="r-mode">Reminder mode</label>
+          <select
+            id="r-mode"
+            value={reminderMode}
+            onChange={(e) => setReminderMode(e.target.value)}
+          >
+            <option value="once">Once</option>
+            <option value="persistent">Persistent (nag)</option>
+            <option value="deadline">Deadline</option>
+          </select>
+          {reminderMode === "persistent" && (
+            <input
+              id="r-nag-interval"
+              type="number"
+              min={1}
+              max={1440}
+              value={nagIntervalMinutes}
+              onChange={(e) => setNagIntervalMinutes(Number(e.target.value))}
+              placeholder="Nag interval (minutes)"
+              style={{ marginTop: 10 }}
+            />
           )}
         </div>
         {error && <p className="error-text">{error}</p>}

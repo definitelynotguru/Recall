@@ -18,6 +18,8 @@ export type SyncReminderInput = {
   timezone: string;
   repeat_rule: string | null;
   intensity: string;
+  reminder_mode: string;
+  nag_interval_minutes: number | null;
   status: string;
   completed_at: string | null;
   created_at: string;

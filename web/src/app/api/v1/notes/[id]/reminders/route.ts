@@ -18,6 +18,8 @@ const createSchema = z.object({
   timezone: z.string().default("UTC"),
   repeat_rule: z.string().trim().max(120).nullable().optional(),
   intensity: z.enum(["gentle", "persistent", "escalating"]).default("gentle"),
+  reminder_mode: z.enum(["once", "persistent", "deadline"]).default("once"),
+  nag_interval_minutes: z.number().int().min(1).max(1440).nullable().optional(),
 });
 
 export async function POST(
@@ -65,6 +67,8 @@ export async function POST(
       timezone: body.timezone,
       repeatRule: body.repeat_rule ?? null,
       intensity: body.intensity,
+      reminderMode: body.reminder_mode,
+      nagIntervalMinutes: body.nag_interval_minutes ?? null,
       status: "active",
       createdAt: now,
       updatedAt: now,

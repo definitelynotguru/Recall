@@ -44,6 +44,8 @@ data class ReminderDto(
     val timezone: String,
     val repeat_rule: String?,
     val intensity: String,
+    val reminder_mode: String = "once",
+    val nag_interval_minutes: Int? = null,
     val status: String,
     val completed_at: String?,
     val created_at: String,
@@ -86,6 +88,19 @@ data class SyncResponse(
     val reminders: List<ReminderDto>,
     val tags: List<TagDto>? = emptyList(),
     val note_tags: List<NoteTagDto>? = emptyList(),
+)
+
+data class SyncPollCounts(
+    val notes: Int = 0,
+    val reminders: Int = 0,
+    val tags: Int = 0,
+    val note_tags: Int = 0,
+)
+
+data class SyncPollResponse(
+    val server_time: String,
+    val has_changes: Boolean,
+    val counts: SyncPollCounts,
 )
 
 data class SnoozeRequest(val fire_at: String)

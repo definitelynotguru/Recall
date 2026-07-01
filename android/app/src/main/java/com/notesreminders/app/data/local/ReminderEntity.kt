@@ -12,6 +12,8 @@ data class ReminderEntity(
     val timezone: String,
     val repeatRule: String?,
     val intensity: String,
+    val reminderMode: String = "once",
+    val nagIntervalMinutes: Int? = null,
     val status: String,
     val completedAt: String?,
     val createdAt: String,
