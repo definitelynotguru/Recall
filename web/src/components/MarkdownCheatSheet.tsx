@@ -76,7 +76,7 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
             >
               Markdown Cheat Sheet
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--parchment-muted)" }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               Syntax reference for formatting your notes
             </p>
           </div>
@@ -99,7 +99,7 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
                   margin: "0 0 10px",
                   fontSize: "0.9rem",
                   fontWeight: 600,
-                  color: "var(--parchment-muted)",
+                  color: "var(--text-muted)",
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                 }}

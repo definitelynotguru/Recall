@@ -29,6 +29,7 @@ export function AppNav() {
     <aside className="sidebar">
       <div className="sidebar-brand">
         <Link href="/today" className="brand-mark">
+          <span className="brand-dot" />
           Recall
         </Link>
       </div>
@@ -51,7 +52,7 @@ export function AppNav() {
         <p
           style={{
             fontSize: "0.75rem",
-            color: "var(--parchment-muted)",
+            color: "var(--text-muted)",
             margin: "0 0 12px",
             fontFamily: "var(--font-mono)",
           }}

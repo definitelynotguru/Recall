@@ -16,7 +16,7 @@ export function NextNudgeCard({ reminder, scope = "global" }: Props) {
   return (
     <div className="next-nudge-card panel panel-pad">
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <DeviceMobile size={24} weight="duotone" color="var(--copper)" />
+        <DeviceMobile size={24} weight="duotone" color="var(--accent)" />
         <div>
           <p className="next-nudge-label">
             {scope === "note" ? "Next on this note" : "Next nudge"} (after sync)

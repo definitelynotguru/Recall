@@ -618,7 +618,7 @@ export default function NoteDetailPage() {
 
           <div style={{ marginTop: 20 }}>
             {reminders.length === 0 ? (
-              <p style={{ color: "var(--parchment-muted)", fontSize: "0.9rem" }}>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
                 No reminders on this note yet.
               </p>
             ) : (

@@ -236,7 +236,7 @@ function ReminderDialogContent({
             >
               {isEdit ? "Edit reminder" : "Schedule nudge"}
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--parchment-muted)" }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               Android delivers the notification
             </p>
           </div>
@@ -246,7 +246,7 @@ function ReminderDialogContent({
         </div>
 
         <div className="hint-banner">
-          <Bell size={22} weight="duotone" color="var(--copper)" />
+          <Bell size={22} weight="duotone" color="var(--accent)" />
           <span>
             <strong>Phone only.</strong> You&apos;ll be notified on your Android
             device after it syncs.

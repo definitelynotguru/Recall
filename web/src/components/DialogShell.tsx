@@ -61,7 +61,7 @@ export function DialogShell({
             {subtitle && (
               <p
                 id={ariaDescribedBy}
-                style={{ margin: 0, fontSize: "0.85rem", color: "var(--parchment-muted)" }}
+                style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}
               >
                 {subtitle}
               </p>
