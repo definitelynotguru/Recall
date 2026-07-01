@@ -2,6 +2,7 @@ package com.notesreminders.app.sync
 
 import android.content.Context
 import com.notesreminders.app.data.api.NotesApi
+import com.notesreminders.app.data.api.SyncPollResponse
 import com.notesreminders.app.data.api.SyncRequest
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
@@ -35,6 +36,29 @@ class SyncRepository(
         // Auto-purge stale dead-letter rows older than 30 days.
         val purgeBefore = Instant.now().minusSeconds(PURGE_AGE_SECONDS).toString()
         db.syncErrorDao().deleteOlderThan(purgeBefore)
+
+        // Delta-sync poll: skip the full round-trip when nothing changed.
+        val meta = db.syncMetaDao().get()
+        val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
+        val hasDirtyRows =
+            db.noteDao().getDirty().isNotEmpty() ||
+                db.reminderDao().getDirty().isNotEmpty() ||
+                db.tagDao().getDirty().isNotEmpty() ||
+                db.noteTagDao().getDirty().isNotEmpty()
+
+        val pollResult = runCatching { api.pollSync(lastSync) }
+        if (pollResult.isSuccess && meta != null) {
+            val poll: SyncPollResponse = pollResult.getOrThrow()
+            if (!poll.has_changes && !hasDirtyRows) {
+                db.syncMetaDao().upsert(
+                    meta.copy(lastSyncAt = poll.server_time),
+                )
+                reconciler.reconcile()
+                com.notesreminders.app.widget.QuickAddWidget.refreshAll(appContext)
+                SyncDiagnostics.lastError = null
+                return SyncOutcome(success = true)
+            }
+        }
 
         val result = runCatching { performSync() }
         if (result.isSuccess) {

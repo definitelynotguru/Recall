@@ -1169,3 +1169,34 @@ a:hover {
   position: relative;
   width: 100%;
 }
+
+/* Wiki link autocomplete dropdown */
+.wiki-autocomplete {
+  position: fixed;
+  z-index: 250;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--ink-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ink-surface);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.5);
+}
+
+.wiki-autocomplete-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--parchment);
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out);
+}
+
+.wiki-autocomplete-item.active {
+  background: var(--copper-dim);
+  color: var(--copper);
+}

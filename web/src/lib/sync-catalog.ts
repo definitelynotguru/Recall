@@ -188,6 +188,8 @@ async function mergeReminder(
     timezone: client.timezone,
     repeatRule: client.repeat_rule,
     intensity: client.intensity,
+    reminderMode: client.reminder_mode,
+    nagIntervalMinutes: client.nag_interval_minutes ?? null,
     status: client.status,
     completedAt: client.completed_at ? new Date(client.completed_at) : null,
     createdAt: new Date(client.created_at),

@@ -26,6 +26,8 @@ const syncReminderSchema = z.object({
   timezone: z.string(),
   repeat_rule: nullableString,
   intensity: reminderIntensitySchema,
+  reminder_mode: z.enum(["once", "persistent", "deadline"]).default("once"),
+  nag_interval_minutes: z.number().int().nullish().transform((v) => v ?? null),
   status: reminderStatusSchema,
   completed_at: nullableString,
   created_at: z.string(),

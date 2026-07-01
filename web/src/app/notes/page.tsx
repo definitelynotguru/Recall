@@ -8,16 +8,26 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
+import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
+import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
+import {
+  createLocalNote,
+  getLocalNote,
+  getLocalNotes,
+  putLocalNote,
+} from "@/lib/local-notes";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 export default function NotesPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isLocal = !user;
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [allTags, setAllTags] = useState<ApiTag[]>([]);
   const [noteTags, setNoteTags] = useState<ApiNoteTag[]>([]);
@@ -33,23 +43,39 @@ export default function NotesPage() {
   }, [query]);
 
   const loadTags = useCallback(async () => {
+    if (!user) return;
     const [tagsRes, noteTagsRes] = await Promise.all([
       apiFetch<{ tags: ApiTag[] }>("/tags"),
       apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags"),
     ]);
     setAllTags(tagsRes.tags);
     setNoteTags(noteTagsRes.note_tags);
-  }, []);
+  }, [user]);
 
   const loadNotes = useCallback(async () => {
+    if (!user) {
+      const localNotes = await getLocalNotes();
+      let filtered = localNotes.filter((n) => n.status === status);
+      if (debouncedQuery) {
+        const q = debouncedQuery.toLowerCase();
+        filtered = filtered.filter(
+          (n) =>
+            n.title.toLowerCase().includes(q) ||
+            n.body.toLowerCase().includes(q),
+        );
+      }
+      setNotes(filtered);
+      return;
+    }
     const params = new URLSearchParams({ status });
     if (debouncedQuery) params.set("q", debouncedQuery);
     if (tagFilter) params.set("tag_id", tagFilter);
     const res = await apiFetch<{ notes: ApiNote[] }>(`/notes?${params}`);
     setNotes(res.notes);
-  }, [debouncedQuery, status, tagFilter]);
+  }, [user, debouncedQuery, status, tagFilter]);
 
   const { loading, error, reload } = useAsyncLoad(loadNotes, [
+    user,
     debouncedQuery,
     status,
     tagFilter,
@@ -87,6 +113,13 @@ export default function NotesPage() {
   const createNote = async () => {
     setCreating(true);
     try {
+      if (!user) {
+        const note = createLocalNote();
+        note.title = "Untitled";
+        await putLocalNote(note);
+        router.push(`/notes/${note.id}`);
+        return;
+      }
       const res = await apiFetch<{ note: ApiNote }>("/notes", {
         method: "POST",
         body: JSON.stringify({
@@ -110,6 +143,18 @@ export default function NotesPage() {
 
   const patchNote = async (id: string, patch: Record<string, unknown>) => {
     try {
+      if (!user) {
+        const existing = await getLocalNote(id);
+        if (!existing) return;
+        const updated: ApiNote = {
+          ...existing,
+          ...patch,
+          updated_at: new Date().toISOString(),
+        } as ApiNote;
+        await putLocalNote(updated);
+        await reload();
+        return;
+      }
       await apiFetch(`/notes/${id}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
@@ -126,7 +171,9 @@ export default function NotesPage() {
   };
 
   return (
-    <RequireAuth>
+    <RequireAuth allowLocal>
+      {isLocal && <LocalOnlyBanner />}
+
       <header className="page-header">
         <h1>Notes</h1>
         <p>Markdown pages that can sprout reminders on your phone.</p>
@@ -172,7 +219,7 @@ export default function NotesPage() {
         </button>
       </div>
 
-      {allTags.length > 0 && (
+      {!isLocal && allTags.length > 0 && (
         <div className="tag-picker" style={{ marginBottom: 20 }}>
           <button
             type="button"

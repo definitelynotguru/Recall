@@ -132,5 +132,14 @@ class ReminderReconciler(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         alarmManager.cancel(pending)
+
+        // Also cancel any pending nag follow-up alarm.
+        val nagPending = PendingIntent.getBroadcast(
+            context,
+            (reminderId + "nag").hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        alarmManager.cancel(nagPending)
     }
 }

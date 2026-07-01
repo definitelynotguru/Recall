@@ -16,6 +16,8 @@ const patchSchema = z.object({
   timezone: z.string().optional(),
   repeat_rule: z.string().trim().max(120).nullable().optional(),
   intensity: z.enum(["gentle", "persistent", "escalating"]).optional(),
+  reminder_mode: z.enum(["once", "persistent", "deadline"]).optional(),
+  nag_interval_minutes: z.number().int().min(1).max(1440).nullable().optional(),
   status: z.enum(["active", "completed", "cancelled"]).optional(),
 });
 
@@ -64,6 +66,11 @@ export async function PATCH(
       repeatRule:
         body.repeat_rule !== undefined ? body.repeat_rule : existing.repeatRule,
       intensity: body.intensity ?? existing.intensity,
+      reminderMode: body.reminder_mode ?? existing.reminderMode,
+      nagIntervalMinutes:
+        body.nag_interval_minutes !== undefined
+          ? body.nag_interval_minutes
+          : existing.nagIntervalMinutes,
       status: body.status ?? existing.status,
       updatedAt: now,
     })

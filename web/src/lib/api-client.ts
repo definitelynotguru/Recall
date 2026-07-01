@@ -133,6 +133,8 @@ export type ApiReminder = {
   updated_at: string;
   deleted_at: string | null;
   note_title?: string;
+  reminder_mode?: string;
+  nag_interval_minutes?: number | null;
 };
 
 export type ApiTag = {

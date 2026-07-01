@@ -1,5 +1,6 @@
 package com.notesreminders.app.reminders
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,6 +13,7 @@ import com.notesreminders.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -99,6 +101,43 @@ class ReminderReceiver : BroadcastReceiver() {
             nm.notify(reminderId.hashCode(), notification)
         } catch (_: SecurityException) {
             return
+        }
+
+        // Persistent nag: schedule a follow-up alarm that re-fires this receiver,
+        // creating a nag chain until the user marks the reminder done.
+        val reminder = app.database.reminderDao().getById(reminderId)
+        if (reminder != null && reminder.reminderMode == "persistent") {
+            val nagInterval = reminder.nagIntervalMinutes ?: 5
+            val triggerAt = Instant.now().plusSeconds(nagInterval * 60L)
+
+            val nagIntent = Intent(context, ReminderReceiver::class.java).apply {
+                putExtra(EXTRA_REMINDER_ID, reminderId)
+                putExtra(EXTRA_NOTE_ID, noteId)
+            }
+            val nagPending = PendingIntent.getBroadcast(
+                context,
+                (reminderId + "nag").hashCode(),
+                nagIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val showIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(EXTRA_NOTE_ID, noteId)
+            }
+            val showPending = PendingIntent.getActivity(
+                context,
+                (reminderId + "show").hashCode(),
+                showIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val alarmManager =
+                context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(triggerAt.toEpochMilli(), showPending),
+                nagPending,
+            )
         }
 
         ReminderReconciler(context, app.database.reminderDao()).reconcile()

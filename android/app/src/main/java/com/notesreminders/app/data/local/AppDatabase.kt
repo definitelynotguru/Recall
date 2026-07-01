@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteConflictEntity::class,
         SyncErrorEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -113,6 +113,12 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE sync_errors ADD COLUMN payload TEXT")
+            }
+        }
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reminders ADD COLUMN reminderMode TEXT NOT NULL DEFAULT 'once'")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN nagIntervalMinutes INTEGER")
             }
         }
     }

@@ -104,6 +104,8 @@ describe.skipIf(!hasDb)("processSync ownership", () => {
           timezone: "UTC",
           repeat_rule: null,
           intensity: "gentle",
+          reminder_mode: "once",
+          nag_interval_minutes: null,
           status: "active",
           completed_at: null,
           created_at: updatedAt.toISOString(),

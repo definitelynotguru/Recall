@@ -1,8 +1,10 @@
 package com.notesreminders.app.data.api
 
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface NotesApi {
     @POST("auth/login")
@@ -28,6 +30,9 @@ interface NotesApi {
 
     @POST("sync")
     suspend fun sync(@Body body: SyncRequest): SyncResponse
+
+    @GET("sync/poll")
+    suspend fun pollSync(@Query("since") since: String): SyncPollResponse
 
     @POST("debug/report")
     suspend fun submitDebugReport(@Body body: DebugReportRequest): DebugReportResponse
