@@ -224,16 +224,23 @@ class NotesRepository(
 
     suspend fun getLastSyncAt(): String? = db.syncMetaDao().get()?.lastSyncAt
 
-    suspend fun exportBackupJson(): String {
+    suspend fun exportBackupJson(): String = gson.toJson(backupBundle())
+
+    suspend fun exportMarkdownZip(): ByteArray {
+        val bundle = backupBundle()
+        val bytes = MarkdownExport.buildZip(bundle)
+        return bytes
+    }
+
+    private suspend fun backupBundle(): BackupBundle {
         val reminders = db.reminderDao().getAllNonDeleted().map { it.toDto() }
-        val bundle = BackupBundle(
+        return BackupBundle(
             exported_at = Instant.now().toString(),
             notes = db.noteDao().getAllNonDeleted().map { it.toDto() },
             reminders_by_note = reminders.groupBy { it.note_id },
             tags = db.tagDao().getAllNonDeleted().map { it.toDto() },
             note_tags = db.noteTagDao().getAllNonDeleted().map { it.toDto() },
         )
-        return gson.toJson(bundle)
     }
 
     suspend fun importBackupJson(json: String): BackupBundle {

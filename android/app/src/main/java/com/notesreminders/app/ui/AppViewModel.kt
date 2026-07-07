@@ -325,6 +325,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun exportMarkdown(uri: Uri, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = app.notesRepository.exportMarkdownZip()
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(bytes)
+                    } ?: error("Could not open export file")
+                    "Markdown export saved"
+                }
+            }
+            onResult(result.getOrElse { "Export failed: ${it.message ?: "unknown error"}" })
+        }
+    }
+
     fun importBackup(uri: Uri, onResult: (String) -> Unit) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {

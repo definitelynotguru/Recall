@@ -71,6 +71,11 @@ fun SettingsScreen(
     ) { uri ->
         uri?.let { viewModel.exportBackup(it) { msg -> backupMessage = msg } }
     }
+    val exportMarkdown = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        uri?.let { viewModel.exportMarkdown(it) { msg -> backupMessage = msg } }
+    }
     val importBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -300,17 +305,20 @@ fun SettingsScreen(
             Text("Backup", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Export or import notes, reminders, tags, and archived items as JSON.",
+                "Export notes as Markdown in a zip with metadata.json, or back up and restore everything as JSON.",
                 style = MaterialTheme.typography.bodySmall,
                 color = RecallColors.ParchmentMuted,
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { exportBackup.launch("recall-backup.json") },
+                    onClick = { exportMarkdown.launch("recall-export.zip") },
                     colors = recallPrimaryButtonColors(),
                 ) {
-                    Text("Export")
+                    Text("Export Markdown")
+                }
+                TextButton(onClick = { exportBackup.launch("recall-backup.json") }) {
+                    Text("Export JSON", color = RecallColors.Copper)
                 }
                 TextButton(onClick = { importBackup.launch(arrayOf("application/json", "text/*", "*/*")) }) {
                     Text("Import", color = RecallColors.Copper)
