@@ -1630,3 +1630,45 @@ a:hover {
     transition-duration: 0s !important;
   }
 }
+
+.template-menu-wrap {
+  position: relative;
+}
+
+.template-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 180px;
+  background: var(--surface, #1a1a1a);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+  padding: 4px;
+}
+
+.template-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text, #e6e6e6);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.template-menu-item:hover {
+  background: var(--surface-elevated, #242424);
+}
+
+.note-row-body mark {
+  background: rgba(255, 213, 79, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}

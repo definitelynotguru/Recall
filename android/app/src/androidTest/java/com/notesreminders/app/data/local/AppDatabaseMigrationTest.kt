@@ -205,8 +205,25 @@ class AppDatabaseMigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrate1To9FreshUpgrade() {
-        helper.createDatabase("m19", 1).apply {
+    fun migrate9To10AddsIsTemplateColumn() {
+        helper.createDatabase("m910", 9).apply {
+            execSQL(
+                "CREATE TABLE notes (id TEXT NOT NULL PRIMARY KEY, userId TEXT NOT NULL, " +
+                    "title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, pinnedAt TEXT, " +
+                    "createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, deletedAt TEXT, " +
+                    "isDirty INTEGER NOT NULL)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m910", 10, false, AppDatabase.MIGRATION_9_10)
+        assertTrue(columnsOf(db, "notes").contains("isTemplate"))
+        db.close()
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate1To10FreshUpgrade() {
+        helper.createDatabase("m110", 1).apply {
             execSQL(
                 "CREATE TABLE notes (id TEXT NOT NULL PRIMARY KEY, userId TEXT NOT NULL, " +
                     "title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, " +
@@ -220,8 +237,8 @@ class AppDatabaseMigrationTest {
             close()
         }
         val db = helper.runMigrationsAndValidate(
-            "m19",
-            9,
+            "m110",
+            10,
             false,
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
@@ -231,11 +248,13 @@ class AppDatabaseMigrationTest {
             AppDatabase.MIGRATION_6_7,
             AppDatabase.MIGRATION_7_8,
             AppDatabase.MIGRATION_8_9,
+            AppDatabase.MIGRATION_9_10,
         )
         assertTrue(columnsOf(db, "notes").contains("pinnedAt"))
         assertTrue(columnsOf(db, "sync_errors").contains("payload"))
         assertTrue(columnsOf(db, "reminders").contains("reminderMode"))
         assertTrue(columnsOf(db, "reminders").contains("nagIntervalMinutes"))
+        assertTrue(columnsOf(db, "notes").contains("isTemplate"))
         assertTrue(tableExists(db, "tags"))
         assertTrue(tableExists(db, "note_tags"))
         assertTrue(tableExists(db, "note_conflicts"))

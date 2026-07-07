@@ -20,6 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.PostAdd
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -28,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -41,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -171,15 +176,55 @@ fun NotesListScreen(
             }
         }
 
-        FloatingActionButton(
-            onClick = { viewModel.createNote(onOpenNote) },
-            modifier = Modifier
+        val templates by viewModel.observeTemplates().collectAsStateWithLifecycle(initialValue = emptyList())
+        var showTemplateMenu by remember { mutableStateOf(false) }
+
+        Column(
+            Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp),
-            containerColor = RecallColors.Copper,
-            contentColor = RecallColors.Ink,
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Default.Add, contentDescription = "New note")
+            if (showTemplateMenu) {
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { showTemplateMenu = false },
+                ) {
+                    if (templates.isEmpty()) {
+                        DropdownMenuItem(
+                            text = { Text("No templates yet") },
+                            onClick = { showTemplateMenu = false },
+                        )
+                    } else {
+                        templates.forEach { tpl ->
+                            DropdownMenuItem(
+                                text = { Text(tpl.title.ifBlank { "Untitled template" }) },
+                                onClick = {
+                                    showTemplateMenu = false
+                                    viewModel.createNoteFromTemplate(tpl, onOpenNote)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            if (templates.isNotEmpty()) {
+                SmallFloatingActionButton(
+                    onClick = { showTemplateMenu = !showTemplateMenu },
+                    containerColor = RecallColors.InkElevated,
+                    contentColor = RecallColors.Copper,
+                ) {
+                    Icon(Icons.Outlined.PostAdd, contentDescription = "New from template")
+                }
+            }
+            FloatingActionButton(
+                onClick = { viewModel.createNote(onOpenNote) },
+                containerColor = RecallColors.Copper,
+                contentColor = RecallColors.Ink,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New note")
+            }
         }
     }
 

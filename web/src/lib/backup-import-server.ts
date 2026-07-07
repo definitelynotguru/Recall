@@ -81,6 +81,7 @@ export async function importBackupTransaction(
             body: note.body ?? "",
             status: note.status ?? "active",
             pinnedAt,
+            isTemplate: note.is_template ?? false,
             updatedAt,
             deletedAt,
           })
@@ -93,6 +94,7 @@ export async function importBackupTransaction(
           body: note.body ?? "",
           status: note.status ?? "active",
           pinnedAt,
+          isTemplate: note.is_template ?? false,
           createdAt,
           updatedAt,
           deletedAt,

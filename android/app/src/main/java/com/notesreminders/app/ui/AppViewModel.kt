@@ -302,6 +302,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun observeTemplates(): Flow<List<NoteEntity>> =
+        app.notesRepository.observeTemplates()
+
+    fun createTemplate(onCreated: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.createTemplate("Untitled template", "")
+            withContext(Dispatchers.Main) { onCreated(note.id) }
+        }
+    }
+
+    fun createNoteFromTemplate(template: NoteEntity, onCreated: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.createNoteFromTemplate(template)
+            withContext(Dispatchers.Main) { onCreated(note.id) }
+        }
+    }
+
+    fun seedDefaultTemplates(onResult: (Int) -> Unit) {
+        ioLaunch {
+            val n = app.notesRepository.seedDefaultTemplatesIfNeeded()
+            withContext(Dispatchers.Main) { onResult(n) }
+        }
+    }
+
+    fun deleteTemplate(template: NoteEntity) {
+        ioLaunch { app.notesRepository.deleteNote(template.id) }
+    }
+
     fun createNoteFromText(text: String, onCreated: (String) -> Unit) {
         if (text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {

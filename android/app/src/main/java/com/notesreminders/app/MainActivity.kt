@@ -93,6 +93,12 @@ class MainActivity : ComponentActivity() {
                 } else {
                     LaunchedEffect(Unit) {
                         viewModel.reconcileAlarms()
+                        if (!viewModel.userPrefs.templatesSeeded) {
+                            viewModel.seedDefaultTemplates { count ->
+                                if (count > 0) viewModel.syncNow(showSuccess = false)
+                            }
+                            viewModel.userPrefs.templatesSeeded = true
+                        }
                     }
                     MainShell(
                         viewModel = viewModel,
@@ -303,6 +309,7 @@ private fun MainShell(
                         viewModel.userPrefs.onboardingDone = false
                         showOnboarding = true
                     },
+                    onOpenNote = { id -> nav.navigate("note/$id") { launchSingleTop = true } },
                 )
             }
             composable("note/{id}") { entry ->

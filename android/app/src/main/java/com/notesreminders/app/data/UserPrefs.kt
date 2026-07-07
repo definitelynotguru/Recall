@@ -30,12 +30,17 @@ class UserPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_12H_CLOCK, true)
         set(v) = prefs.edit { putBoolean(KEY_12H_CLOCK, v) }
 
+    var templatesSeeded: Boolean
+        get() = prefs.getBoolean(KEY_TEMPLATES_SEEDED, false)
+        set(v) = prefs.edit { putBoolean(KEY_TEMPLATES_SEEDED, v) }
+
     companion object {
         private const val KEY_HOUR = "default_reminder_hour"
         private const val KEY_MINUTE = "default_reminder_minute"
         private const val KEY_AUTO_SYNC = "auto_sync_after_reminder"
         private const val KEY_AUTO_SYNC_NOTE = "auto_sync_after_note"
         private const val KEY_ONBOARDING = "onboarding_done"
+        private const val KEY_TEMPLATES_SEEDED = "templates_seeded"
         private const val KEY_12H_CLOCK = "use_12_hour_clock"
     }
 }

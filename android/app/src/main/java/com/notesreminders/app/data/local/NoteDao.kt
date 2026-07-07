@@ -18,7 +18,7 @@ interface NoteDao {
     suspend fun getAllNonDeleted(): List<NoteEntity>
 
     @Query(
-        "SELECT * FROM notes WHERE deletedAt IS NULL AND status = :status " +
+        "SELECT * FROM notes WHERE deletedAt IS NULL AND status = :status AND isTemplate = 0 " +
             "AND (:query = '' OR title LIKE '%' || :query || '%' OR body LIKE '%' || :query || '%') " +
             "ORDER BY " +
             "(CASE WHEN :query != '' AND title LIKE '%' || :query || '%' THEN 3 ELSE 0 END " +
@@ -31,7 +31,7 @@ interface NoteDao {
         """
         SELECT notes.* FROM notes
         INNER JOIN note_tags ON note_tags.noteId = notes.id
-        WHERE notes.deletedAt IS NULL AND notes.status = :status
+        WHERE notes.deletedAt IS NULL AND notes.status = :status AND notes.isTemplate = 0
         AND note_tags.tagId = :tagId AND note_tags.deletedAt IS NULL
         AND (:query = '' OR notes.title LIKE '%' || :query || '%' OR notes.body LIKE '%' || :query || '%')
         ORDER BY
@@ -41,6 +41,12 @@ interface NoteDao {
         """,
     )
     fun observeByStatusQueryAndTag(status: String, query: String, tagId: String): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
+    fun observeTemplates(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
+    suspend fun getTemplates(): List<NoteEntity>
 
     @Query("SELECT * FROM notes WHERE isDirty = 1")
     suspend fun getDirty(): List<NoteEntity>

@@ -41,6 +41,7 @@ class NotesApp : Application() {
                 AppDatabase.MIGRATION_6_7,
                 AppDatabase.MIGRATION_7_8,
                 AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10,
             )
             .build()
         api = ApiClient.create(tokenStore)

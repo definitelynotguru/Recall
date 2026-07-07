@@ -7,6 +7,7 @@ import {
   index,
   primaryKey,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -31,6 +32,7 @@ export const notes = pgTable(
     body: text("body").notNull().default(""),
     status: text("status").notNull().default("active"),
     pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    isTemplate: boolean("is_template").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

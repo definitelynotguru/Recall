@@ -13,6 +13,8 @@ import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
+import { listTemplates } from "@/lib/api-client";
+import { expandTemplate } from "@/lib/templates";
 import { makeSnippet, tokenize } from "@/lib/search-score";
 import { searchNotes } from "@/lib/search-score";
 import {
@@ -57,6 +59,8 @@ export default function NotesPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [status, setStatus] = useState<"active" | "archived">("active");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ApiNote[]>([]);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
@@ -111,6 +115,15 @@ export default function NotesPage() {
 
   useOnMount(() => {
     void loadTags();
+    if (!isLocal) {
+      void (async () => {
+        try {
+          setTemplates(await listTemplates());
+        } catch {
+          setTemplates([]);
+        }
+      })();
+    }
   });
 
   const tagsByNote = useMemo(() => {
@@ -164,6 +177,27 @@ export default function NotesPage() {
           void createNote();
         },
       });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createFromTemplate = async (tpl: ApiNote) => {
+    setShowTemplateMenu(false);
+    setCreating(true);
+    try {
+      const body = expandTemplate(tpl.body, { now: new Date() });
+      const res = await apiFetch<{ note: ApiNote }>("/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          id: crypto.randomUUID(),
+          title: tpl.title || "Untitled",
+          body,
+        }),
+      });
+      router.push(`/notes/${res.note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not create note", "error");
     } finally {
       setCreating(false);
     }
@@ -245,6 +279,36 @@ export default function NotesPage() {
           <Plus size={18} weight="bold" />
           {creating ? "Creating…" : "New note"}
         </button>
+        {!isLocal && templates.length > 0 && (
+          <div className="template-menu-wrap">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowTemplateMenu((v) => !v)}
+              disabled={creating}
+              aria-haspopup="menu"
+              aria-expanded={showTemplateMenu}
+            >
+              <Plus size={18} weight="bold" />
+              From template
+            </button>
+            {showTemplateMenu && (
+              <div className="template-menu" role="menu">
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    role="menuitem"
+                    className="template-menu-item"
+                    onClick={() => void createFromTemplate(tpl)}
+                  >
+                    {tpl.title || "Untitled template"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {!isLocal && allTags.length > 0 && (

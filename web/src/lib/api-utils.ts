@@ -41,6 +41,7 @@ export function toApiNote(row: {
   body: string;
   status: string;
   pinnedAt?: Date | null;
+  isTemplate?: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -52,6 +53,7 @@ export function toApiNote(row: {
     body: row.body,
     status: row.status,
     pinned_at: row.pinnedAt?.toISOString() ?? null,
+    is_template: row.isTemplate ?? false,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
     deleted_at: row.deletedAt?.toISOString() ?? null,

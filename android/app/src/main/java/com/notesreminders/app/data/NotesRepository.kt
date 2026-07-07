@@ -171,6 +171,42 @@ class NotesRepository(
         return createNote(title, rev.body)
     }
 
+    fun observeTemplates(): Flow<List<NoteEntity>> = db.noteDao().observeTemplates()
+
+    suspend fun getTemplates(): List<NoteEntity> = db.noteDao().getTemplates()
+
+    suspend fun createTemplate(title: String, body: String): NoteEntity {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        val now = Instant.now().toString()
+        val note = NoteEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            title = title,
+            body = body,
+            status = "active",
+            pinnedAt = null,
+            isTemplate = true,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            isDirty = true,
+        )
+        db.noteDao().upsert(note)
+        return note
+    }
+
+    suspend fun createNoteFromTemplate(template: NoteEntity): NoteEntity {
+        val expanded = Templates.expandTemplate(template.body, template.title)
+        return createNote(template.title.ifBlank { "Untitled" }, expanded)
+    }
+
+    suspend fun seedDefaultTemplatesIfNeeded(): Int {
+        val existingTitles = db.noteDao().getTemplates().map { it.title }.toSet()
+        val toCreate = Templates.DEFAULTS.filter { it.title !in existingTitles }
+        for (tpl in toCreate) createTemplate(tpl.title, tpl.body)
+        return toCreate.size
+    }
+
     suspend fun setNotePinned(id: String, pinned: Boolean) {
         val existing = db.noteDao().getById(id) ?: return
         val now = Instant.now().toString()

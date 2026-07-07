@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,7 @@ fun SettingsScreen(
     viewModel: AppViewModel,
     onLogout: () -> Unit,
     onReplayOnboarding: () -> Unit,
+    onOpenNote: (String) -> Unit,
 ) {
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
@@ -335,6 +337,12 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        TemplatesPanel(
+            viewModel = viewModel,
+            onOpenNote = onOpenNote,
+        )
+
+        Spacer(Modifier.height(16.dp))
         RecallPanel {
             Text("Reminder defaults", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
             Spacer(Modifier.height(8.dp))
@@ -449,6 +457,63 @@ fun SettingsScreen(
             TextButton(onClick = onReplayOnboarding) {
                 Text("Replay introduction", color = RecallColors.Copper)
             }
+        }
+    }
+}
+
+@Composable
+private fun TemplatesPanel(
+    viewModel: AppViewModel,
+    onOpenNote: (String) -> Unit,
+) {
+    val templates by viewModel.observeTemplates().collectAsStateWithLifecycle(initialValue = emptyList())
+    var seedMsg by remember { mutableStateOf<String?>(null) }
+
+    RecallPanel {
+        Text("Templates", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Reusable note starters with {{date}}, {{time}}, and {{title}} variables. Hidden from your note list.",
+            style = MaterialTheme.typography.bodySmall,
+            color = RecallColors.ParchmentMuted,
+        )
+        Spacer(Modifier.height(12.dp))
+        if (templates.isEmpty()) {
+            Text("No templates yet.", style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+        } else {
+            templates.forEach { tpl ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    TextButton(onClick = { onOpenNote(tpl.id) }) {
+                        Text(tpl.title.ifBlank { "Untitled template" }, color = RecallColors.Parchment)
+                    }
+                    TextButton(onClick = { viewModel.deleteTemplate(tpl) }) {
+                        Text("Delete", color = RecallColors.Error)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { viewModel.createTemplate(onOpenNote) },
+                colors = recallPrimaryButtonColors(),
+            ) {
+                Text("New template")
+            }
+            TextButton(onClick = {
+                viewModel.seedDefaultTemplates { count ->
+                    seedMsg = if (count > 0) "Added $count default templates" else "Defaults already present"
+                }
+            }) {
+                Text("Restore defaults", color = RecallColors.Copper)
+            }
+        }
+        seedMsg?.let { msg ->
+            Spacer(Modifier.height(8.dp))
+            Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
         }
     }
 }

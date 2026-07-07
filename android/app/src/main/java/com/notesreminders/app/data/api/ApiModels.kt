@@ -31,6 +31,7 @@ data class NoteDto(
     val body: String,
     val status: String,
     val pinned_at: String? = null,
+    val is_template: Boolean = false,
     val created_at: String,
     val updated_at: String,
     val deleted_at: String?,

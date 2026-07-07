@@ -115,6 +115,7 @@ export type ApiNote = {
   body: string;
   status: string;
   pinned_at: string | null;
+  is_template?: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -182,5 +183,25 @@ export async function restoreNoteRevision(
     `/notes/${noteId}/revisions/${revisionId}/restore`,
     { method: "POST" },
   );
+  return res.note;
+}
+
+export async function listTemplates(): Promise<ApiNote[]> {
+  const res = await apiFetch<{ notes: ApiNote[] }>(
+    "/notes?status=all&templates=only&limit=all",
+  );
+  return res.notes;
+}
+
+export async function createTemplate(title: string, body: string): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>("/notes", {
+    method: "POST",
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      title,
+      body,
+      is_template: true,
+    }),
+  });
   return res.note;
 }
