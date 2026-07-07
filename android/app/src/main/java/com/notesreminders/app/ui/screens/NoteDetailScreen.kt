@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
@@ -59,7 +60,9 @@ fun NoteDetailScreen(
     var title by remember(noteId) { mutableStateOf("") }
     var body by remember(noteId) { mutableStateOf("") }
     var preview by remember(noteId) { mutableStateOf(false) }
-    var hasLocalEdits by remember(noteId) { mutableStateOf(false) }
+    var isLoaded by remember(noteId) { mutableStateOf(false) }
+    var lastHydratedTitle by remember(noteId) { mutableStateOf("") }
+    var lastHydratedBody by remember(noteId) { mutableStateOf("") }
     val schedule = rememberReminderScheduleState(
         viewModel.userPrefs.defaultReminderHour,
         viewModel.userPrefs.defaultReminderMinute,
@@ -87,13 +90,30 @@ fun NoteDetailScreen(
 
     val fieldColors = recallFieldColors()
 
+    // Hydrate from the database only on first load, or when the local fields
+    // still match the last hydrated value (e.g. a sync refreshed a note the
+    // user is viewing but not actively editing). Once the user has diverged,
+    // local state is authoritative so flow emissions never clobber the field
+    // or reset the cursor mid-edit (the cause of the backspace glitch).
     LaunchedEffect(observedNote, noteId) {
         val note = observedNote ?: return@LaunchedEffect
-        if (!hasLocalEdits) {
+        if (!isLoaded) {
             title = note.title
             body = note.body
             isPinned = note.pinnedAt != null
             isArchived = note.status == "archived"
+            lastHydratedTitle = note.title
+            lastHydratedBody = note.body
+            isLoaded = true
+            return@LaunchedEffect
+        }
+        if (title == lastHydratedTitle && body == lastHydratedBody) {
+            title = note.title
+            body = note.body
+            isPinned = note.pinnedAt != null
+            isArchived = note.status == "archived"
+            lastHydratedTitle = note.title
+            lastHydratedBody = note.body
         }
     }
 
@@ -104,15 +124,14 @@ fun NoteDetailScreen(
         }
     }
 
-    LaunchedEffect(saveStatus) {
-        if (saveStatus == "Saved") {
-            hasLocalEdits = false
-        }
-    }
+    // Capture the latest edits so onDispose (screen exit) flushes them without
+    // re-keying the effect on every keystroke (which would defeat the debounce).
+    val latestTitle by rememberUpdatedState(title)
+    val latestBody by rememberUpdatedState(body)
 
-    DisposableEffect(noteId, title, body) {
+    DisposableEffect(noteId) {
         onDispose {
-            viewModel.flushNoteSave(noteId, title, body)
+            viewModel.flushNoteSave(noteId, latestTitle, latestBody)
         }
     }
 
@@ -187,13 +206,11 @@ fun NoteDetailScreen(
             fieldColors = fieldColors,
             onTitleChange = {
                 title = it
-                hasLocalEdits = true
                 saveStatus = "Unsaved…"
                 viewModel.scheduleNoteSave(noteId, title, body)
             },
             onBodyChange = {
                 body = it
-                hasLocalEdits = true
                 saveStatus = "Unsaved…"
                 viewModel.scheduleNoteSave(noteId, title, body)
             },
