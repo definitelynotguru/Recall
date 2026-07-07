@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { notes, noteTags } from "@/lib/db/schema";
+import { notes, noteTags, tags } from "@/lib/db/schema";
 import {
   requireAuth,
   jsonResponse,
@@ -11,7 +11,8 @@ import {
   parseJsonBody,
 } from "@/lib/api-utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
-import { eq, and, isNull, desc, ilike, or, sql, inArray } from "drizzle-orm";
+import { eq, and, isNull, desc, sql, inArray } from "drizzle-orm";
+import { searchNotes, type SearchableNote } from "@/lib/search-score";
 
 const createSchema = z.object({
   id: z.string().uuid().optional(),
@@ -42,10 +43,8 @@ export async function GET(request: NextRequest) {
   if (status !== "all") {
     filters.push(eq(notes.status, status));
   }
-  if (q) {
-    const pattern = `%${q}%`;
-    filters.push(or(ilike(notes.title, pattern), ilike(notes.body, pattern))!);
-  }
+
+  let noteIdFilter: string[] | null = null;
   if (tagId) {
     const links = await db
       .select({ noteId: noteTags.noteId })
@@ -57,17 +56,57 @@ export async function GET(request: NextRequest) {
           isNull(noteTags.deletedAt),
         ),
       );
-    const noteIds = links.map((l) => l.noteId);
-    if (noteIds.length === 0) {
+    noteIdFilter = links.map((l) => l.noteId);
+    if (noteIdFilter.length === 0) {
       return jsonResponse({ notes: [] });
     }
-    filters.push(inArray(notes.id, noteIds));
   }
+
+  if (q) {
+    const searchFilters = [...filters];
+    if (noteIdFilter) searchFilters.push(inArray(notes.id, noteIdFilter));
+    const candidateRows = await db
+      .select()
+      .from(notes)
+      .where(and(...searchFilters))
+      .limit(5000);
+
+    const [tagRows, linkRows] = await Promise.all([
+      db.select().from(tags).where(eq(tags.userId, user!.userId)),
+      db.select().from(noteTags).where(eq(noteTags.userId, user!.userId)),
+    ]);
+    const tagNameById = new Map(tagRows.map((t) => [t.id, t.name]));
+    const tagsByNote = new Map<string, string[]>();
+    for (const link of linkRows) {
+      if (link.deletedAt) continue;
+      const name = tagNameById.get(link.tagId);
+      if (!name) continue;
+      const list = tagsByNote.get(link.noteId) ?? [];
+      list.push(name);
+      tagsByNote.set(link.noteId, list);
+    }
+
+    const searchable: SearchableNote[] = candidateRows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      body: r.body,
+      updated_at: r.updatedAt.toISOString(),
+      tags: tagsByNote.get(r.id) ?? [],
+    }));
+    const ranked = searchNotes(searchable, q).slice(0, 200);
+    const orderedRows = ranked
+      .map((r) => candidateRows.find((row) => row.id === r.id)!)
+      .filter(Boolean);
+    return jsonResponse({ notes: orderedRows.map(toApiNote) });
+  }
+
+  const listFilters = [...filters];
+  if (noteIdFilter) listFilters.push(inArray(notes.id, noteIdFilter));
 
   const rows = await db
     .select()
     .from(notes)
-    .where(and(...filters))
+    .where(and(...listFilters))
     .orderBy(sql`${notes.pinnedAt} DESC NULLS LAST`, desc(notes.updatedAt))
     .limit(limit);
 

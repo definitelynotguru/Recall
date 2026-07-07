@@ -13,6 +13,8 @@ import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
+import { makeSnippet, tokenize } from "@/lib/search-score";
+import { searchNotes } from "@/lib/search-score";
 import {
   createLocalNote,
   getLocalNote,
@@ -21,6 +23,26 @@ import {
 } from "@/lib/local-notes";
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+function HighlightedSnippet({ body, query }: { body: string; query: string }) {
+  const snippet = makeSnippet(body, query);
+  const terms = Array.from(new Set(tokenize(query)));
+  if (terms.length === 0) return <>{snippet}</>;
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${escaped.join("|")})`, "ig");
+  const parts = snippet.split(re);
+  return (
+    <>
+      {parts.map((part, i) =>
+        terms.some((t) => t.toLowerCase() === part.toLowerCase()) ? (
+          <mark key={i}>{part}</mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 
 export default function NotesPage() {
   const router = useRouter();
@@ -56,12 +78,19 @@ export default function NotesPage() {
       const localNotes = await getLocalNotes();
       let filtered = localNotes.filter((n) => n.status === status);
       if (debouncedQuery) {
-        const q = debouncedQuery.toLowerCase();
-        filtered = filtered.filter(
-          (n) =>
-            n.title.toLowerCase().includes(q) ||
-            n.body.toLowerCase().includes(q),
+        const ranked = searchNotes(
+          filtered.map((n) => ({
+            id: n.id,
+            title: n.title,
+            body: n.body,
+            updated_at: n.updated_at,
+          })),
+          debouncedQuery,
         );
+        const rankedIds = new Set(ranked.map((r) => r.id));
+        filtered = ranked
+          .map((r) => filtered.find((n) => n.id === r.id)!)
+          .filter((n) => rankedIds.has(n.id));
       }
       setNotes(filtered);
       return;
@@ -287,7 +316,13 @@ export default function NotesPage() {
                   <div className="note-row-accent" />
                   <Link href={`/notes/${n.id}`} className="note-row-body">
                     <h3>{n.title || "Untitled"}</h3>
-                    <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                    {debouncedQuery ? (
+                      <p>
+                        <HighlightedSnippet body={n.body} query={debouncedQuery} />
+                      </p>
+                    ) : (
+                      <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                    )}
                     {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
                       <div className="note-row-tags">
                         {tagsByNote.get(n.id)!.map((tag) => (

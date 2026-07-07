@@ -20,7 +20,10 @@ interface NoteDao {
     @Query(
         "SELECT * FROM notes WHERE deletedAt IS NULL AND status = :status " +
             "AND (:query = '' OR title LIKE '%' || :query || '%' OR body LIKE '%' || :query || '%') " +
-            "ORDER BY pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
+            "ORDER BY " +
+            "(CASE WHEN :query != '' AND title LIKE '%' || :query || '%' THEN 3 ELSE 0 END " +
+            "+ CASE WHEN :query != '' AND body LIKE '%' || :query || '%' THEN 1 ELSE 0 END) DESC, " +
+            "pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
     )
     fun observeByStatusAndQuery(status: String, query: String): Flow<List<NoteEntity>>
 
@@ -31,7 +34,10 @@ interface NoteDao {
         WHERE notes.deletedAt IS NULL AND notes.status = :status
         AND note_tags.tagId = :tagId AND note_tags.deletedAt IS NULL
         AND (:query = '' OR notes.title LIKE '%' || :query || '%' OR notes.body LIKE '%' || :query || '%')
-        ORDER BY notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
+        ORDER BY
+            (CASE WHEN :query != '' AND notes.title LIKE '%' || :query || '%' THEN 3 ELSE 0 END
+             + CASE WHEN :query != '' AND notes.body LIKE '%' || :query || '%' THEN 1 ELSE 0 END) DESC,
+            notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
         """,
     )
     fun observeByStatusQueryAndTag(status: String, query: String, tagId: String): Flow<List<NoteEntity>>
