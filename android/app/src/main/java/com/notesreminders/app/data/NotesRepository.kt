@@ -132,17 +132,26 @@ class NotesRepository(
     }
 
     private suspend fun captureRevision(note: NoteEntity, source: String) {
+        captureRevision(note.id, note.title, note.body, source)
+    }
+
+    private suspend fun captureRevision(
+        noteId: String,
+        title: String,
+        body: String,
+        source: String,
+    ) {
         db.noteRevisionDao().upsert(
             NoteRevisionEntity(
                 id = UUID.randomUUID().toString(),
-                noteId = note.id,
-                title = note.title,
-                body = note.body,
+                noteId = noteId,
+                title = title,
+                body = body,
                 source = source,
                 createdAt = Instant.now().toString(),
             ),
         )
-        pruneRevisions(note.id)
+        pruneRevisions(noteId)
     }
 
     private suspend fun pruneRevisions(noteId: String) {
@@ -239,21 +248,59 @@ class NotesRepository(
         )
     }
 
-    suspend fun resolveConflict(conflictId: String, keepLocal: Boolean) {
+    suspend fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
         val conflict = db.noteConflictDao().getById(conflictId) ?: return
         val now = Instant.now().toString()
         val note = db.noteDao().getById(conflict.noteId)
         if (note != null) {
-            db.noteDao().upsert(
-                note.copy(
-                    title = if (keepLocal) conflict.localTitle else conflict.serverTitle,
-                    body = if (keepLocal) conflict.localBody else conflict.serverBody,
-                    updatedAt = now,
-                    isDirty = true,
-                ),
-            )
+            when (resolution) {
+                ConflictResolution.KEEP_LOCAL -> {
+                    captureRevision(note.id, conflict.serverTitle, conflict.serverBody, "conflict")
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = conflict.localTitle,
+                            body = conflict.localBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                }
+                ConflictResolution.KEEP_SERVER -> {
+                    captureRevision(note.id, conflict.localTitle, conflict.localBody, "conflict")
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = conflict.serverTitle,
+                            body = conflict.serverBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                }
+                ConflictResolution.MERGE -> {
+                    captureRevision(note.id, conflict.localTitle, conflict.localBody, "conflict")
+                    val divider = "\n\n---\n\n"
+                    val mergedBody = conflict.localBody + divider + conflict.serverBody
+                    val mergedTitle = conflict.localTitle.ifBlank { conflict.serverTitle }
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = mergedTitle,
+                            body = mergedBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                    runCatching { findOrCreateTag("merged:${now.substring(0, 10)}") }
+                        .getOrNull()?.let { tag -> assignTag(note.id, tag.id) }
+                }
+            }
         }
         db.noteConflictDao().resolve(conflictId, now)
+    }
+
+    private suspend fun findOrCreateTag(name: String): TagEntity {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        db.tagDao().getByName(userId, name)?.let { return it }
+        return createTag(name)
     }
 
     suspend fun getLastSyncAt(): String? = db.syncMetaDao().get()?.lastSyncAt

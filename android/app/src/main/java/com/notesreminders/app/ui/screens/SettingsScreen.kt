@@ -36,6 +36,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.notesreminders.app.BuildConfig
 import android.app.Activity
+import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
@@ -289,11 +290,14 @@ fun SettingsScreen(
                         color = RecallColors.ParchmentMuted,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = true) }) {
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_LOCAL) }) {
                             Text("Keep local", color = RecallColors.Copper)
                         }
-                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = false) }) {
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_SERVER) }) {
                             Text("Keep server", color = RecallColors.Copper)
+                        }
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.MERGE) }) {
+                            Text("Merge both", color = RecallColors.Copper)
                         }
                     }
                     Spacer(Modifier.height(8.dp))

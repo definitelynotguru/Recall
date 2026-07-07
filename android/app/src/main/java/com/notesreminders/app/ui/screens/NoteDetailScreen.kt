@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.DetectedReminder
@@ -167,8 +168,9 @@ fun NoteDetailScreen(
 
         NoteConflictBanner(
             conflict = noteConflict,
-            onKeepLocal = { noteConflict?.let { viewModel.resolveConflict(it.id, keepLocal = true) } },
-            onKeepServer = { noteConflict?.let { viewModel.resolveConflict(it.id, keepLocal = false) } },
+            onKeepLocal = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_LOCAL) } },
+            onKeepServer = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_SERVER) } },
+            onMerge = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.MERGE) } },
         )
 
         Text(

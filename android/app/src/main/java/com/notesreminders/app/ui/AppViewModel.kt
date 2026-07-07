@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.notesreminders.app.NotesApp
+import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.LoginRequest
 import com.notesreminders.app.data.api.RefreshRequest
@@ -418,9 +419,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ioLaunch { app.notesRepository.setNoteArchived(id, archived) }
     }
 
-    fun resolveConflict(conflictId: String, keepLocal: Boolean) {
+    fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
         viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.resolveConflict(conflictId, keepLocal)
+            app.notesRepository.resolveConflict(conflictId, resolution)
             withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
         }
     }
