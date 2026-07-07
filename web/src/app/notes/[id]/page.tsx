@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
-import { MarkdownToolbar } from "@/components/MarkdownToolbar";
+import { FloatingToolbar, MarkdownToolbar } from "@/components/FloatingToolbar";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderMeta } from "@/components/ReminderMeta";
 import { SyncHintBanner } from "@/components/SyncHintBanner";
@@ -590,9 +590,12 @@ export default function NoteDetailPage() {
         {preview ? (
           <MarkdownView content={body} noteTitles={titleToIdMap} />
         ) : (
-          <div className="field" style={{ marginBottom: 0 }}>
+          <div className="field" style={{ marginBottom: 0, position: "relative" }}>
             <label htmlFor="body">Body — Markdown</label>
-            <MarkdownToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
+            <FloatingToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
+            <div className="md-toolbar-mobile">
+              <MarkdownToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
+            </div>
             <textarea
               id="body"
               ref={bodyRef}
