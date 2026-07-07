@@ -126,6 +126,12 @@ export default function NotesPage() {
     }
   });
 
+  useEffect(() => {
+    const handler = () => void reload();
+    window.addEventListener("recall:notes-changed", handler);
+    return () => window.removeEventListener("recall:notes-changed", handler);
+  }, [reload]);
+
   const tagsByNote = useMemo(() => {
     const map = new Map<string, ApiTag[]>();
     const tagById = new Map(allTags.map((t) => [t.id, t]));

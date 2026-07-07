@@ -329,6 +329,7 @@ private fun MainShell(
 
     OnboardingDialog(
         open = showOnboarding,
+        viewModel = viewModel,
         onDismiss = {
             viewModel.userPrefs.onboardingDone = true
             showOnboarding = false

@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.notesreminders.app.NotesApp
 import com.notesreminders.app.data.ConflictResolution
+import com.notesreminders.app.data.Templates
 import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.LoginRequest
 import com.notesreminders.app.data.api.RefreshRequest
@@ -328,6 +329,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteTemplate(template: NoteEntity) {
         ioLaunch { app.notesRepository.deleteNote(template.id) }
+    }
+
+    fun createStarterNotesFromSurvey(indices: List<Int>, onDone: () -> Unit) {
+        ioLaunch {
+            for (i in indices) {
+                val t = Templates.DEFAULTS[i]
+                app.notesRepository.createNote(t.title, Templates.expandTemplate(t.body, t.title))
+            }
+            withContext(Dispatchers.Main) { onDone() }
+        }
     }
 
     fun createNoteFromText(text: String, onCreated: (String) -> Unit) {
