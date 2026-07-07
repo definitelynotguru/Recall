@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Note
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.Settings
 import com.notesreminders.app.ui.components.OnboardingDialog
 import com.notesreminders.app.ui.screens.HistoryScreen
 import com.notesreminders.app.ui.screens.SettingsScreen
+import com.notesreminders.app.ui.screens.CalendarScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -213,6 +215,7 @@ private fun MainShell(
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
         BottomTab("notes", "Notes", Icons.Outlined.Note),
+        BottomTab("calendar", "Calendar", Icons.Outlined.CalendarMonth),
         BottomTab("history", "History", Icons.Outlined.History),
         BottomTab("settings", "Settings", Icons.Outlined.Settings),
     )
@@ -289,10 +292,18 @@ private fun MainShell(
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
                     onRequestExactAlarms = onRequestExactAlarms,
                     onLogout = { viewModel.logout { onLogout() } },
+                    onOpenCalendar = { nav.navigate("calendar") { launchSingleTop = true } },
                 )
             }
             composable("notes") {
                 NotesListScreen(
+                    viewModel = viewModel,
+                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onLogout = { viewModel.logout { onLogout() } },
+                )
+            }
+            composable("calendar") {
+                CalendarScreen(
                     viewModel = viewModel,
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
                     onLogout = { viewModel.logout { onLogout() } },

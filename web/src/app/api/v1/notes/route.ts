@@ -21,6 +21,7 @@ const createSchema = z.object({
   status: z.enum(["active", "archived"]).default("active"),
   pinned_at: z.string().nullable().optional(),
   is_template: z.boolean().optional().default(false),
+  daily_date: z.string().nullable().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
   const q = params.get("q")?.trim() ?? "";
   const tagId = params.get("tag_id")?.trim() ?? "";
   const templatesMode = params.get("templates") ?? "hide";
+  const dailyDate = params.get("daily_date")?.trim() ?? "";
   const limitParam = params.get("limit");
   const limit = limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
   if (!["active", "archived", "all"].includes(status)) {
@@ -51,6 +53,9 @@ export async function GET(request: NextRequest) {
     // no template filter
   } else {
     filters.push(eq(notes.isTemplate, false));
+  }
+  if (dailyDate) {
+    filters.push(eq(notes.dailyDate, dailyDate));
   }
 
   let noteIdFilter: string[] | null = null;
@@ -157,6 +162,7 @@ export async function POST(request: NextRequest) {
       status: body.status,
       pinnedAt,
       isTemplate: body.is_template,
+      dailyDate: body.daily_date ?? null,
       createdAt: now,
       updatedAt: now,
     })

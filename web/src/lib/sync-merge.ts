@@ -7,6 +7,7 @@ export type SyncNoteInput = {
   status: string;
   pinned_at: string | null;
   is_template: boolean;
+  daily_date: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

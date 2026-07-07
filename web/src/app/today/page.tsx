@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Check, Clock, PencilSimple, Trash } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { Check, Clock, CalendarDots, NotePencil, PencilSimple, Trash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
@@ -12,7 +13,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { pickNextReminder } from "@/lib/reminder-detect";
-import { apiFetch, ApiReminder } from "@/lib/api-client";
+import { apiFetch, getOrCreateDailyNote, ApiReminder } from "@/lib/api-client";
 import { groupRemindersByDay } from "@/lib/reminder-utils";
 
 const ReminderDialog = dynamic(
@@ -29,10 +30,25 @@ function snoozeFireAt(minutes: number) {
 export default function TodayPage() {
   const { confirm } = useConfirm();
   const { toast } = useToast();
+  const router = useRouter();
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [dailyBusy, setDailyBusy] = useState(false);
+
+  const openTodayNote = useCallback(async () => {
+    setDailyBusy(true);
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      const note = await getOrCreateDailyNote(date);
+      router.push(`/notes/${note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not open today's note", "error");
+    } finally {
+      setDailyBusy(false);
+    }
+  }, [router, toast]);
 
   const loadReminders = useCallback(async () => {
     const res = await apiFetch<{ reminders: ApiReminder[] }>(
@@ -183,6 +199,28 @@ export default function TodayPage() {
             : "Your timeline is clear — add a reminder from any note."}
         </p>
       </header>
+
+      <div className="panel panel-pad" style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <NotePencil size={22} color="var(--accent)" />
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <strong>Daily note</strong>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.85rem" }}>
+            Open or create today&apos;s note, generated from your Daily Journal template.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => void openTodayNote()}
+          disabled={dailyBusy}
+        >
+          {dailyBusy ? "Opening…" : "Open today"}
+        </button>
+        <Link href="/calendar" className="btn btn-secondary">
+          <CalendarDots size={18} weight="bold" />
+          Calendar
+        </Link>
+      </div>
 
       {error ? (
         <LoadError message={error} onRetry={() => void reload()} />

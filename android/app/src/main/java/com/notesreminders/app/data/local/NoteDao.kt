@@ -48,6 +48,12 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
     suspend fun getTemplates(): List<NoteEntity>
 
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND dailyDate IS NOT NULL ORDER BY dailyDate DESC")
+    fun observeDailyNotes(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND dailyDate = :date LIMIT 1")
+    suspend fun getByDailyDate(date: String): NoteEntity?
+
     @Query("SELECT * FROM notes WHERE isDirty = 1")
     suspend fun getDirty(): List<NoteEntity>
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
+import { ArchiveBoxIcon, CalendarDots, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
@@ -13,7 +13,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
-import { listTemplates } from "@/lib/api-client";
+import { listTemplates, getOrCreateDailyNote } from "@/lib/api-client";
 import { expandTemplate } from "@/lib/templates";
 import { makeSnippet, tokenize } from "@/lib/search-score";
 import { searchNotes } from "@/lib/search-score";
@@ -188,6 +188,27 @@ export default function NotesPage() {
     }
   };
 
+  const openToday = async () => {
+    setCreating(true);
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      if (!user) {
+        const note = createLocalNote();
+        note.title = `Daily — ${date}`;
+        note.body = "";
+        await putLocalNote(note);
+        router.push(`/notes/${note.id}`);
+        return;
+      }
+      const note = await getOrCreateDailyNote(date);
+      router.push(`/notes/${note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not open today's note", "error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const createFromTemplate = async (tpl: ApiNote) => {
     setShowTemplateMenu(false);
     setCreating(true);
@@ -284,6 +305,15 @@ export default function NotesPage() {
         >
           <Plus size={18} weight="bold" />
           {creating ? "Creating…" : "New note"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void openToday()}
+          disabled={creating}
+        >
+          <CalendarDots size={18} weight="bold" />
+          Today
         </button>
         {!isLocal && templates.length > 0 && (
           <div className="template-menu-wrap">

@@ -341,6 +341,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun observeDailyNotes() = app.notesRepository.observeDailyNotes()
+
+    fun openToday(onOpen: (String) -> Unit) {
+        val date = java.time.LocalDate.now().toString()
+        ioLaunch {
+            val note = app.notesRepository.getOrCreateDailyNote(date)
+            withContext(Dispatchers.Main) { onOpen(note.id) }
+        }
+    }
+
+    fun openDailyNote(date: String, onOpen: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.getOrCreateDailyNote(date)
+            withContext(Dispatchers.Main) { onOpen(note.id) }
+        }
+    }
+
     fun createNoteFromText(text: String, sourceTitle: String? = null, onCreated: (String) -> Unit) {
         if (text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {

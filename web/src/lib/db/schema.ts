@@ -33,6 +33,7 @@ export const notes = pgTable(
     status: text("status").notNull().default("active"),
     pinnedAt: timestamp("pinned_at", { withTimezone: true }),
     isTemplate: boolean("is_template").notNull().default(false),
+    dailyDate: text("daily_date"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -40,6 +41,7 @@ export const notes = pgTable(
   (t) => [
     index("notes_user_updated").on(t.userId, t.updatedAt),
     index("notes_user_pinned_updated").on(t.userId, t.pinnedAt, t.updatedAt),
+    index("notes_user_daily").on(t.userId, t.dailyDate),
   ],
 );
 

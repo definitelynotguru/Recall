@@ -143,6 +143,7 @@ async function mergeNote(
     status: client.status,
     pinnedAt: client.pinned_at ? new Date(client.pinned_at) : null,
     isTemplate: client.is_template,
+    dailyDate: client.daily_date ?? null,
     createdAt: new Date(client.created_at),
     updatedAt: clientUpdated,
     deletedAt: client.deleted_at ? new Date(client.deleted_at) : null,

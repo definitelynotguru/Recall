@@ -116,6 +116,7 @@ export type ApiNote = {
   status: string;
   pinned_at: string | null;
   is_template?: boolean;
+  daily_date?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -202,6 +203,14 @@ export async function createTemplate(title: string, body: string): Promise<ApiNo
       body,
       is_template: true,
     }),
+  });
+  return res.note;
+}
+
+export async function getOrCreateDailyNote(date: string): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>("/notes/daily", {
+    method: "POST",
+    body: JSON.stringify({ date }),
   });
   return res.note;
 }

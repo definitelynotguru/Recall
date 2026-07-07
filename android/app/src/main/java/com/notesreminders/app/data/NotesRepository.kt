@@ -210,6 +210,32 @@ class NotesRepository(
         return toCreate.size
     }
 
+    fun observeDailyNotes(): Flow<List<NoteEntity>> = db.noteDao().observeDailyNotes()
+
+    suspend fun getOrCreateDailyNote(date: String): NoteEntity {
+        db.noteDao().getByDailyDate(date)?.let { return it }
+        val title = "Daily — $date"
+        val body = Templates.expandTemplate(Templates.DEFAULTS[0].body, title)
+        val userId = tokenStore.userId ?: error("Not logged in")
+        val now = Instant.now().toString()
+        val note = NoteEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            title = title,
+            body = body,
+            status = "active",
+            pinnedAt = null,
+            isTemplate = false,
+            dailyDate = date,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            isDirty = true,
+        )
+        db.noteDao().upsert(note)
+        return note
+    }
+
     suspend fun setNotePinned(id: String, pinned: Boolean) {
         val existing = db.noteDao().getById(id) ?: return
         val now = Instant.now().toString()

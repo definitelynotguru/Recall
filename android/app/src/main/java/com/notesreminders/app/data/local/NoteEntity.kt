@@ -12,6 +12,7 @@ data class NoteEntity(
     val status: String,
     val pinnedAt: String? = null,
     val isTemplate: Boolean = false,
+    val dailyDate: String? = null,
     val createdAt: String,
     val updatedAt: String,
     val deletedAt: String?,

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarBlank,
+  CalendarDots,
   NoteBlank,
   Gear,
   ClockCounterClockwise,
@@ -15,6 +16,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV = [
   { href: "/today", label: "Today", icon: CalendarBlank },
   { href: "/notes", label: "Notes", icon: NoteBlank },
+  { href: "/calendar", label: "Calendar", icon: CalendarDots },
   { href: "/history", label: "History", icon: ClockCounterClockwise },
   { href: "/settings", label: "Settings", icon: Gear },
 ] as const;
