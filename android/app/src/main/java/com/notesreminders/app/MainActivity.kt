@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
     ) { }
 
     private val pendingNoteId = mutableStateOf<String?>(null)
-    private val pendingSharedText = mutableStateOf<String?>(null)
+    private val pendingSharedText = mutableStateOf<SharedPayload?>(null)
     private val pendingQuickAdd = mutableStateOf(false)
 
     companion object {
@@ -133,9 +133,11 @@ class MainActivity : ComponentActivity() {
         pendingQuickAdd.value = intent.getBooleanExtra(EXTRA_QUICK_ADD, false)
     }
 
-    private fun Intent.extractSharedText(): String? {
+    private fun Intent.extractSharedText(): SharedPayload? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null
-        return getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+        val text = getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() } ?: return null
+        val title = getStringExtra(Intent.EXTRA_TITLE)?.takeIf { it.isNotBlank() }
+        return SharedPayload(text, title)
     }
 
     private fun requestNotificationPermission() {
@@ -157,11 +159,13 @@ private data class BottomTab(
     val icon: ImageVector,
 )
 
+private data class SharedPayload(val text: String, val title: String?)
+
 @Composable
 private fun MainShell(
     viewModel: AppViewModel,
     launchNoteId: String?,
-    launchSharedText: String?,
+    launchSharedText: SharedPayload?,
     launchQuickAdd: Boolean,
     onNoteOpened: () -> Unit,
     onSharedTextConsumed: () -> Unit,
@@ -191,8 +195,8 @@ private fun MainShell(
         }
     }
     LaunchedEffect(launchSharedText) {
-        if (!launchSharedText.isNullOrBlank()) {
-            viewModel.createNoteFromText(launchSharedText) { noteId ->
+        if (launchSharedText != null) {
+            viewModel.createNoteFromText(launchSharedText.text, launchSharedText.title) { noteId ->
                 nav.navigate("note/$noteId") { launchSingleTop = true }
                 onSharedTextConsumed()
             }

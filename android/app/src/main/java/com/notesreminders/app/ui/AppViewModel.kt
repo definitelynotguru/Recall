@@ -341,10 +341,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createNoteFromText(text: String, onCreated: (String) -> Unit) {
+    fun createNoteFromText(text: String, sourceTitle: String? = null, onCreated: (String) -> Unit) {
         if (text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val note = app.notesRepository.createNoteFromText(text)
+            val note = app.notesRepository.createNoteFromText(text, sourceTitle)
             withContext(Dispatchers.Main) {
                 onCreated(note.id)
             }

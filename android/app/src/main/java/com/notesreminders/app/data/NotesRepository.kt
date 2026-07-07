@@ -106,11 +106,14 @@ class NotesRepository(
         return note
     }
 
-    suspend fun createNoteFromText(text: String): NoteEntity {
-        val clean = text.trim()
-        val firstLine = clean.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
-        val title = firstLine.take(80).ifBlank { "Shared note" }
-        return createNote(title, clean)
+    suspend fun createNoteFromText(text: String, sourceTitle: String? = null): NoteEntity {
+        val content = ShareCapture.format(text, sourceTitle)
+        val note = createNote(content.title, content.body)
+        for (tagName in content.tags) {
+            val tag = findOrCreateTag(tagName)
+            assignTag(note.id, tag.id)
+        }
+        return note
     }
 
     suspend fun reconcileAlarms() {
