@@ -1,6 +1,7 @@
-// Minimal Recall service worker: app-shell cache-first, API network-first,
+// Minimal Recall service worker: navigation network-first (so HTML always
+// references the current deployment's hashed chunks), API network-first,
 // static assets stale-while-revalidate. No aggressive API caching.
-const CACHE = "recall-v1";
+const CACHE = "recall-v2";
 const APP_SHELL = ["/", "/manifest.json", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {
@@ -39,19 +40,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-first for navigation requests (the app shell).
+  // Network-first for navigation requests. Serving stale cached HTML across
+  // deployments breaks the page: the old HTML references hashed chunk files
+  // that no longer exist on the new deployment (404 text/plain), which the
+  // browser refuses to execute. Always fetch fresh HTML when online and fall
+  // back to the cached shell only when offline.
   if (request.mode === "navigate") {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request)
-          .then((response) => {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-            return response;
-          })
-          .catch(() => caches.match("/"));
-      }),
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
     );
     return;
   }
