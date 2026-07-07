@@ -155,3 +155,32 @@ export type ApiNoteTag = {
   updated_at: string;
   deleted_at: string | null;
 };
+
+export type ApiNoteRevision = {
+  id: string;
+  note_id: string;
+  title: string;
+  body: string;
+  source: string;
+  created_at: string;
+};
+
+export async function listNoteRevisions(
+  noteId: string,
+): Promise<ApiNoteRevision[]> {
+  const res = await apiFetch<{ revisions: ApiNoteRevision[] }>(
+    `/notes/${noteId}/revisions`,
+  );
+  return res.revisions;
+}
+
+export async function restoreNoteRevision(
+  noteId: string,
+  revisionId: string,
+): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>(
+    `/notes/${noteId}/revisions/${revisionId}/restore`,
+    { method: "POST" },
+  );
+  return res.note;
+}

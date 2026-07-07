@@ -6,6 +6,7 @@ import {
   type SyncNoteInput,
   type SyncReminderInput,
 } from "./sync-merge";
+import { captureRevisionIfChanged } from "./revisions";
 import type { getDb } from "./db";
 import type { Note, NoteTag, Reminder, Tag } from "./db/schema";
 
@@ -149,6 +150,18 @@ async function mergeNote(
   if (action === "insert") {
     await tx.insert(notes).values(row);
     return;
+  }
+
+  if (existing) {
+    await captureRevisionIfChanged(
+      tx,
+      userId,
+      client.id,
+      { title: existing.title, body: existing.body },
+      client.title,
+      client.body,
+      "sync",
+    );
   }
 
   await tx

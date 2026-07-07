@@ -3,12 +3,16 @@ package com.notesreminders.app.ui.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.reminders.ReminderDetect
@@ -47,6 +52,7 @@ fun NoteDetailScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit,
     onDeleted: () -> Unit,
+    onOpenNote: (String) -> Unit,
     onRequestExactAlarms: () -> Unit = {},
 ) {
     var title by remember(noteId) { mutableStateOf("") }
@@ -67,11 +73,13 @@ fun NoteDetailScreen(
     var isArchived by remember(noteId) { mutableStateOf(false) }
     var newTagName by remember(noteId) { mutableStateOf("") }
     var saveStatus by remember(noteId) { mutableStateOf("Saved") }
+    var showHistory by remember(noteId) { mutableStateOf(false) }
 
     val allTags by viewModel.tags.collectAsStateWithLifecycle()
     val noteTags by viewModel.observeTagsForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
     val observedNote by viewModel.observeNote(noteId).collectAsStateWithLifecycle(initialValue = null)
     val reminders by viewModel.observeRemindersForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
+    val revisions by viewModel.observeRevisionsForNote(noteId).collectAsStateWithLifecycle(initialValue = emptyList())
     val conflicts by viewModel.conflicts.collectAsStateWithLifecycle(initialValue = emptyList())
     val noteConflict = conflicts.firstOrNull { it.noteId == noteId }
     val selectedTagIds = remember(noteTags) { noteTags.map { it.id }.toSet() }
@@ -153,6 +161,7 @@ fun NoteDetailScreen(
                 viewModel.setNoteArchived(noteId, archived)
             },
             onTogglePreview = { preview = !preview },
+            onHistory = { showHistory = true },
             onDelete = { showDeleteNoteDialog = true },
         )
 
@@ -326,5 +335,78 @@ fun NoteDetailScreen(
                 RecallDialogTextButton("Cancel", { reminderToDelete = null }, RecallColors.ParchmentMuted)
             },
         )
+    }
+
+    if (showHistory) {
+        AlertDialog(
+            onDismissRequest = { showHistory = false },
+            title = { Text("Version history") },
+            text = {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    if (revisions.isEmpty()) {
+                        Text(
+                            "No saved revisions yet. Earlier edits on this device will appear here.",
+                            color = RecallColors.ParchmentMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    revisions.forEach { rev ->
+                        RevisionRow(
+                            revision = rev,
+                            onRestore = {
+                                showHistory = false
+                                viewModel.restoreRevision(rev.id) { newId ->
+                                    if (newId != null) onOpenNote(newId)
+                                }
+                            },
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showHistory = false }) {
+                    Text("Close", color = RecallColors.Copper)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun RevisionRow(
+    revision: NoteRevisionEntity,
+    onRestore: () -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            revision.title.ifBlank { "Untitled" },
+            style = MaterialTheme.typography.bodyMedium,
+            color = RecallColors.Parchment,
+        )
+        Text(
+            "${revision.createdAt.take(19).replace("T", " ")} · ${revision.source}",
+            style = MaterialTheme.typography.bodySmall,
+            color = RecallColors.ParchmentMuted,
+        )
+        if (revision.body.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                revision.body.take(160),
+                style = MaterialTheme.typography.bodySmall,
+                color = RecallColors.ParchmentMuted,
+                maxLines = 3,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        TextButton(onClick = onRestore) {
+            Text("Restore as copy", color = RecallColors.Copper)
+        }
     }
 }

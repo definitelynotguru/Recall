@@ -15,8 +15,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteTagEntity::class,
         NoteConflictEntity::class,
         SyncErrorEntity::class,
+        NoteRevisionEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteTagDao(): NoteTagDao
     abstract fun noteConflictDao(): NoteConflictDao
     abstract fun syncErrorDao(): SyncErrorDao
+    abstract fun noteRevisionDao(): NoteRevisionDao
 
     @Transaction
     open suspend fun applySyncMerge(
@@ -119,6 +121,23 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE reminders ADD COLUMN reminderMode TEXT NOT NULL DEFAULT 'once'")
                 db.execSQL("ALTER TABLE reminders ADD COLUMN nagIntervalMinutes INTEGER")
+            }
+        }
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS note_revisions (" +
+                        "id TEXT NOT NULL PRIMARY KEY, " +
+                        "noteId TEXT NOT NULL, " +
+                        "title TEXT NOT NULL, " +
+                        "body TEXT NOT NULL, " +
+                        "source TEXT NOT NULL, " +
+                        "createdAt TEXT NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_note_revisions_note_created " +
+                        "ON note_revisions(noteId, createdAt)",
+                )
             }
         }
     }

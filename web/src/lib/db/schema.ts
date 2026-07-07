@@ -151,7 +151,28 @@ export const refreshTokens = pgTable(
   (t) => [index("refresh_tokens_hash").on(t.tokenHash)],
 );
 
+export const noteRevisions = pgTable(
+  "note_revisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    body: text("body").notNull().default(""),
+    source: text("source").notNull().default("edit"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("note_revisions_note_created").on(t.noteId, t.createdAt)],
+);
+
 export type Note = typeof notes.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type NoteTag = typeof noteTags.$inferSelect;
+export type NoteRevision = typeof noteRevisions.$inferSelect;

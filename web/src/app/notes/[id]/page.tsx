@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArchiveBoxIcon,
   ArchiveTrayIcon,
+  ClockCounterClockwise,
   Eye,
   Info,
   PencilSimple,
@@ -75,6 +76,13 @@ const MarkdownCheatSheet = dynamic(
   () => import("@/components/MarkdownCheatSheet").then((m) => m.MarkdownCheatSheet),
   { ssr: false },
 );
+const RevisionHistoryDialog = dynamic(
+  () =>
+    import("@/components/RevisionHistoryDialog").then(
+      (m) => m.RevisionHistoryDialog,
+    ),
+  { ssr: false },
+);
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -107,6 +115,7 @@ export default function NoteDetailPage() {
   >("idle");
   const [showInfo, setShowInfo] = useState(false);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [createdAt, setCreatedAt] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
   const { user, loading: authLoading } = useAuth();
@@ -525,6 +534,17 @@ export default function NoteDetailPage() {
         >
           <Info size={18} />
         </button>
+        {!isLocal && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowHistory(true)}
+            aria-label="Version history"
+            title="Version history"
+          >
+            <ClockCounterClockwise size={18} />
+          </button>
+        )}
         <span className="save-status">
           {saveStatusLabel()}
           {saveStatus === "error" && (
@@ -723,6 +743,13 @@ export default function NoteDetailPage() {
       <MarkdownCheatSheet
         open={showCheatSheet}
         onClose={() => setShowCheatSheet(false)}
+      />
+
+      <RevisionHistoryDialog
+        noteId={id}
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        onRestored={(newId) => router.push(`/notes/${newId}`)}
       />
     </RequireAuth>
   );

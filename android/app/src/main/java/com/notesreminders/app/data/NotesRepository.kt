@@ -5,6 +5,7 @@ import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.NoteEntity
+import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.NoteTagEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
@@ -14,6 +15,7 @@ import com.notesreminders.app.sync.SyncRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class NotesRepository(
@@ -118,6 +120,7 @@ class NotesRepository(
     suspend fun saveNoteLocal(id: String, title: String, body: String) {
         val existing = db.noteDao().getById(id) ?: return
         if (existing.title == title && existing.body == body) return
+        captureRevision(existing, "edit")
         db.noteDao().upsert(
             existing.copy(
                 title = title,
@@ -126,6 +129,37 @@ class NotesRepository(
                 isDirty = true,
             ),
         )
+    }
+
+    private suspend fun captureRevision(note: NoteEntity, source: String) {
+        db.noteRevisionDao().upsert(
+            NoteRevisionEntity(
+                id = UUID.randomUUID().toString(),
+                noteId = note.id,
+                title = note.title,
+                body = note.body,
+                source = source,
+                createdAt = Instant.now().toString(),
+            ),
+        )
+        pruneRevisions(note.id)
+    }
+
+    private suspend fun pruneRevisions(noteId: String) {
+        val cutoff = Instant.now().minus(30, ChronoUnit.DAYS).toString()
+        db.noteRevisionDao().deleteOlderThan(noteId, cutoff)
+        db.noteRevisionDao().keepLatest(noteId, 10)
+    }
+
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
+        db.noteRevisionDao().observeForNote(noteId, 10)
+
+    suspend fun getRevision(id: String): NoteRevisionEntity? = db.noteRevisionDao().getById(id)
+
+    suspend fun restoreRevisionAsNote(revisionId: String): NoteEntity? {
+        val rev = db.noteRevisionDao().getById(revisionId) ?: return null
+        val title = rev.title.ifBlank { "Restored note" }.trim()
+        return createNote(title, rev.body)
     }
 
     suspend fun setNotePinned(id: String, pinned: Boolean) {

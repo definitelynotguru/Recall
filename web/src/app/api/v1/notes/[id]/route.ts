@@ -10,6 +10,7 @@ import {
   toApiReminder,
 } from "@/lib/api-utils";
 import { eq, and, isNull } from "drizzle-orm";
+import { captureRevisionIfChanged } from "@/lib/revisions";
 
 const patchSchema = z.object({
   title: z.string().optional(),
@@ -83,6 +84,8 @@ export async function PATCH(
   if (!existing) return errorResponse("Note not found", 404);
 
   const now = new Date();
+  const nextTitle = body.title ?? existing.title;
+  const nextBody = body.body ?? existing.body;
   const pinnedAt =
     body.pinned_at === undefined
       ? existing.pinnedAt
@@ -92,17 +95,30 @@ export async function PATCH(
   if (pinnedAt && Number.isNaN(pinnedAt.getTime())) {
     return errorResponse("Invalid pinned_at", 400);
   }
-  const [row] = await db
-    .update(notes)
-    .set({
-      title: body.title ?? existing.title,
-      body: body.body ?? existing.body,
-      status: body.status ?? existing.status,
-      pinnedAt,
-      updatedAt: now,
-    })
-    .where(eq(notes.id, id))
-    .returning();
+
+  const [row] = await getDb().transaction(async (tx) => {
+    await captureRevisionIfChanged(
+      tx,
+      user!.userId,
+      id,
+      { title: existing.title, body: existing.body },
+      nextTitle,
+      nextBody,
+      "edit",
+    );
+    const [updated] = await tx
+      .update(notes)
+      .set({
+        title: nextTitle,
+        body: nextBody,
+        status: body.status ?? existing.status,
+        pinnedAt,
+        updatedAt: now,
+      })
+      .where(eq(notes.id, id))
+      .returning();
+    return [updated];
+  });
 
   return jsonResponse({ note: toApiNote(row) });
 }

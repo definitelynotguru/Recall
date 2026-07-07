@@ -10,6 +10,7 @@ import com.notesreminders.app.data.api.LoginRequest
 import com.notesreminders.app.data.api.RefreshRequest
 import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
+import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
 import android.app.Activity
@@ -372,6 +373,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun observeNote(noteId: String): Flow<NoteEntity?> =
         app.notesRepository.observeNote(noteId)
+
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
+        app.notesRepository.observeRevisionsForNote(noteId)
+
+    fun restoreRevision(revisionId: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { app.notesRepository.restoreRevisionAsNote(revisionId) }
+            }
+            val newId = result.getOrNull()?.id
+            if (newId != null) {
+                withContext(Dispatchers.Main) { onResult(newId) }
+            } else {
+                withContext(Dispatchers.Main) { onResult(null) }
+            }
+        }
+    }
 
     fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
         app.notesRepository.observeRemindersForNote(noteId)

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Unarchive
@@ -28,6 +29,7 @@ fun NoteDetailToolbar(
     onTogglePin: () -> Unit,
     onToggleArchive: () -> Unit,
     onTogglePreview: () -> Unit,
+    onHistory: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth()) {
@@ -44,6 +46,13 @@ fun NoteDetailToolbar(
                 Icons.Outlined.Sync,
                 contentDescription = "Sync",
                 tint = RecallColors.Copper,
+            )
+        }
+        IconButton(onClick = onHistory) {
+            Icon(
+                Icons.Outlined.History,
+                contentDescription = "Version history",
+                tint = RecallColors.ParchmentMuted,
             )
         }
         IconButton(onClick = onTogglePin) {

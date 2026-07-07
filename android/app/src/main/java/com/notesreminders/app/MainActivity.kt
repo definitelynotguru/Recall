@@ -312,6 +312,7 @@ private fun MainShell(
                     viewModel = viewModel,
                     onBack = { nav.popBackStack() },
                     onDeleted = { nav.popBackStack() },
+                    onOpenNote = { newId -> nav.navigate("note/$newId") { launchSingleTop = true } },
                     onRequestExactAlarms = onRequestExactAlarms,
                 )
             }

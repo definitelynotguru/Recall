@@ -188,8 +188,25 @@ class AppDatabaseMigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrate1To8FreshUpgrade() {
-        helper.createDatabase("m18", 1).apply {
+    fun migrate8To9AddsNoteRevisionsTable() {
+        helper.createDatabase("m89", 8).apply {
+            execSQL(
+                "CREATE TABLE notes (id TEXT NOT NULL PRIMARY KEY, userId TEXT NOT NULL, " +
+                    "title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, pinnedAt TEXT, " +
+                    "createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, deletedAt TEXT, " +
+                    "isDirty INTEGER NOT NULL)",
+            )
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("m89", 9, false, AppDatabase.MIGRATION_8_9)
+        assertTrue(tableExists(db, "note_revisions"))
+        db.close()
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrate1To9FreshUpgrade() {
+        helper.createDatabase("m19", 1).apply {
             execSQL(
                 "CREATE TABLE notes (id TEXT NOT NULL PRIMARY KEY, userId TEXT NOT NULL, " +
                     "title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, " +
@@ -203,8 +220,8 @@ class AppDatabaseMigrationTest {
             close()
         }
         val db = helper.runMigrationsAndValidate(
-            "m18",
-            8,
+            "m19",
+            9,
             false,
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
@@ -213,6 +230,7 @@ class AppDatabaseMigrationTest {
             AppDatabase.MIGRATION_5_6,
             AppDatabase.MIGRATION_6_7,
             AppDatabase.MIGRATION_7_8,
+            AppDatabase.MIGRATION_8_9,
         )
         assertTrue(columnsOf(db, "notes").contains("pinnedAt"))
         assertTrue(columnsOf(db, "sync_errors").contains("payload"))
@@ -222,6 +240,7 @@ class AppDatabaseMigrationTest {
         assertTrue(tableExists(db, "note_tags"))
         assertTrue(tableExists(db, "note_conflicts"))
         assertTrue(tableExists(db, "sync_errors"))
+        assertTrue(tableExists(db, "note_revisions"))
         val c = db.query("SELECT title FROM notes WHERE id = 'n1'")
         assertTrue(c.moveToFirst())
         assertTrue(c.getString(0) == "Keep me")
