@@ -11,6 +11,7 @@ import {
   type BackupBundle,
   type BackupPreview,
 } from "@/lib/backup-import";
+import { buildMarkdownArchive } from "@/lib/export-markdown";
 import { RequireAuth } from "@/components/RequireAuth";
 import { SettingsSection } from "@/components/SettingsSection";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -159,6 +160,27 @@ export default function SettingsPage() {
       await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportZip = async () => {
+    setExporting(true);
+    try {
+      const bundle = await exportBackupBundle();
+      const { filename, bytes } = buildMarkdownArchive(bundle);
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(bytes);
+      const blob = new Blob([copy], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Export failed", "error");
     } finally {
       setExporting(false);
     }
@@ -327,18 +349,29 @@ export default function SettingsPage() {
 
       <SettingsSection title="Backup & restore">
         <p className="settings-muted">
-          Export or import all notes and reminders as JSON. Import merges by id (updates
-          existing, adds new).
+          Export or import all notes and reminders. The <strong>Export all</strong> button
+          downloads a zip of Markdown files plus a <code>metadata.json</code> with tags,
+          dates, pinned status, and reminders. Import merges by id (updates existing, adds
+          new).
         </p>
         <div className="reminder-actions-row">
           <button
             type="button"
             className="btn btn-primary"
+            onClick={exportZip}
+            disabled={exporting || importing}
+          >
+            <DownloadSimple size={18} />
+            {exporting ? "Working…" : "Export all (.zip)"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={exportJson}
             disabled={exporting || importing}
           >
             <DownloadSimple size={18} />
-            {exporting ? "Working…" : "Download backup"}
+            {exporting ? "Working…" : "Download backup (.json)"}
           </button>
           <button
             type="button"
