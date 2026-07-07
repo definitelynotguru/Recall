@@ -58,7 +58,7 @@ export function parseBackupJson(text: string): BackupBundle {
 
 export async function exportBackupBundle(): Promise<BackupBundle> {
   const notesRes = await apiFetch<{ notes: ApiNote[] }>(
-    "/notes?status=all&limit=all",
+    "/notes?status=all&limit=all&templates=include",
   );
   const remindersRes = await apiFetch<{ reminders: ApiReminder[] }>(
     "/reminders?status=all&limit=all",

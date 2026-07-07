@@ -5,6 +5,7 @@ import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.NoteEntity
+import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.NoteTagEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
@@ -14,6 +15,7 @@ import com.notesreminders.app.sync.SyncRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class NotesRepository(
@@ -104,11 +106,14 @@ class NotesRepository(
         return note
     }
 
-    suspend fun createNoteFromText(text: String): NoteEntity {
-        val clean = text.trim()
-        val firstLine = clean.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
-        val title = firstLine.take(80).ifBlank { "Shared note" }
-        return createNote(title, clean)
+    suspend fun createNoteFromText(text: String, sourceTitle: String? = null): NoteEntity {
+        val content = ShareCapture.format(text, sourceTitle)
+        val note = createNote(content.title, content.body)
+        for (tagName in content.tags) {
+            val tag = findOrCreateTag(tagName)
+            assignTag(note.id, tag.id)
+        }
+        return note
     }
 
     suspend fun reconcileAlarms() {
@@ -118,6 +123,7 @@ class NotesRepository(
     suspend fun saveNoteLocal(id: String, title: String, body: String) {
         val existing = db.noteDao().getById(id) ?: return
         if (existing.title == title && existing.body == body) return
+        captureRevision(existing, "edit")
         db.noteDao().upsert(
             existing.copy(
                 title = title,
@@ -126,6 +132,108 @@ class NotesRepository(
                 isDirty = true,
             ),
         )
+    }
+
+    private suspend fun captureRevision(note: NoteEntity, source: String) {
+        captureRevision(note.id, note.title, note.body, source)
+    }
+
+    private suspend fun captureRevision(
+        noteId: String,
+        title: String,
+        body: String,
+        source: String,
+    ) {
+        db.noteRevisionDao().upsert(
+            NoteRevisionEntity(
+                id = UUID.randomUUID().toString(),
+                noteId = noteId,
+                title = title,
+                body = body,
+                source = source,
+                createdAt = Instant.now().toString(),
+            ),
+        )
+        pruneRevisions(noteId)
+    }
+
+    private suspend fun pruneRevisions(noteId: String) {
+        val cutoff = Instant.now().minus(30, ChronoUnit.DAYS).toString()
+        db.noteRevisionDao().deleteOlderThan(noteId, cutoff)
+        db.noteRevisionDao().keepLatest(noteId, 10)
+    }
+
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
+        db.noteRevisionDao().observeForNote(noteId, 10)
+
+    suspend fun getRevision(id: String): NoteRevisionEntity? = db.noteRevisionDao().getById(id)
+
+    suspend fun restoreRevisionAsNote(revisionId: String): NoteEntity? {
+        val rev = db.noteRevisionDao().getById(revisionId) ?: return null
+        val title = rev.title.ifBlank { "Restored note" }.trim()
+        return createNote(title, rev.body)
+    }
+
+    fun observeTemplates(): Flow<List<NoteEntity>> = db.noteDao().observeTemplates()
+
+    suspend fun getTemplates(): List<NoteEntity> = db.noteDao().getTemplates()
+
+    suspend fun createTemplate(title: String, body: String): NoteEntity {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        val now = Instant.now().toString()
+        val note = NoteEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            title = title,
+            body = body,
+            status = "active",
+            pinnedAt = null,
+            isTemplate = true,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            isDirty = true,
+        )
+        db.noteDao().upsert(note)
+        return note
+    }
+
+    suspend fun createNoteFromTemplate(template: NoteEntity): NoteEntity {
+        val expanded = Templates.expandTemplate(template.body, template.title)
+        return createNote(template.title.ifBlank { "Untitled" }, expanded)
+    }
+
+    suspend fun seedDefaultTemplatesIfNeeded(): Int {
+        val existingTitles = db.noteDao().getTemplates().map { it.title }.toSet()
+        val toCreate = Templates.DEFAULTS.filter { it.title !in existingTitles }
+        for (tpl in toCreate) createTemplate(tpl.title, tpl.body)
+        return toCreate.size
+    }
+
+    fun observeDailyNotes(): Flow<List<NoteEntity>> = db.noteDao().observeDailyNotes()
+
+    suspend fun getOrCreateDailyNote(date: String): NoteEntity {
+        db.noteDao().getByDailyDate(date)?.let { return it }
+        val title = "Daily — $date"
+        val body = Templates.expandTemplate(Templates.DEFAULTS[0].body, title)
+        val userId = tokenStore.userId ?: error("Not logged in")
+        val now = Instant.now().toString()
+        val note = NoteEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            title = title,
+            body = body,
+            status = "active",
+            pinnedAt = null,
+            isTemplate = false,
+            dailyDate = date,
+            createdAt = now,
+            updatedAt = now,
+            deletedAt = null,
+            isDirty = true,
+        )
+        db.noteDao().upsert(note)
+        return note
     }
 
     suspend fun setNotePinned(id: String, pinned: Boolean) {
@@ -205,35 +313,80 @@ class NotesRepository(
         )
     }
 
-    suspend fun resolveConflict(conflictId: String, keepLocal: Boolean) {
+    suspend fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
         val conflict = db.noteConflictDao().getById(conflictId) ?: return
         val now = Instant.now().toString()
         val note = db.noteDao().getById(conflict.noteId)
         if (note != null) {
-            db.noteDao().upsert(
-                note.copy(
-                    title = if (keepLocal) conflict.localTitle else conflict.serverTitle,
-                    body = if (keepLocal) conflict.localBody else conflict.serverBody,
-                    updatedAt = now,
-                    isDirty = true,
-                ),
-            )
+            when (resolution) {
+                ConflictResolution.KEEP_LOCAL -> {
+                    captureRevision(note.id, conflict.serverTitle, conflict.serverBody, "conflict")
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = conflict.localTitle,
+                            body = conflict.localBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                }
+                ConflictResolution.KEEP_SERVER -> {
+                    captureRevision(note.id, conflict.localTitle, conflict.localBody, "conflict")
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = conflict.serverTitle,
+                            body = conflict.serverBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                }
+                ConflictResolution.MERGE -> {
+                    captureRevision(note.id, conflict.localTitle, conflict.localBody, "conflict")
+                    val divider = "\n\n---\n\n"
+                    val mergedBody = conflict.localBody + divider + conflict.serverBody
+                    val mergedTitle = conflict.localTitle.ifBlank { conflict.serverTitle }
+                    db.noteDao().upsert(
+                        note.copy(
+                            title = mergedTitle,
+                            body = mergedBody,
+                            updatedAt = now,
+                            isDirty = true,
+                        ),
+                    )
+                    runCatching { findOrCreateTag("merged:${now.substring(0, 10)}") }
+                        .getOrNull()?.let { tag -> assignTag(note.id, tag.id) }
+                }
+            }
         }
         db.noteConflictDao().resolve(conflictId, now)
     }
 
+    private suspend fun findOrCreateTag(name: String): TagEntity {
+        val userId = tokenStore.userId ?: error("Not logged in")
+        db.tagDao().getByName(userId, name)?.let { return it }
+        return createTag(name)
+    }
+
     suspend fun getLastSyncAt(): String? = db.syncMetaDao().get()?.lastSyncAt
 
-    suspend fun exportBackupJson(): String {
+    suspend fun exportBackupJson(): String = gson.toJson(backupBundle())
+
+    suspend fun exportMarkdownZip(): ByteArray {
+        val bundle = backupBundle()
+        val bytes = MarkdownExport.buildZip(bundle)
+        return bytes
+    }
+
+    private suspend fun backupBundle(): BackupBundle {
         val reminders = db.reminderDao().getAllNonDeleted().map { it.toDto() }
-        val bundle = BackupBundle(
+        return BackupBundle(
             exported_at = Instant.now().toString(),
             notes = db.noteDao().getAllNonDeleted().map { it.toDto() },
             reminders_by_note = reminders.groupBy { it.note_id },
             tags = db.tagDao().getAllNonDeleted().map { it.toDto() },
             note_tags = db.noteTagDao().getAllNonDeleted().map { it.toDto() },
         )
-        return gson.toJson(bundle)
     }
 
     suspend fun importBackupJson(json: String): BackupBundle {

@@ -18,9 +18,12 @@ interface NoteDao {
     suspend fun getAllNonDeleted(): List<NoteEntity>
 
     @Query(
-        "SELECT * FROM notes WHERE deletedAt IS NULL AND status = :status " +
+        "SELECT * FROM notes WHERE deletedAt IS NULL AND status = :status AND isTemplate = 0 " +
             "AND (:query = '' OR title LIKE '%' || :query || '%' OR body LIKE '%' || :query || '%') " +
-            "ORDER BY pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
+            "ORDER BY " +
+            "(CASE WHEN :query != '' AND title LIKE '%' || :query || '%' THEN 3 ELSE 0 END " +
+            "+ CASE WHEN :query != '' AND body LIKE '%' || :query || '%' THEN 1 ELSE 0 END) DESC, " +
+            "pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
     )
     fun observeByStatusAndQuery(status: String, query: String): Flow<List<NoteEntity>>
 
@@ -28,13 +31,28 @@ interface NoteDao {
         """
         SELECT notes.* FROM notes
         INNER JOIN note_tags ON note_tags.noteId = notes.id
-        WHERE notes.deletedAt IS NULL AND notes.status = :status
+        WHERE notes.deletedAt IS NULL AND notes.status = :status AND notes.isTemplate = 0
         AND note_tags.tagId = :tagId AND note_tags.deletedAt IS NULL
         AND (:query = '' OR notes.title LIKE '%' || :query || '%' OR notes.body LIKE '%' || :query || '%')
-        ORDER BY notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
+        ORDER BY
+            (CASE WHEN :query != '' AND notes.title LIKE '%' || :query || '%' THEN 3 ELSE 0 END
+             + CASE WHEN :query != '' AND notes.body LIKE '%' || :query || '%' THEN 1 ELSE 0 END) DESC,
+            notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
         """,
     )
     fun observeByStatusQueryAndTag(status: String, query: String, tagId: String): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
+    fun observeTemplates(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
+    suspend fun getTemplates(): List<NoteEntity>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND dailyDate IS NOT NULL ORDER BY dailyDate DESC")
+    fun observeDailyNotes(): Flow<List<NoteEntity>>
+
+    @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND dailyDate = :date LIMIT 1")
+    suspend fun getByDailyDate(date: String): NoteEntity?
 
     @Query("SELECT * FROM notes WHERE isDirty = 1")
     suspend fun getDirty(): List<NoteEntity>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArchiveBoxIcon, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
+import { ArchiveBoxIcon, CalendarDots, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
@@ -13,6 +13,10 @@ import { useToast } from "@/components/ToastProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
+import { listTemplates, getOrCreateDailyNote } from "@/lib/api-client";
+import { expandTemplate } from "@/lib/templates";
+import { makeSnippet, tokenize } from "@/lib/search-score";
+import { searchNotes } from "@/lib/search-score";
 import {
   createLocalNote,
   getLocalNote,
@@ -21,6 +25,26 @@ import {
 } from "@/lib/local-notes";
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+function HighlightedSnippet({ body, query }: { body: string; query: string }) {
+  const snippet = makeSnippet(body, query);
+  const terms = Array.from(new Set(tokenize(query)));
+  if (terms.length === 0) return <>{snippet}</>;
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`(${escaped.join("|")})`, "ig");
+  const parts = snippet.split(re);
+  return (
+    <>
+      {parts.map((part, i) =>
+        terms.some((t) => t.toLowerCase() === part.toLowerCase()) ? (
+          <mark key={i}>{part}</mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 
 export default function NotesPage() {
   const router = useRouter();
@@ -35,6 +59,8 @@ export default function NotesPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [status, setStatus] = useState<"active" | "archived">("active");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ApiNote[]>([]);
+  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
@@ -56,12 +82,19 @@ export default function NotesPage() {
       const localNotes = await getLocalNotes();
       let filtered = localNotes.filter((n) => n.status === status);
       if (debouncedQuery) {
-        const q = debouncedQuery.toLowerCase();
-        filtered = filtered.filter(
-          (n) =>
-            n.title.toLowerCase().includes(q) ||
-            n.body.toLowerCase().includes(q),
+        const ranked = searchNotes(
+          filtered.map((n) => ({
+            id: n.id,
+            title: n.title,
+            body: n.body,
+            updated_at: n.updated_at,
+          })),
+          debouncedQuery,
         );
+        const rankedIds = new Set(ranked.map((r) => r.id));
+        filtered = ranked
+          .map((r) => filtered.find((n) => n.id === r.id)!)
+          .filter((n) => rankedIds.has(n.id));
       }
       setNotes(filtered);
       return;
@@ -82,7 +115,22 @@ export default function NotesPage() {
 
   useOnMount(() => {
     void loadTags();
+    if (!isLocal) {
+      void (async () => {
+        try {
+          setTemplates(await listTemplates());
+        } catch {
+          setTemplates([]);
+        }
+      })();
+    }
   });
+
+  useEffect(() => {
+    const handler = () => void reload();
+    window.addEventListener("recall:notes-changed", handler);
+    return () => window.removeEventListener("recall:notes-changed", handler);
+  }, [reload]);
 
   const tagsByNote = useMemo(() => {
     const map = new Map<string, ApiTag[]>();
@@ -135,6 +183,48 @@ export default function NotesPage() {
           void createNote();
         },
       });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openToday = async () => {
+    setCreating(true);
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      if (!user) {
+        const note = createLocalNote();
+        note.title = `Daily — ${date}`;
+        note.body = "";
+        await putLocalNote(note);
+        router.push(`/notes/${note.id}`);
+        return;
+      }
+      const note = await getOrCreateDailyNote(date);
+      router.push(`/notes/${note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not open today's note", "error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createFromTemplate = async (tpl: ApiNote) => {
+    setShowTemplateMenu(false);
+    setCreating(true);
+    try {
+      const body = expandTemplate(tpl.body, { now: new Date() });
+      const res = await apiFetch<{ note: ApiNote }>("/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          id: crypto.randomUUID(),
+          title: tpl.title || "Untitled",
+          body,
+        }),
+      });
+      router.push(`/notes/${res.note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not create note", "error");
     } finally {
       setCreating(false);
     }
@@ -216,6 +306,45 @@ export default function NotesPage() {
           <Plus size={18} weight="bold" />
           {creating ? "Creating…" : "New note"}
         </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void openToday()}
+          disabled={creating}
+        >
+          <CalendarDots size={18} weight="bold" />
+          Today
+        </button>
+        {!isLocal && templates.length > 0 && (
+          <div className="template-menu-wrap">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowTemplateMenu((v) => !v)}
+              disabled={creating}
+              aria-haspopup="menu"
+              aria-expanded={showTemplateMenu}
+            >
+              <Plus size={18} weight="bold" />
+              From template
+            </button>
+            {showTemplateMenu && (
+              <div className="template-menu" role="menu">
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    role="menuitem"
+                    className="template-menu-item"
+                    onClick={() => void createFromTemplate(tpl)}
+                  >
+                    {tpl.title || "Untitled template"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {!isLocal && allTags.length > 0 && (
@@ -287,7 +416,13 @@ export default function NotesPage() {
                   <div className="note-row-accent" />
                   <Link href={`/notes/${n.id}`} className="note-row-body">
                     <h3>{n.title || "Untitled"}</h3>
-                    <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                    {debouncedQuery ? (
+                      <p>
+                        <HighlightedSnippet body={n.body} query={debouncedQuery} />
+                      </p>
+                    ) : (
+                      <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                    )}
                     {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
                       <div className="note-row-tags">
                         {tagsByNote.get(n.id)!.map((tag) => (

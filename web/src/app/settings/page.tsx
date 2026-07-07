@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { DownloadSimple, Copy, UploadSimple, Trash } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { DownloadSimple, Copy, UploadSimple, Trash, Plus } from "@phosphor-icons/react";
 import {
   importBackup,
   exportBackupBundle,
@@ -11,6 +12,7 @@ import {
   type BackupBundle,
   type BackupPreview,
 } from "@/lib/backup-import";
+import { buildMarkdownArchive } from "@/lib/export-markdown";
 import { RequireAuth } from "@/components/RequireAuth";
 import { SettingsSection } from "@/components/SettingsSection";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -23,6 +25,8 @@ import {
   type UserPrefs,
 } from "@/lib/user-prefs";
 import { useOnMount } from "@/hooks/useOnMount";
+import { listTemplates, createTemplate } from "@/lib/api-client";
+import { DEFAULT_TEMPLATES } from "@/lib/templates";
 
 const ImportPreviewDialog = dynamic(
   () =>
@@ -50,6 +54,7 @@ export default function SettingsPage() {
   const { replayOnboarding } = useAuth();
   const { confirm } = useConfirm();
   const { toast } = useToast();
+  const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -65,6 +70,8 @@ export default function SettingsPage() {
   const [debugReports, setDebugReports] = useState<DebugReportRow[]>([]);
   const [debugLoading, setDebugLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ApiNote[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
   const tz =
     typeof window !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -100,9 +107,64 @@ export default function SettingsPage() {
     }
   };
 
+  const loadTemplates = async () => {
+    try {
+      setTemplates(await listTemplates());
+    } catch {
+      setTemplates([]);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const newTemplate = async () => {
+    try {
+      const note = await createTemplate("Untitled template", "");
+      router.push(`/notes/${note.id}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not create template", "error");
+    }
+  };
+
+  const deleteTemplate = async (tpl: ApiNote) => {
+    const ok = await confirm({
+      title: "Delete template",
+      message: `Delete "${tpl.title || "Untitled template"}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await apiFetch(`/notes/${tpl.id}`, { method: "DELETE" });
+      await loadTemplates();
+      toast("Template deleted");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Delete failed", "error");
+    }
+  };
+
+  const restoreDefaultTemplates = async () => {
+    const existing = new Set(templates.map((t) => t.title));
+    const toCreate = DEFAULT_TEMPLATES.filter((d) => !existing.has(d.title));
+    if (toCreate.length === 0) {
+      toast("Default templates already present");
+      return;
+    }
+    try {
+      for (const d of toCreate) {
+        await createTemplate(d.title, d.body);
+      }
+      await loadTemplates();
+      toast(`Added ${toCreate.length} default template${toCreate.length > 1 ? "s" : ""}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not add defaults", "error");
+    }
+  };
+
   useOnMount(() => {
     void loadTags();
     void loadSyncStatus();
+    void loadTemplates();
     let cancelled = false;
     void (async () => {
       try {
@@ -159,6 +221,27 @@ export default function SettingsPage() {
       await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportZip = async () => {
+    setExporting(true);
+    try {
+      const bundle = await exportBackupBundle();
+      const { filename, bytes } = buildMarkdownArchive(bundle);
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(bytes);
+      const blob = new Blob([copy], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Export failed", "error");
     } finally {
       setExporting(false);
     }
@@ -327,18 +410,29 @@ export default function SettingsPage() {
 
       <SettingsSection title="Backup & restore">
         <p className="settings-muted">
-          Export or import all notes and reminders as JSON. Import merges by id (updates
-          existing, adds new).
+          Export or import all notes and reminders. The <strong>Export all</strong> button
+          downloads a zip of Markdown files plus a <code>metadata.json</code> with tags,
+          dates, pinned status, and reminders. Import merges by id (updates existing, adds
+          new).
         </p>
         <div className="reminder-actions-row">
           <button
             type="button"
             className="btn btn-primary"
+            onClick={exportZip}
+            disabled={exporting || importing}
+          >
+            <DownloadSimple size={18} />
+            {exporting ? "Working…" : "Export all (.zip)"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={exportJson}
             disabled={exporting || importing}
           >
             <DownloadSimple size={18} />
-            {exporting ? "Working…" : "Download backup"}
+            {exporting ? "Working…" : "Download backup (.json)"}
           </button>
           <button
             type="button"
@@ -459,6 +553,54 @@ export default function SettingsPage() {
             ))}
           </ul>
         )}
+      </SettingsSection>
+
+      <SettingsSection title="Templates">
+        <p className="settings-muted">
+          Reusable note starters with <code>{`{{date}}`}</code>, <code>{`{{time}}`}</code>, and
+          <code>{` {{title}} `}</code> variables. Templates are hidden from your note list.
+        </p>
+        {templatesLoading ? (
+          <p className="settings-muted">Loading…</p>
+        ) : templates.length === 0 ? (
+          <p className="settings-muted">No templates yet.</p>
+        ) : (
+          <ul className="tag-manager-list">
+            {templates.map((tpl) => (
+              <li key={tpl.id}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: 0, fontWeight: "inherit" }}
+                  onClick={() => router.push(`/notes/${tpl.id}`)}
+                >
+                  <span className="chip">{tpl.title || "Untitled template"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => void deleteTemplate(tpl)}
+                  aria-label={`Delete template ${tpl.title}`}
+                >
+                  <Trash size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="reminder-actions-row" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-primary" onClick={newTemplate}>
+            <Plus size={18} weight="bold" />
+            New template
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={restoreDefaultTemplates}
+          >
+            Restore default templates
+          </button>
+        </div>
       </SettingsSection>
 
       <SettingsSection title="Introduction">

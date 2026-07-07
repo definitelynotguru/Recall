@@ -115,6 +115,8 @@ export type ApiNote = {
   body: string;
   status: string;
   pinned_at: string | null;
+  is_template?: boolean;
+  daily_date?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -155,3 +157,60 @@ export type ApiNoteTag = {
   updated_at: string;
   deleted_at: string | null;
 };
+
+export type ApiNoteRevision = {
+  id: string;
+  note_id: string;
+  title: string;
+  body: string;
+  source: string;
+  created_at: string;
+};
+
+export async function listNoteRevisions(
+  noteId: string,
+): Promise<ApiNoteRevision[]> {
+  const res = await apiFetch<{ revisions: ApiNoteRevision[] }>(
+    `/notes/${noteId}/revisions`,
+  );
+  return res.revisions;
+}
+
+export async function restoreNoteRevision(
+  noteId: string,
+  revisionId: string,
+): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>(
+    `/notes/${noteId}/revisions/${revisionId}/restore`,
+    { method: "POST" },
+  );
+  return res.note;
+}
+
+export async function listTemplates(): Promise<ApiNote[]> {
+  const res = await apiFetch<{ notes: ApiNote[] }>(
+    "/notes?status=all&templates=only&limit=all",
+  );
+  return res.notes;
+}
+
+export async function createTemplate(title: string, body: string): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>("/notes", {
+    method: "POST",
+    body: JSON.stringify({
+      id: crypto.randomUUID(),
+      title,
+      body,
+      is_template: true,
+    }),
+  });
+  return res.note;
+}
+
+export async function getOrCreateDailyNote(date: string): Promise<ApiNote> {
+  const res = await apiFetch<{ note: ApiNote }>("/notes/daily", {
+    method: "POST",
+    body: JSON.stringify({ date }),
+  });
+  return res.note;
+}

@@ -7,6 +7,7 @@ import {
   index,
   primaryKey,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -31,6 +32,8 @@ export const notes = pgTable(
     body: text("body").notNull().default(""),
     status: text("status").notNull().default("active"),
     pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    isTemplate: boolean("is_template").notNull().default(false),
+    dailyDate: text("daily_date"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -38,6 +41,7 @@ export const notes = pgTable(
   (t) => [
     index("notes_user_updated").on(t.userId, t.updatedAt),
     index("notes_user_pinned_updated").on(t.userId, t.pinnedAt, t.updatedAt),
+    index("notes_user_daily").on(t.userId, t.dailyDate),
   ],
 );
 
@@ -151,7 +155,28 @@ export const refreshTokens = pgTable(
   (t) => [index("refresh_tokens_hash").on(t.tokenHash)],
 );
 
+export const noteRevisions = pgTable(
+  "note_revisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => notes.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    body: text("body").notNull().default(""),
+    source: text("source").notNull().default("edit"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("note_revisions_note_created").on(t.noteId, t.createdAt)],
+);
+
 export type Note = typeof notes.$inferSelect;
 export type Reminder = typeof reminders.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type NoteTag = typeof noteTags.$inferSelect;
+export type NoteRevision = typeof noteRevisions.$inferSelect;

@@ -5,11 +5,14 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.notesreminders.app.NotesApp
+import com.notesreminders.app.data.ConflictResolution
+import com.notesreminders.app.data.Templates
 import com.notesreminders.app.data.UserPrefs
 import com.notesreminders.app.data.api.LoginRequest
 import com.notesreminders.app.data.api.RefreshRequest
 import com.notesreminders.app.data.api.RegisterRequest
 import com.notesreminders.app.data.local.NoteEntity
+import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
 import android.app.Activity
@@ -300,10 +303,65 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createNoteFromText(text: String, onCreated: (String) -> Unit) {
+    fun observeTemplates(): Flow<List<NoteEntity>> =
+        app.notesRepository.observeTemplates()
+
+    fun createTemplate(onCreated: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.createTemplate("Untitled template", "")
+            withContext(Dispatchers.Main) { onCreated(note.id) }
+        }
+    }
+
+    fun createNoteFromTemplate(template: NoteEntity, onCreated: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.createNoteFromTemplate(template)
+            withContext(Dispatchers.Main) { onCreated(note.id) }
+        }
+    }
+
+    fun seedDefaultTemplates(onResult: (Int) -> Unit) {
+        ioLaunch {
+            val n = app.notesRepository.seedDefaultTemplatesIfNeeded()
+            withContext(Dispatchers.Main) { onResult(n) }
+        }
+    }
+
+    fun deleteTemplate(template: NoteEntity) {
+        ioLaunch { app.notesRepository.deleteNote(template.id) }
+    }
+
+    fun createStarterNotesFromSurvey(indices: List<Int>, onDone: () -> Unit) {
+        ioLaunch {
+            for (i in indices) {
+                val t = Templates.DEFAULTS[i]
+                app.notesRepository.createNote(t.title, Templates.expandTemplate(t.body, t.title))
+            }
+            withContext(Dispatchers.Main) { onDone() }
+        }
+    }
+
+    fun observeDailyNotes() = app.notesRepository.observeDailyNotes()
+
+    fun openToday(onOpen: (String) -> Unit) {
+        val date = java.time.LocalDate.now().toString()
+        ioLaunch {
+            val note = app.notesRepository.getOrCreateDailyNote(date)
+            withContext(Dispatchers.Main) { onOpen(note.id) }
+        }
+    }
+
+    fun openDailyNote(date: String, onOpen: (String) -> Unit) {
+        ioLaunch {
+            val note = app.notesRepository.getOrCreateDailyNote(date)
+            withContext(Dispatchers.Main) { onOpen(note.id) }
+        }
+    }
+
+    fun createNoteFromText(text: String, sourceTitle: String? = null, onCreated: (String) -> Unit) {
         if (text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val note = app.notesRepository.createNoteFromText(text)
+            val note = app.notesRepository.createNoteFromText(text, sourceTitle)
             withContext(Dispatchers.Main) {
                 onCreated(note.id)
             }
@@ -322,6 +380,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             onResult(result.getOrElse { "Backup failed: ${it.message ?: "unknown error"}" })
+        }
+    }
+
+    fun exportMarkdown(uri: Uri, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = app.notesRepository.exportMarkdownZip()
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(bytes)
+                    } ?: error("Could not open export file")
+                    "Markdown export saved"
+                }
+            }
+            onResult(result.getOrElse { "Export failed: ${it.message ?: "unknown error"}" })
         }
     }
 
@@ -358,6 +431,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun observeNote(noteId: String): Flow<NoteEntity?> =
         app.notesRepository.observeNote(noteId)
 
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
+        app.notesRepository.observeRevisionsForNote(noteId)
+
+    fun restoreRevision(revisionId: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { app.notesRepository.restoreRevisionAsNote(revisionId) }
+            }
+            val newId = result.getOrNull()?.id
+            if (newId != null) {
+                withContext(Dispatchers.Main) { onResult(newId) }
+            } else {
+                withContext(Dispatchers.Main) { onResult(null) }
+            }
+        }
+    }
+
     fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
         app.notesRepository.observeRemindersForNote(noteId)
 
@@ -385,9 +475,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ioLaunch { app.notesRepository.setNoteArchived(id, archived) }
     }
 
-    fun resolveConflict(conflictId: String, keepLocal: Boolean) {
+    fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
         viewModelScope.launch(Dispatchers.IO) {
-            app.notesRepository.resolveConflict(conflictId, keepLocal)
+            app.notesRepository.resolveConflict(conflictId, resolution)
             withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
         }
     }

@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +37,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.notesreminders.app.BuildConfig
 import android.app.Activity
+import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
@@ -51,6 +53,7 @@ fun SettingsScreen(
     viewModel: AppViewModel,
     onLogout: () -> Unit,
     onReplayOnboarding: () -> Unit,
+    onOpenNote: (String) -> Unit,
 ) {
     val syncing by viewModel.isSyncing.collectAsState()
     val syncHint by viewModel.syncHint.collectAsState()
@@ -70,6 +73,11 @@ fun SettingsScreen(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         uri?.let { viewModel.exportBackup(it) { msg -> backupMessage = msg } }
+    }
+    val exportMarkdown = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        uri?.let { viewModel.exportMarkdown(it) { msg -> backupMessage = msg } }
     }
     val importBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
@@ -284,11 +292,14 @@ fun SettingsScreen(
                         color = RecallColors.ParchmentMuted,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = true) }) {
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_LOCAL) }) {
                             Text("Keep local", color = RecallColors.Copper)
                         }
-                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, keepLocal = false) }) {
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_SERVER) }) {
                             Text("Keep server", color = RecallColors.Copper)
+                        }
+                        TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.MERGE) }) {
+                            Text("Merge both", color = RecallColors.Copper)
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -300,17 +311,20 @@ fun SettingsScreen(
             Text("Backup", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Export or import notes, reminders, tags, and archived items as JSON.",
+                "Export notes as Markdown in a zip with metadata.json, or back up and restore everything as JSON.",
                 style = MaterialTheme.typography.bodySmall,
                 color = RecallColors.ParchmentMuted,
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { exportBackup.launch("recall-backup.json") },
+                    onClick = { exportMarkdown.launch("recall-export.zip") },
                     colors = recallPrimaryButtonColors(),
                 ) {
-                    Text("Export")
+                    Text("Export Markdown")
+                }
+                TextButton(onClick = { exportBackup.launch("recall-backup.json") }) {
+                    Text("Export JSON", color = RecallColors.Copper)
                 }
                 TextButton(onClick = { importBackup.launch(arrayOf("application/json", "text/*", "*/*")) }) {
                     Text("Import", color = RecallColors.Copper)
@@ -321,6 +335,12 @@ fun SettingsScreen(
                 Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
             }
         }
+
+        Spacer(Modifier.height(16.dp))
+        TemplatesPanel(
+            viewModel = viewModel,
+            onOpenNote = onOpenNote,
+        )
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
@@ -437,6 +457,63 @@ fun SettingsScreen(
             TextButton(onClick = onReplayOnboarding) {
                 Text("Replay introduction", color = RecallColors.Copper)
             }
+        }
+    }
+}
+
+@Composable
+private fun TemplatesPanel(
+    viewModel: AppViewModel,
+    onOpenNote: (String) -> Unit,
+) {
+    val templates by viewModel.observeTemplates().collectAsStateWithLifecycle(initialValue = emptyList())
+    var seedMsg by remember { mutableStateOf<String?>(null) }
+
+    RecallPanel {
+        Text("Templates", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Reusable note starters with {{date}}, {{time}}, and {{title}} variables. Hidden from your note list.",
+            style = MaterialTheme.typography.bodySmall,
+            color = RecallColors.ParchmentMuted,
+        )
+        Spacer(Modifier.height(12.dp))
+        if (templates.isEmpty()) {
+            Text("No templates yet.", style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+        } else {
+            templates.forEach { tpl ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    TextButton(onClick = { onOpenNote(tpl.id) }) {
+                        Text(tpl.title.ifBlank { "Untitled template" }, color = RecallColors.Parchment)
+                    }
+                    TextButton(onClick = { viewModel.deleteTemplate(tpl) }) {
+                        Text("Delete", color = RecallColors.Error)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { viewModel.createTemplate(onOpenNote) },
+                colors = recallPrimaryButtonColors(),
+            ) {
+                Text("New template")
+            }
+            TextButton(onClick = {
+                viewModel.seedDefaultTemplates { count ->
+                    seedMsg = if (count > 0) "Added $count default templates" else "Defaults already present"
+                }
+            }) {
+                Text("Restore defaults", color = RecallColors.Copper)
+            }
+        }
+        seedMsg?.let { msg ->
+            Spacer(Modifier.height(8.dp))
+            Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
         }
     }
 }

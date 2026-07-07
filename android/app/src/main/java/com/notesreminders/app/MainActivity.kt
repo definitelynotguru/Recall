@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Note
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.outlined.Settings
 import com.notesreminders.app.ui.components.OnboardingDialog
 import com.notesreminders.app.ui.screens.HistoryScreen
 import com.notesreminders.app.ui.screens.SettingsScreen
+import com.notesreminders.app.ui.screens.CalendarScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -66,7 +68,7 @@ class MainActivity : ComponentActivity() {
     ) { }
 
     private val pendingNoteId = mutableStateOf<String?>(null)
-    private val pendingSharedText = mutableStateOf<String?>(null)
+    private val pendingSharedText = mutableStateOf<SharedPayload?>(null)
     private val pendingQuickAdd = mutableStateOf(false)
 
     companion object {
@@ -93,6 +95,12 @@ class MainActivity : ComponentActivity() {
                 } else {
                     LaunchedEffect(Unit) {
                         viewModel.reconcileAlarms()
+                        if (!viewModel.userPrefs.templatesSeeded) {
+                            viewModel.seedDefaultTemplates { count ->
+                                if (count > 0) viewModel.syncNow(showSuccess = false)
+                            }
+                            viewModel.userPrefs.templatesSeeded = true
+                        }
                     }
                     MainShell(
                         viewModel = viewModel,
@@ -127,9 +135,11 @@ class MainActivity : ComponentActivity() {
         pendingQuickAdd.value = intent.getBooleanExtra(EXTRA_QUICK_ADD, false)
     }
 
-    private fun Intent.extractSharedText(): String? {
+    private fun Intent.extractSharedText(): SharedPayload? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null
-        return getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+        val text = getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() } ?: return null
+        val title = getStringExtra(Intent.EXTRA_TITLE)?.takeIf { it.isNotBlank() }
+        return SharedPayload(text, title)
     }
 
     private fun requestNotificationPermission() {
@@ -151,11 +161,13 @@ private data class BottomTab(
     val icon: ImageVector,
 )
 
+private data class SharedPayload(val text: String, val title: String?)
+
 @Composable
 private fun MainShell(
     viewModel: AppViewModel,
     launchNoteId: String?,
-    launchSharedText: String?,
+    launchSharedText: SharedPayload?,
     launchQuickAdd: Boolean,
     onNoteOpened: () -> Unit,
     onSharedTextConsumed: () -> Unit,
@@ -185,8 +197,8 @@ private fun MainShell(
         }
     }
     LaunchedEffect(launchSharedText) {
-        if (!launchSharedText.isNullOrBlank()) {
-            viewModel.createNoteFromText(launchSharedText) { noteId ->
+        if (launchSharedText != null) {
+            viewModel.createNoteFromText(launchSharedText.text, launchSharedText.title) { noteId ->
                 nav.navigate("note/$noteId") { launchSingleTop = true }
                 onSharedTextConsumed()
             }
@@ -203,6 +215,7 @@ private fun MainShell(
     val tabs = listOf(
         BottomTab("today", "Today", Icons.Outlined.CalendarToday),
         BottomTab("notes", "Notes", Icons.Outlined.Note),
+        BottomTab("calendar", "Calendar", Icons.Outlined.CalendarMonth),
         BottomTab("history", "History", Icons.Outlined.History),
         BottomTab("settings", "Settings", Icons.Outlined.Settings),
     )
@@ -279,10 +292,18 @@ private fun MainShell(
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
                     onRequestExactAlarms = onRequestExactAlarms,
                     onLogout = { viewModel.logout { onLogout() } },
+                    onOpenCalendar = { nav.navigate("calendar") { launchSingleTop = true } },
                 )
             }
             composable("notes") {
                 NotesListScreen(
+                    viewModel = viewModel,
+                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                    onLogout = { viewModel.logout { onLogout() } },
+                )
+            }
+            composable("calendar") {
+                CalendarScreen(
                     viewModel = viewModel,
                     onOpenNote = { noteId -> nav.navigate("note/$noteId") },
                     onLogout = { viewModel.logout { onLogout() } },
@@ -303,6 +324,7 @@ private fun MainShell(
                         viewModel.userPrefs.onboardingDone = false
                         showOnboarding = true
                     },
+                    onOpenNote = { id -> nav.navigate("note/$id") { launchSingleTop = true } },
                 )
             }
             composable("note/{id}") { entry ->
@@ -312,6 +334,7 @@ private fun MainShell(
                     viewModel = viewModel,
                     onBack = { nav.popBackStack() },
                     onDeleted = { nav.popBackStack() },
+                    onOpenNote = { newId -> nav.navigate("note/$newId") { launchSingleTop = true } },
                     onRequestExactAlarms = onRequestExactAlarms,
                 )
             }
@@ -321,6 +344,7 @@ private fun MainShell(
 
     OnboardingDialog(
         open = showOnboarding,
+        viewModel = viewModel,
         onDismiss = {
             viewModel.userPrefs.onboardingDone = true
             showOnboarding = false

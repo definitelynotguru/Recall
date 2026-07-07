@@ -72,6 +72,7 @@ export async function importBackupTransaction(
       const updatedAt = parseDate(note.updated_at, now);
       const pinnedAt = note.pinned_at ? parseDate(note.pinned_at, now) : null;
       const deletedAt = note.deleted_at ? parseDate(note.deleted_at, now) : null;
+      const dailyDate = note.daily_date ?? null;
 
       if (existingNoteIds.has(note.id)) {
         await tx
@@ -81,6 +82,8 @@ export async function importBackupTransaction(
             body: note.body ?? "",
             status: note.status ?? "active",
             pinnedAt,
+            isTemplate: note.is_template ?? false,
+            dailyDate,
             updatedAt,
             deletedAt,
           })
@@ -93,6 +96,8 @@ export async function importBackupTransaction(
           body: note.body ?? "",
           status: note.status ?? "active",
           pinnedAt,
+          isTemplate: note.is_template ?? false,
+          dailyDate,
           createdAt,
           updatedAt,
           deletedAt,

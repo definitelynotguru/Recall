@@ -2,6 +2,7 @@ package com.notesreminders.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,6 +60,7 @@ fun TodayScreen(
     onOpenNote: (String) -> Unit,
     onRequestExactAlarms: () -> Unit = {},
     onLogout: () -> Unit,
+    onOpenCalendar: () -> Unit = {},
 ) {
     val notes by viewModel.notes.collectAsState()
     val reminders by viewModel.reminders.collectAsState()
@@ -102,6 +104,32 @@ fun TodayScreen(
             reminder = nextReminder,
             noteTitle = nextReminder?.let { noteMap[it.noteId]?.title },
         )
+        Spacer(Modifier.height(12.dp))
+
+        RecallPanel {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Daily note", color = RecallColors.Parchment, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Open or create today's note from your Daily Journal template.",
+                        color = RecallColors.ParchmentMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { viewModel.openToday(onOpenNote) }) {
+                        Text("Open today", color = RecallColors.Copper)
+                    }
+                    TextButton(onClick = onOpenCalendar) {
+                        Text("Calendar", color = RecallColors.ParchmentMuted)
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
         PullToRefreshBox(

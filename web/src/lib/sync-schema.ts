@@ -14,6 +14,8 @@ const syncNoteSchema = z.object({
   body: z.string(),
   status: noteStatusSchema,
   pinned_at: nullableString,
+  is_template: z.boolean().optional().default(false),
+  daily_date: nullableString,
   created_at: z.string(),
   updated_at: z.string(),
   deleted_at: nullableString,

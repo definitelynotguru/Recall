@@ -1515,6 +1515,98 @@ a:hover {
   transform: scale(0.96);
 }
 
+.md-floating-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.md-toolbar-mobile {
+  display: flex;
+}
+
+@media (pointer: fine) and (min-width: 768px) {
+  .md-toolbar-mobile {
+    display: none;
+  }
+}
+
+/* =========================================================
+   Calendar
+   ========================================================= */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.calendar-cell {
+  min-height: 64px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.15s var(--ease-signature),
+    background 0.15s var(--ease-signature);
+}
+
+.calendar-cell:hover {
+  border-color: var(--neutral-700);
+  background: var(--hover);
+}
+
+.calendar-cell.empty {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.calendar-cell.today {
+  border-color: var(--accent);
+}
+
+.calendar-cell.has-note {
+  background: var(--accent-soft, rgba(212, 165, 116, 0.1));
+}
+
+.calendar-day-num {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.calendar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  align-self: flex-end;
+}
+
 /* =========================================================
    Virtualized notes scroll
    ========================================================= */
@@ -1629,4 +1721,46 @@ a:hover {
     animation-delay: 0s !important;
     transition-duration: 0s !important;
   }
+}
+
+.template-menu-wrap {
+  position: relative;
+}
+
+.template-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 180px;
+  background: var(--surface, #1a1a1a);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+  padding: 4px;
+}
+
+.template-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text, #e6e6e6);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.template-menu-item:hover {
+  background: var(--surface-elevated, #242424);
+}
+
+.note-row-body mark {
+  background: rgba(255, 213, 79, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
