@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Clock, CalendarDots, NotePencil, PencilSimple, Trash } from "@phosphor-icons/react";
@@ -9,17 +8,13 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
 import { ReminderMeta } from "@/components/ReminderMeta";
+import { ReminderDialog } from "@/components/ReminderDialog";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { pickNextReminder } from "@/lib/reminder-detect";
 import { apiFetch, getOrCreateDailyNote, ApiReminder } from "@/lib/api-client";
 import { groupRemindersByDay } from "@/lib/reminder-utils";
-
-const ReminderDialog = dynamic(
-  () => import("@/components/ReminderDialog").then((m) => m.ReminderDialog),
-  { ssr: false },
-);
 
 function snoozeFireAt(minutes: number) {
   const d = new Date();
@@ -32,7 +27,6 @@ export default function TodayPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [dailyBusy, setDailyBusy] = useState(false);
@@ -65,7 +59,6 @@ export default function TodayPage() {
 
   const openEdit = (r: ApiReminder) => {
     setEditingReminder(r);
-    setDialogOpen(true);
   };
 
   const deleteReminder = async (id: string) => {
@@ -254,9 +247,8 @@ export default function TodayPage() {
       {editingReminder && (
         <ReminderDialog
           noteId={editingReminder.note_id}
-          open={dialogOpen}
+          open
           onClose={() => {
-            setDialogOpen(false);
             setEditingReminder(null);
           }}
           onSaved={() => {

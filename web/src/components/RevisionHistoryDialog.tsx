@@ -51,6 +51,8 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
     }
   };
 
+  if (!open) return null;
+
   return (
     <DialogShell
       onClose={onClose}

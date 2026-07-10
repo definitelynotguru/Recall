@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { DownloadSimple, Copy, UploadSimple, Trash, Plus } from "@phosphor-icons/react";
@@ -18,13 +18,13 @@ import { SettingsSection } from "@/components/SettingsSection";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/components/AuthProvider";
+import { useOnMount } from "@/hooks/useOnMount";
 import { apiFetch, ApiNote, ApiTag } from "@/lib/api-client";
 import {
   loadUserPrefs,
   saveUserPrefs,
   type UserPrefs,
 } from "@/lib/user-prefs";
-import { useOnMount } from "@/hooks/useOnMount";
 import { listTemplates, createTemplate } from "@/lib/api-client";
 import { DEFAULT_TEMPLATES } from "@/lib/templates";
 
@@ -50,6 +50,14 @@ type DebugReportRow = {
   payload: unknown;
 };
 
+function ClientTimezone() {
+  const [timezone, setTimezone] = useState("UTC");
+  useOnMount(() => {
+    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  });
+  return <strong>{timezone}</strong>;
+}
+
 export default function SettingsPage() {
   const { replayOnboarding } = useAuth();
   const { confirm } = useConfirm();
@@ -72,50 +80,51 @@ export default function SettingsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<ApiNote[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
-  const tz =
-    typeof window !== "undefined"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone
-      : "UTC";
+  const loadGeneration = useRef(0);
 
   useEffect(() => {
     saveUserPrefs(prefs);
   }, [prefs]);
 
-  const loadTags = async () => {
+  const loadTags = useCallback(async (generation = loadGeneration.current) => {
     try {
       const res = await apiFetch<{ tags: ApiTag[] }>("/tags");
-      setTags(res.tags);
+      if (generation === loadGeneration.current) setTags(res.tags);
     } catch {
-      setTags([]);
+      // Keep the last successful tag list on transient failures.
     } finally {
-      setTagsLoading(false);
+      if (generation === loadGeneration.current) setTagsLoading(false);
     }
-  };
+  }, []);
 
-  const loadSyncStatus = async () => {
+  const loadSyncStatus = useCallback(async (generation = loadGeneration.current) => {
     try {
       const res = await apiFetch<{ devices: SyncDevice[]; server_time: string }>(
         "/sync/status",
       );
-      setSyncDevices(res.devices);
-      setSyncServerTime(res.server_time);
+      if (generation === loadGeneration.current) {
+        setSyncDevices(res.devices);
+        setSyncServerTime(res.server_time);
+      }
     } catch {
-      setSyncDevices([]);
-      setSyncServerTime(null);
+      // Keep the last successful sync state on transient failures.
     } finally {
-      setSyncLoading(false);
+      if (generation === loadGeneration.current) setSyncLoading(false);
     }
-  };
+  }, []);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async (generation = loadGeneration.current) => {
     try {
-      setTemplates(await listTemplates());
+      const loadedTemplates = await listTemplates();
+      if (generation === loadGeneration.current) {
+        setTemplates(loadedTemplates);
+      }
     } catch {
-      setTemplates([]);
+      // Keep the last successful template list on transient failures.
     } finally {
-      setTemplatesLoading(false);
+      if (generation === loadGeneration.current) setTemplatesLoading(false);
     }
-  };
+  }, []);
 
   const newTemplate = async () => {
     try {
@@ -161,27 +170,34 @@ export default function SettingsPage() {
     }
   };
 
-  useOnMount(() => {
-    void loadTags();
-    void loadSyncStatus();
-    void loadTemplates();
+  useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const res = await apiFetch<{ reports: DebugReportRow[] }>(
-          "/debug/reports?limit=20",
-        );
-        if (!cancelled) setDebugReports(res.reports);
-      } catch {
-        if (!cancelled) setDebugReports([]);
-      } finally {
-        if (!cancelled) setDebugLoading(false);
-      }
-    })();
+    const generation = ++loadGeneration.current;
+    const timer = window.setTimeout(() => {
+      void loadTags(generation);
+      void loadSyncStatus(generation);
+      void loadTemplates(generation);
+      void (async () => {
+        try {
+          const res = await apiFetch<{ reports: DebugReportRow[] }>(
+            "/debug/reports?limit=20",
+          );
+          if (!cancelled) setDebugReports(res.reports);
+        } catch {
+          // Keep the last successful report list on transient failures.
+        } finally {
+          if (!cancelled) setDebugLoading(false);
+        }
+      })();
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
+      if (loadGeneration.current === generation) {
+        loadGeneration.current += 1;
+      }
     };
-  });
+  }, [loadSyncStatus, loadTags, loadTemplates]);
 
   const deleteTag = async (tag: ApiTag) => {
     const ok = await confirm({
@@ -360,7 +376,7 @@ export default function SettingsPage() {
       <SettingsSection title="Reminder defaults">
         <p className="settings-muted">
           Used when Fetch reminders finds a date without a time. Timezone:{" "}
-          <strong>{tz}</strong> (local).
+          <ClientTimezone /> (local).
         </p>
         <div className="settings-grid">
           <div className="field">

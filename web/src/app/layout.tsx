@@ -57,6 +57,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${syne.variable} ${geist.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

@@ -10,7 +10,6 @@ import { LoadError } from "@/components/LoadError";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
-import { useOnMount } from "@/hooks/useOnMount";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
 import { listTemplates, getOrCreateDailyNote } from "@/lib/api-client";
@@ -67,16 +66,6 @@ export default function NotesPage() {
     return () => window.clearTimeout(id);
   }, [query]);
 
-  const loadTags = useCallback(async () => {
-    if (!user) return;
-    const [tagsRes, noteTagsRes] = await Promise.all([
-      apiFetch<{ tags: ApiTag[] }>("/tags"),
-      apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags"),
-    ]);
-    setAllTags(tagsRes.tags);
-    setNoteTags(noteTagsRes.note_tags);
-  }, [user]);
-
   const loadNotes = useCallback(async () => {
     if (!user) {
       const localNotes = await getLocalNotes();
@@ -113,18 +102,37 @@ export default function NotesPage() {
     tagFilter,
   ]);
 
-  useOnMount(() => {
-    void loadTags();
-    if (!isLocal) {
-      void (async () => {
-        try {
-          setTemplates(await listTemplates());
-        } catch {
-          setTemplates([]);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (isLocal) {
+        setAllTags([]);
+        setNoteTags([]);
+        setTemplates([]);
+        return;
+      }
+      void Promise.allSettled([
+        apiFetch<{ tags: ApiTag[] }>("/tags"),
+        apiFetch<{ note_tags: ApiNoteTag[] }>("/note-tags"),
+        listTemplates(),
+      ]).then(([tagsResult, noteTagsResult, templatesResult]) => {
+        if (cancelled) return;
+        if (tagsResult.status === "fulfilled") {
+          setAllTags(tagsResult.value.tags);
         }
-      })();
-    }
-  });
+        if (noteTagsResult.status === "fulfilled") {
+          setNoteTags(noteTagsResult.value.note_tags);
+        }
+        if (templatesResult.status === "fulfilled") {
+          setTemplates(templatesResult.value);
+        }
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isLocal]);
 
   useEffect(() => {
     const handler = () => void reload();
@@ -395,6 +403,7 @@ export default function NotesPage() {
           >
             {virtualizer.getVirtualItems().map((virtualItem, sliceIndex) => {
               const n = notes[virtualItem.index];
+              const titleId = `note-title-${n.id}`;
               return (
                 <div
                   key={n.id}
@@ -414,8 +423,12 @@ export default function NotesPage() {
                   }
                 >
                   <div className="note-row-accent" />
-                  <Link href={`/notes/${n.id}`} className="note-row-body">
-                    <h3>{n.title || "Untitled"}</h3>
+                  <Link
+                    href={`/notes/${n.id}`}
+                    className="note-row-body"
+                    aria-labelledby={titleId}
+                  >
+                    <h3 id={titleId}>{n.title || "Untitled"}</h3>
                     {debouncedQuery ? (
                       <p>
                         <HighlightedSnippet body={n.body} query={debouncedQuery} />

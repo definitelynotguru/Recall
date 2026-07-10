@@ -233,20 +233,39 @@ a:hover {
     right: 0;
     top: auto;
     flex-direction: row;
-    justify-content: space-around;
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
     border-right: none;
     border-top: 1px solid var(--border);
     z-index: 100;
   }
-  .sidebar-brand,
-  .sidebar-footer {
+  .sidebar .sidebar-brand,
+  .sidebar .sidebar-footer {
     display: none;
   }
   .sidebar-nav {
-    flex-direction: row !important;
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     width: 100%;
-    justify-content: space-around;
+    gap: 4px;
+  }
+  .sidebar-nav .nav-item {
+    justify-content: center;
+    min-width: 0;
+    min-height: 48px;
+    gap: 0;
+    padding: 8px 4px;
+  }
+  .sidebar-nav .nav-item-label {
+    display: none;
+  }
+  .sidebar-nav .nav-item.active::before {
+    left: 25%;
+    right: 25%;
+    top: auto;
+    bottom: -8px;
+    width: auto;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
   }
 }
 

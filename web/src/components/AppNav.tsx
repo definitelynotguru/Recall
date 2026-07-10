@@ -42,9 +42,10 @@ export function AppNav() {
             key={href}
             href={href}
             className={`nav-item ${pathname === href || pathname.startsWith(href + "/") ? "active" : ""}`}
+            aria-label={label}
           >
             <Icon size={20} weight={pathname === href ? "fill" : "regular"} />
-            {label}
+            <span className="nav-item-label">{label}</span>
           </Link>
         ))}
         <ThemeToggle />

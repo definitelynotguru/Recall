@@ -47,15 +47,27 @@ const ONBOARDING_KEY = "recall_onboarding_done";
 
 export function isOnboardingDone(): boolean {
   if (typeof window === "undefined") return true;
-  return localStorage.getItem(ONBOARDING_KEY) === "1";
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function setOnboardingDone() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(ONBOARDING_KEY, "1");
+  try {
+    localStorage.setItem(ONBOARDING_KEY, "1");
+  } catch {
+    // The dialog still closes for the current session.
+  }
 }
 
 export function clearOnboardingDone() {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(ONBOARDING_KEY);
+  try {
+    localStorage.removeItem(ONBOARDING_KEY);
+  } catch {
+    // There is no persisted preference to clear when storage is unavailable.
+  }
 }

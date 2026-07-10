@@ -32,7 +32,6 @@ import {
   pickNextReminder,
 } from "@/lib/reminder-detect";
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
-import { useOnMount } from "@/hooks/useOnMount";
 import { loadUserPrefs } from "@/lib/user-prefs";
 import {
   deleteLocalNote,
@@ -134,6 +133,7 @@ export default function NoteDetailPage() {
   const localLoaded = useRef(false);
   const allNotesLoading = useRef(false);
   const allNotesLoaded = useRef(false);
+  const loadGeneration = useRef(0);
 
   const titleToIdMap = useMemo(
     () => buildTitleToIdMap(allNotes),
@@ -228,9 +228,11 @@ export default function NoteDetailPage() {
   };
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     try {
       if (isLocal) {
         const [note] = await Promise.all([getLocalNote(id)]);
+        if (generation !== loadGeneration.current) return;
         if (!note) {
           setLoadError("Note not found");
           return;
@@ -249,6 +251,7 @@ export default function NoteDetailPage() {
         apiFetch<{ tags: ApiTag[] }>("/tags"),
         apiFetch<{ tags: ApiTag[] }>(`/notes/${id}/tags`),
       ]);
+      if (generation !== loadGeneration.current) return;
       setLoadError("");
       setTitle(noteRes.note.title);
       setBody(noteRes.note.body);
@@ -259,13 +262,14 @@ export default function NoteDetailPage() {
       setAllTags(tagsRes.tags);
       setNoteTags(noteTagsRes.tags);
     } catch (e) {
+      if (generation !== loadGeneration.current) return;
       const message = e instanceof Error ? e.message : "Failed to load note";
       setLoadError(message);
       if (message.toLowerCase().includes("unauthorized")) {
         router.replace("/login?reason=session_expired");
       }
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }, [id, router, isLocal]);
 
@@ -289,9 +293,16 @@ export default function NoteDetailPage() {
     if (!loading && !loadError) void ensureAllNotes();
   }, [loading, loadError, ensureAllNotes]);
 
-  useOnMount(() => {
-    if (!authLoading) void load();
-  });
+  useEffect(() => {
+    if (authLoading) return;
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      loadGeneration.current += 1;
+    };
+  }, [authLoading, load]);
 
   const saveStatusLabel = () => {
     if (isLocal) {

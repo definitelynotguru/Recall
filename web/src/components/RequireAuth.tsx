@@ -12,9 +12,10 @@ export function RequireAuth({
   children: React.ReactNode;
   allowLocal?: boolean;
 }) {
-  const { user, loading } = useAuth();
+  const { status } = useAuth();
   const router = useRouter();
-  const redirecting = !loading && !user && !allowLocal;
+  const loading = status === "loading";
+  const redirecting = status === "anonymous" && !allowLocal;
 
   useEffect(() => {
     if (redirecting) {

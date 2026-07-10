@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { X, Check } from "@phosphor-icons/react";
-import { setOnboardingDone } from "@/lib/user-prefs";
 import { apiFetch } from "@/lib/api-client";
 import { DEFAULT_TEMPLATES, expandTemplate } from "@/lib/templates";
 
@@ -39,7 +38,6 @@ export function OnboardingDialog({ open, onClose }: Props) {
   };
 
   const dismiss = () => {
-    setOnboardingDone();
     onClose();
   };
 

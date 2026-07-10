@@ -13,8 +13,11 @@ function readStoredToken(): string | null {
 }
 
 let accessToken: string | null = readStoredToken();
+let refreshPromise: Promise<string | null> | null = null;
+let authGeneration = 0;
 
 export function setAccessToken(token: string | null) {
+  authGeneration += 1;
   accessToken = token;
   if (typeof window === "undefined") return;
   if (token) sessionStorage.setItem(TOKEN_KEY, token);
@@ -25,8 +28,9 @@ export function getAccessToken() {
   return accessToken;
 }
 
-function dispatchSessionExpired() {
+function dispatchSessionExpired(expectedToken: string | null) {
   if (typeof window === "undefined") return;
+  if (accessToken !== expectedToken) return;
   setAccessToken(null);
   window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED));
 }
@@ -48,25 +52,55 @@ export function tokenExpiresWithinMinutes(token: string, minutes: number): boole
   return exp * 1000 - Date.now() < minutes * 60_000;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+function readAccessTokenResponse(data: unknown): string | null {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("access_token" in data) ||
+    typeof data.access_token !== "string"
+  ) {
+    return null;
+  }
+  return data.access_token;
+}
+
+async function performTokenRefresh(): Promise<string | null> {
+  const refreshGeneration = authGeneration;
   const res = await fetch(`${API_BASE}/auth/refresh`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
-  if (!res.ok) return null;
-  const data = await res.json();
-  setAccessToken(data.access_token);
-  return accessToken;
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) {
+    throw new Error(`Token refresh failed (${res.status})`);
+  }
+  const token = readAccessTokenResponse(await res.json());
+  if (!token) return null;
+  if (authGeneration !== refreshGeneration) return accessToken;
+  setAccessToken(token);
+  return token;
+}
+
+export function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = performTokenRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 export async function ensureFreshAccessToken(): Promise<boolean> {
   const token = getAccessToken();
   if (!token) return false;
   if (!tokenExpiresWithinMinutes(token, 5)) return true;
-  const refreshed = await refreshAccessToken();
-  return Boolean(refreshed);
+  try {
+    return Boolean(await refreshAccessToken());
+  } catch {
+    return false;
+  }
 }
 
 export async function apiFetch<T>(
@@ -80,6 +114,8 @@ export async function apiFetch<T>(
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
+  const requestToken = accessToken;
+  let responseToken = requestToken;
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -88,8 +124,13 @@ export async function apiFetch<T>(
   });
 
   if (res.status === 401) {
-    const newToken = await refreshAccessToken();
+    const currentToken = getAccessToken();
+    const newToken =
+      currentToken && currentToken !== requestToken
+        ? currentToken
+        : await refreshAccessToken();
     if (newToken) {
+      responseToken = newToken;
       headers.Authorization = `Bearer ${newToken}`;
       res = await fetch(`${API_BASE}${path}`, {
         ...options,
@@ -97,13 +138,13 @@ export async function apiFetch<T>(
         credentials: "include",
       });
     } else {
-      dispatchSessionExpired();
+      dispatchSessionExpired(requestToken);
     }
   }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401) dispatchSessionExpired();
+    if (res.status === 401) dispatchSessionExpired(responseToken);
     throw new Error(data.error ?? `Request failed (${res.status})`);
   }
   return data as T;

@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
-import { useOnMount } from "@/hooks/useOnMount";
 import { apiFetch, getOrCreateDailyNote, type ApiNote } from "@/lib/api-client";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -42,17 +41,21 @@ function CalendarInner() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
-  useOnMount(() => {
+  useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     void (async () => {
       try {
         const res = await apiFetch<{ notes: ApiNote[] }>("/notes?status=all&limit=all");
-        setNotes(res.notes);
+        if (!cancelled) setNotes(res.notes);
       } catch {
-        setNotes([]);
+        // Keep the last successful calendar data on transient failures.
       }
     })();
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const dailyDates = useMemo(() => {
     const set = new Set<string>();
