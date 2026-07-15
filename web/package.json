@@ -23,6 +23,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate"
   },
@@ -44,6 +45,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

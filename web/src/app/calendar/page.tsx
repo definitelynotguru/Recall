@@ -1,18 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import { apiFetch, getOrCreateDailyNote, type ApiNote } from "@/lib/api-client";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+const WEEKDAYS = Array.from({ length: 7 }, (_, index) =>
+  new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(
+    new Date(2024, 0, 7 + index),
+  ),
+);
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -22,10 +22,22 @@ function fmtDate(y: number, m: number, d: number) {
   return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
 
+function parseMonth(value: string | null, fallback: Date) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value ?? "");
+  if (!match) return { year: fallback.getFullYear(), month: fallback.getMonth() };
+  const month = Number(match[2]) - 1;
+  if (month < 0 || month > 11) {
+    return { year: fallback.getFullYear(), month: fallback.getMonth() };
+  }
+  return { year: Number(match[1]), month };
+}
+
 export default function CalendarPage() {
   return (
     <RequireAuth>
-      <CalendarInner />
+      <Suspense fallback={null}>
+        <CalendarInner />
+      </Suspense>
     </RequireAuth>
   );
 }
@@ -33,13 +45,16 @@ export default function CalendarPage() {
 function CalendarInner() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [busy, setBusy] = useState(false);
 
   const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const { year: viewYear, month: viewMonth } = parseMonth(
+    searchParams.get("month"),
+    today,
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -74,21 +89,11 @@ function CalendarInner() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const prevMonth = () => {
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
-  };
-  const nextMonth = () => {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
+  const navigateMonth = (offset: number) => {
+    const next = new Date(viewYear, viewMonth + offset, 1);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("month", `${next.getFullYear()}-${pad(next.getMonth() + 1)}`);
+    router.push(`/calendar?${params}`, { scroll: false });
   };
 
   const openDay = useCallback(
@@ -110,10 +115,13 @@ function CalendarInner() {
     <div className="container" style={{ maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <h1 style={{ fontFamily: "var(--font-display)", margin: 0, fontSize: "1.5rem" }}>
-          {MONTHS[viewMonth]} {viewYear}
+          {new Intl.DateTimeFormat(undefined, {
+            month: "long",
+            year: "numeric",
+          }).format(new Date(viewYear, viewMonth, 1))}
         </h1>
         <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" className="btn btn-ghost" onClick={prevMonth} aria-label="Previous month">
+          <button type="button" className="btn btn-ghost" onClick={() => navigateMonth(-1)} aria-label="Previous month">
             <CaretLeft size={20} />
           </button>
           <button
@@ -124,7 +132,7 @@ function CalendarInner() {
           >
             Today
           </button>
-          <button type="button" className="btn btn-ghost" onClick={nextMonth} aria-label="Next month">
+          <button type="button" className="btn btn-ghost" onClick={() => navigateMonth(1)} aria-label="Next month">
             <CaretRight size={20} />
           </button>
         </div>
@@ -139,6 +147,9 @@ function CalendarInner() {
           const date = fmtDate(viewYear, viewMonth, day);
           const hasNote = dailyDates.has(date);
           const isToday = date === todayStr;
+          const dateLabel = new Intl.DateTimeFormat(undefined, {
+            dateStyle: "full",
+          }).format(new Date(viewYear, viewMonth, day));
           return (
             <button
               key={date}
@@ -146,9 +157,10 @@ function CalendarInner() {
               className={`calendar-cell${isToday ? " today" : ""}${hasNote ? " has-note" : ""}`}
               onClick={() => void openDay(date)}
               disabled={busy}
+              aria-label={`${dateLabel}${hasNote ? ", daily note exists" : ", create daily note"}`}
             >
               <span className="calendar-day-num">{day}</span>
-              {hasNote && <span className="calendar-dot" />}
+              {hasNote && <span className="calendar-dot" aria-hidden="true" />}
             </button>
           );
         })}

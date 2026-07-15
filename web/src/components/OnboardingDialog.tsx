@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Check } from "@phosphor-icons/react";
 import { apiFetch } from "@/lib/api-client";
 import { DEFAULT_TEMPLATES, expandTemplate } from "@/lib/templates";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
   open: boolean;
@@ -25,6 +26,7 @@ const SURVEY_OPTIONS = DEFAULT_TEMPLATES.map((t, i) => ({
 export function OnboardingDialog({ open, onClose }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set([0]));
   const [creating, setCreating] = useState(false);
+  const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose, open);
 
   if (!open) return null;
 
@@ -67,12 +69,20 @@ export function OnboardingDialog({ open, onClose }: Props) {
   return (
     <div className="dialog-overlay" onClick={dismiss}>
       <div
+        ref={dialogRef}
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
         style={{ maxWidth: 480 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        aria-describedby="onboarding-description"
+        tabIndex={-1}
       >
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
           <h2
+            id="onboarding-title"
             style={{
               fontFamily: "var(--font-display)",
               margin: 0,
@@ -86,7 +96,7 @@ export function OnboardingDialog({ open, onClose }: Props) {
           </button>
         </div>
 
-        <p style={{ color: "var(--muted)", marginTop: 0, marginBottom: 16 }}>
+        <p id="onboarding-description" style={{ color: "var(--muted)", marginTop: 0, marginBottom: 16 }}>
           How will you use Recall? We&apos;ll create editable starter notes you can tweak or delete.
         </p>
 

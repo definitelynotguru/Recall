@@ -791,6 +791,7 @@ a:hover {
   padding: 16px 0;
   color: inherit;
   text-decoration: none;
+  min-width: 0;
 }
 
 .note-row-body:hover {
@@ -806,6 +807,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow-wrap: anywhere;
 }
 
 .note-row-body p {
@@ -1140,6 +1142,9 @@ a:hover {
 .dialog-sheet {
   width: 100%;
   max-width: 440px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: sheetUp 0.35s var(--ease-signature) both;
 }
 
@@ -1386,6 +1391,14 @@ a:hover {
   max-width: min(360px, calc(100vw - 48px));
 }
 
+@media (max-width: 768px) {
+  .toast-stack {
+    right: 16px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 32px);
+  }
+}
+
 .toast {
   display: flex;
   align-items: center;
@@ -1532,6 +1545,13 @@ a:hover {
 
 .md-tool:active {
   transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+  .md-tool {
+    min-width: 44px;
+    height: 44px;
+  }
 }
 
 .md-floating-toolbar {

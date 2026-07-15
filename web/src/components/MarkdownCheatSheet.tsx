@@ -2,6 +2,7 @@
 
 import { X } from "@phosphor-icons/react";
 import { MarkdownView } from "./MarkdownView";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
   open: boolean;
@@ -14,7 +15,7 @@ const CHEAT_SHEET_SECTIONS: { title: string; syntax: string }[] = [
     syntax: "# Heading 1\n## Heading 2\n### Heading 3",
   },
   {
-    title: "Bold & Italic",
+    title: "Bold & italic",
     syntax: "**bold text**\n*italic text*\n~~strikethrough~~",
   },
   {
@@ -48,14 +49,23 @@ const CHEAT_SHEET_SECTIONS: { title: string; syntax: string }[] = [
 ];
 
 export function MarkdownCheatSheet({ open, onClose }: Props) {
+  const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose, open);
+
   if (!open) return null;
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
         style={{ maxWidth: 720, maxHeight: "85vh", overflow: "auto" }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="markdown-cheat-sheet-title"
+        aria-describedby="markdown-cheat-sheet-description"
+        tabIndex={-1}
       >
         <div
           style={{
@@ -67,6 +77,7 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
         >
           <div>
             <h2
+              id="markdown-cheat-sheet-title"
               style={{
                 fontFamily: "var(--font-display)",
                 margin: "0 0 6px",
@@ -74,9 +85,9 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
                 letterSpacing: "-0.02em",
               }}
             >
-              Markdown Cheat Sheet
+              Markdown cheat sheet
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="markdown-cheat-sheet-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               Syntax reference for formatting your notes
             </p>
           </div>
@@ -100,8 +111,6 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
                   fontSize: "0.9rem",
                   fontWeight: 600,
                   color: "var(--text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
                 }}
               >
                 {section.title}

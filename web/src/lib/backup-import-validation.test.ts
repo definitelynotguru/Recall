@@ -5,7 +5,16 @@ import type { BackupBundle } from "./backup-import";
 describe("validateBackupBundle", () => {
   it("warns when note has more than 12 tags", () => {
     const bundle: BackupBundle = {
-      notes: [{ id: "n1", title: "A", body: "", status: "active", created_at: "", updated_at: "" }],
+      notes: [{
+        id: "n1",
+        title: "A",
+        body: "",
+        status: "active",
+        pinned_at: null,
+        created_at: "",
+        updated_at: "",
+        deleted_at: null,
+      }],
       reminders_by_note: {},
       note_tags: Array.from({ length: 13 }, (_, i) => ({
         id: `l${i}`,
@@ -13,6 +22,7 @@ describe("validateBackupBundle", () => {
         tag_id: `t${i}`,
         created_at: "",
         updated_at: "",
+        deleted_at: null,
       })),
     };
     const warnings = validateBackupBundle(bundle);

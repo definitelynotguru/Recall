@@ -1,7 +1,8 @@
 "use client";
 
 import { X } from "@phosphor-icons/react";
-import type { CSSProperties, ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
   onClose: () => void;
@@ -27,16 +28,27 @@ export function DialogShell({
   ariaDescribedBy,
 }: Props) {
   const sheetStyle: CSSProperties = { maxWidth };
+  const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose);
+  const generatedTitleId = useId();
+  const generatedDescriptionId = useId();
+  const titleId = ariaLabelledBy ?? generatedTitleId;
+  const descriptionId = subtitle
+    ? (ariaDescribedBy ?? generatedDescriptionId)
+    : ariaDescribedBy;
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
         style={sheetStyle}
         role={role}
-        aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
       >
         <div
           style={{
@@ -48,7 +60,7 @@ export function DialogShell({
         >
           <div>
             <h2
-              id={ariaLabelledBy}
+              id={titleId}
               style={{
                 fontFamily: "var(--font-display)",
                 margin: subtitle ? "0 0 6px" : 0,
@@ -60,7 +72,7 @@ export function DialogShell({
             </h2>
             {subtitle && (
               <p
-                id={ariaDescribedBy}
+                id={descriptionId}
                 style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}
               >
                 {subtitle}

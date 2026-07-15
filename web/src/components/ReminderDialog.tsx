@@ -6,6 +6,7 @@ import { apiFetch, ApiReminder } from "@/lib/api-client";
 import { loadUserPrefs } from "@/lib/user-prefs";
 import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
   noteId: string;
@@ -141,6 +142,7 @@ function ReminderDialogContent({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -214,8 +216,15 @@ function ReminderDialogContent({
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reminder-dialog-title"
+        aria-describedby="reminder-dialog-description"
+        tabIndex={-1}
       >
         <div
           style={{
@@ -227,6 +236,7 @@ function ReminderDialogContent({
         >
           <div>
             <h2
+              id="reminder-dialog-title"
               style={{
                 fontFamily: "var(--font-display)",
                 margin: "0 0 6px",
@@ -236,7 +246,7 @@ function ReminderDialogContent({
             >
               {isEdit ? "Edit reminder" : "Schedule nudge"}
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="reminder-dialog-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               Android delivers the notification
             </p>
           </div>
@@ -319,14 +329,17 @@ function ReminderDialogContent({
             ))}
           </select>
           {repeatPreset === "__custom__" && (
-            <input
-              id="r-repeat-advanced"
-              type="text"
-              value={repeat}
-              onChange={(e) => setRepeat(e.target.value)}
-              placeholder="e.g. freq=weekly;days=TU,TH"
-              style={{ marginTop: 10 }}
-            />
+            <>
+              <label htmlFor="r-repeat-advanced">Custom repeat rule</label>
+              <input
+                id="r-repeat-advanced"
+                type="text"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+                placeholder="e.g. freq=weekly;days=TU,TH"
+                style={{ marginTop: 10 }}
+              />
+            </>
           )}
           {repeat && (
             <p className="settings-muted" style={{ margin: "8px 0 0", fontSize: "0.82rem" }}>
@@ -346,19 +359,21 @@ function ReminderDialogContent({
             <option value="deadline">Deadline</option>
           </select>
           {reminderMode === "persistent" && (
-            <input
-              id="r-nag-interval"
-              type="number"
-              min={1}
-              max={1440}
-              value={nagIntervalMinutes}
-              onChange={(e) => setNagIntervalMinutes(Number(e.target.value))}
-              placeholder="Nag interval (minutes)"
-              style={{ marginTop: 10 }}
-            />
+            <>
+              <label htmlFor="r-nag-interval">Nag interval (minutes)</label>
+              <input
+                id="r-nag-interval"
+                type="number"
+                min={1}
+                max={1440}
+                value={nagIntervalMinutes}
+                onChange={(e) => setNagIntervalMinutes(Number(e.target.value))}
+                style={{ marginTop: 10 }}
+              />
+            </>
           )}
         </div>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         <div className="dialog-actions">
           {isEdit && (
             <button

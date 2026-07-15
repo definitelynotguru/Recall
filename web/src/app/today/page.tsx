@@ -15,6 +15,7 @@ import { useAsyncLoad } from "@/hooks/useAsyncLoad";
 import { pickNextReminder } from "@/lib/reminder-detect";
 import { apiFetch, getOrCreateDailyNote, ApiReminder } from "@/lib/api-client";
 import { groupRemindersByDay } from "@/lib/reminder-utils";
+import { toLocalDateString } from "@/lib/local-date";
 
 function snoozeFireAt(minutes: number) {
   const d = new Date();
@@ -34,7 +35,7 @@ export default function TodayPage() {
   const openTodayNote = useCallback(async () => {
     setDailyBusy(true);
     try {
-      const date = new Date().toISOString().slice(0, 10);
+      const date = toLocalDateString();
       const note = await getOrCreateDailyNote(date);
       router.push(`/notes/${note.id}`);
     } catch (e) {

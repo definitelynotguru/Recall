@@ -109,6 +109,9 @@ export default function NoteDetailPage() {
     position: { top: number; left: number };
     insertOffset: number;
   } | null>(null);
+  const [wikiActiveDescendant, setWikiActiveDescendant] = useState<
+    string | null
+  >(null);
   const [localSaveStatus, setLocalSaveStatus] = useState<
     "idle" | "pending" | "saved"
   >("idle");
@@ -525,7 +528,12 @@ export default function NoteDetailPage() {
           <ArrowLeft size={18} />
           Back
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => setPreview(!preview)}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setPreview(!preview)}
+          aria-pressed={preview}
+        >
           <Eye size={18} />
           {preview ? "Edit" : "Preview"}
         </button>
@@ -542,6 +550,7 @@ export default function NoteDetailPage() {
           className={`btn btn-secondary ${showInfo ? "active" : ""}`}
           onClick={() => setShowInfo(!showInfo)}
           aria-label="Note info"
+          aria-pressed={showInfo}
         >
           <Info size={18} />
         </button>
@@ -556,7 +565,7 @@ export default function NoteDetailPage() {
             <ClockCounterClockwise size={18} />
           </button>
         )}
-        <span className="save-status">
+        <span className="save-status" role="status" aria-live="polite">
           {saveStatusLabel()}
           {saveStatus === "error" && (
             <button
@@ -582,7 +591,7 @@ export default function NoteDetailPage() {
           )}
           {noteStatus === "archived" ? "Unarchive" : "Archive"}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={deleteNote}>
+        <button type="button" className="btn btn-ghost" onClick={deleteNote} aria-label="Delete note">
           <Trash size={18} />
         </button>
       </div>
@@ -613,14 +622,22 @@ export default function NoteDetailPage() {
               className="mono"
               value={body}
               onChange={handleBodyChange}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={Boolean(wikiAc)}
+              aria-controls={wikiAc ? "wiki-link-suggestions" : undefined}
+              aria-activedescendant={wikiActiveDescendant ?? undefined}
             />
             {wikiAc && (
               <WikiLinkAutocomplete
                 notes={allNotes}
                 query={wikiAc.query}
                 position={wikiAc.position}
+                editorRef={bodyRef}
+                listboxId="wiki-link-suggestions"
                 onSelect={handleWikiSelect}
                 onClose={() => setWikiAc(null)}
+                onActiveDescendantChange={setWikiActiveDescendant}
               />
             )}
           </div>
@@ -648,6 +665,7 @@ export default function NoteDetailPage() {
                 key={tag.id}
                 type="button"
                 className={`chip tag-chip ${selectedTagIds.has(tag.id) ? "selected" : ""}`}
+                aria-pressed={selectedTagIds.has(tag.id)}
                 onClick={() => {
                   const next = selectedTagIds.has(tag.id)
                     ? [...selectedTagIds].filter((id) => id !== tag.id)
@@ -664,6 +682,9 @@ export default function NoteDetailPage() {
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
               placeholder="New tag"
+              aria-label="New tag name"
+              name="new-tag"
+              autoComplete="off"
               maxLength={40}
             />
             <button type="button" className="btn btn-secondary" onClick={createTag}>

@@ -6,8 +6,27 @@ Run with web (`cd web && npm run dev`) and Android app pointed at dev API.
 
 ```bash
 cd web && npm test          # reminder detect, sync schema, sync merge LWW
+cd web && npm run test:e2e  # local web login, note persistence, sync status
 cd android && ./gradlew :app:testDebugUnitTest   # token policy + sync sanitizer
 ```
+
+### Web smoke tests
+
+The Playwright smoke suite expects the web environment in `web/.env.local`, including
+`DATABASE_URL`, `JWT_SECRET`, `REFRESH_PEPPER`, and `REGISTER_SECRET`.
+
+Install Chromium once, then run with an existing test account:
+
+```bash
+cd web
+npx playwright install chromium
+E2E_EMAIL=smoke@example.com E2E_PASSWORD=twelvecharpass npm run test:e2e
+```
+
+To let the suite register that account when login fails, also set
+`E2E_REGISTER_SECRET` to the same value as `REGISTER_SECRET`. Set `E2E_BASE_URL` to
+test an already-running server instead of starting `localhost:3000`. The suite skips
+without `E2E_EMAIL` and `E2E_PASSWORD`.
 
 ## Sync / debug (Android)
 

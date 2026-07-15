@@ -43,6 +43,11 @@ export function AppNav() {
             href={href}
             className={`nav-item ${pathname === href || pathname.startsWith(href + "/") ? "active" : ""}`}
             aria-label={label}
+            aria-current={
+              pathname === href || pathname.startsWith(href + "/")
+                ? "page"
+                : undefined
+            }
           >
             <Icon size={20} weight={pathname === href ? "fill" : "regular"} />
             <span className="nav-item-label">{label}</span>

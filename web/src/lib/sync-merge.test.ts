@@ -17,6 +17,8 @@ function androidOfflineNotePayload(
     body,
     status: "active",
     pinned_at: null,
+    is_template: false,
+    daily_date: null,
     created_at: updatedAtIso,
     updated_at: updatedAtIso,
     deleted_at: null,
