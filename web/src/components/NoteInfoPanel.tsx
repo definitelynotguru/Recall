@@ -51,7 +51,7 @@ export function NoteInfoPanel({ body, createdAt, updatedAt }: Props) {
     <div className="panel panel-pad" style={{ marginBottom: 28 }}>
       <h2 className="settings-heading">
         <Info size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-        Note Info
+        Note info
       </h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", marginTop: 12 }}>
         <div>

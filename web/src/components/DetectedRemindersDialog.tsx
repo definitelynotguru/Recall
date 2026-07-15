@@ -8,6 +8,7 @@ import {
 } from "@/lib/reminder-detect";
 import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { formatFireAt } from "@/lib/reminder-utils";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
   open: boolean;
@@ -45,6 +46,7 @@ function DetectedRemindersDialogContent({
   );
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+  const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -73,9 +75,16 @@ function DetectedRemindersDialogContent({
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={onDialogKeyDown}
         style={{ maxWidth: 520 }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detected-reminders-title"
+        aria-describedby="detected-reminders-description"
+        tabIndex={-1}
       >
         <div
           style={{
@@ -87,6 +96,7 @@ function DetectedRemindersDialogContent({
         >
           <div>
             <h2
+              id="detected-reminders-title"
               style={{
                 fontFamily: "var(--font-display)",
                 margin: "0 0 6px",
@@ -99,7 +109,7 @@ function DetectedRemindersDialogContent({
               <Sparkle size={22} weight="duotone" color="var(--accent)" />
               Detected reminders
             </h2>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="detected-reminders-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
               We read dates and times in your note and guessed smart repeats (e.g.
               birthdays → yearly).
             </p>
@@ -161,7 +171,7 @@ function DetectedRemindersDialogContent({
           </ul>
         )}
 
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
 
         <div className="dialog-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>

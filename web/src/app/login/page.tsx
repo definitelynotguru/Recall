@@ -89,7 +89,7 @@ export default function LoginPage() {
           </p>
 
           {sessionExpired && (
-            <p className="error-text" style={{ marginBottom: 16 }}>
+            <p className="error-text" role="alert" style={{ marginBottom: 16 }}>
               Your session expired. Please sign in again.
             </p>
           )}
@@ -100,10 +100,12 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                name="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                spellCheck={false}
               />
             </div>
             <div className="field">
@@ -111,6 +113,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type="password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -126,13 +129,14 @@ export default function LoginPage() {
                 <input
                   id="secret"
                   type="password"
+                  name="register-secret"
                   value={registerSecret}
                   onChange={(e) => setRegisterSecret(e.target.value)}
                   required
                 />
               </div>
             )}
-            {error && <p className="error-text">{error}</p>}
+            {error && <p className="error-text" role="alert">{error}</p>}
             <button
               type="submit"
               className="btn btn-primary"

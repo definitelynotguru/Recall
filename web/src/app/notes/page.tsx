@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArchiveBoxIcon, CalendarDots, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -16,6 +16,7 @@ import { listTemplates, getOrCreateDailyNote } from "@/lib/api-client";
 import { expandTemplate } from "@/lib/templates";
 import { makeSnippet, tokenize } from "@/lib/search-score";
 import { searchNotes } from "@/lib/search-score";
+import { toLocalDateString } from "@/lib/local-date";
 import {
   createLocalNote,
   getLocalNote,
@@ -46,7 +47,16 @@ function HighlightedSnippet({ body, query }: { body: string; query: string }) {
 }
 
 export default function NotesPage() {
+  return (
+    <Suspense fallback={null}>
+      <NotesContent />
+    </Suspense>
+  );
+}
+
+function NotesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { user } = useAuth();
   const isLocal = !user;
@@ -54,17 +64,98 @@ export default function NotesPage() {
   const [allTags, setAllTags] = useState<ApiTag[]>([]);
   const [noteTags, setNoteTags] = useState<ApiNoteTag[]>([]);
   const [creating, setCreating] = useState(false);
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [status, setStatus] = useState<"active" | "archived">("active");
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const urlQuery = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(urlQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(urlQuery.trim());
+  const status =
+    searchParams.get("status") === "archived" ? "archived" : "active";
+  const tagParam = searchParams.get("tag");
+  const tagFilter =
+    tagParam &&
+    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(
+      tagParam,
+    )
+      ? tagParam
+      : null;
   const [templates, setTemplates] = useState<ApiNote[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const templateMenuRef = useRef<HTMLDivElement>(null);
+  const templateTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const value = query.trim();
+      setDebouncedQuery(value);
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) params.set("q", value);
+      else params.delete("q");
+      const next = params.toString();
+      if (next !== searchParams.toString()) {
+        router.replace(next ? `/notes?${next}` : "/notes", { scroll: false });
+      }
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
-  }, [query]);
+  }, [query, router, searchParams]);
+
+  useEffect(() => {
+    if (!showTemplateMenu) return;
+    templateMenuRef.current
+      ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+      ?.focus();
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !templateMenuRef.current?.contains(event.target)
+      ) {
+        setShowTemplateMenu(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [showTemplateMenu]);
+
+  const updateFilter = (name: "status" | "tag", value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(name, value);
+    else params.delete(name);
+    const next = params.toString();
+    router.push(next ? `/notes?${next}` : "/notes", { scroll: false });
+  };
+
+  const handleTemplateMenuKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]',
+      ),
+    );
+    const current =
+      document.activeElement instanceof HTMLButtonElement
+        ? items.indexOf(document.activeElement)
+        : -1;
+    let next = current;
+    if (event.key === "ArrowDown") next = (current + 1) % items.length;
+    else if (event.key === "ArrowUp") {
+      next = (current - 1 + items.length) % items.length;
+    } else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else if (event.key === "Escape") {
+      event.preventDefault();
+      setShowTemplateMenu(false);
+      templateTriggerRef.current?.focus();
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next]?.focus();
+  };
 
   const loadNotes = useCallback(async () => {
     if (!user) {
@@ -199,7 +290,7 @@ export default function NotesPage() {
   const openToday = async () => {
     setCreating(true);
     try {
-      const date = new Date().toISOString().slice(0, 10);
+      const date = toLocalDateString();
       if (!user) {
         const note = createLocalNote();
         note.title = `Daily — ${date}`;
@@ -293,14 +384,16 @@ export default function NotesPage() {
           <button
             type="button"
             className={status === "active" ? "active" : ""}
-            onClick={() => setStatus("active")}
+            onClick={() => updateFilter("status", null)}
+            aria-pressed={status === "active"}
           >
             Active
           </button>
           <button
             type="button"
             className={status === "archived" ? "active" : ""}
-            onClick={() => setStatus("archived")}
+            onClick={() => updateFilter("status", "archived")}
+            aria-pressed={status === "archived"}
           >
             Archived
           </button>
@@ -324,20 +417,32 @@ export default function NotesPage() {
           Today
         </button>
         {!isLocal && templates.length > 0 && (
-          <div className="template-menu-wrap">
+          <div className="template-menu-wrap" ref={templateMenuRef}>
             <button
+              ref={templateTriggerRef}
               type="button"
               className="btn btn-secondary"
               onClick={() => setShowTemplateMenu((v) => !v)}
               disabled={creating}
               aria-haspopup="menu"
               aria-expanded={showTemplateMenu}
+              aria-controls="template-menu"
             >
               <Plus size={18} weight="bold" />
               From template
             </button>
             {showTemplateMenu && (
-              <div className="template-menu" role="menu">
+              <div
+                id="template-menu"
+                className="template-menu"
+                role="menu"
+                onKeyDown={handleTemplateMenuKeyDown}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setShowTemplateMenu(false);
+                  }
+                }}
+              >
                 {templates.map((tpl) => (
                   <button
                     key={tpl.id}
@@ -360,7 +465,8 @@ export default function NotesPage() {
           <button
             type="button"
             className={`chip tag-chip ${tagFilter === null ? "selected" : ""}`}
-            onClick={() => setTagFilter(null)}
+            onClick={() => updateFilter("tag", null)}
+            aria-pressed={tagFilter === null}
           >
             All tags
           </button>
@@ -369,7 +475,10 @@ export default function NotesPage() {
               key={tag.id}
               type="button"
               className={`chip tag-chip ${tagFilter === tag.id ? "selected" : ""}`}
-              onClick={() => setTagFilter(tagFilter === tag.id ? null : tag.id)}
+              onClick={() =>
+                updateFilter("tag", tagFilter === tag.id ? null : tag.id)
+              }
+              aria-pressed={tagFilter === tag.id}
             >
               {tag.name}
             </button>
@@ -446,7 +555,7 @@ export default function NotesPage() {
                       </div>
                     )}
                   </Link>
-                  <time className="note-row-time">
+                  <time className="note-row-time" dateTime={n.updated_at}>
                     {new Date(n.updated_at).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
@@ -462,6 +571,7 @@ export default function NotesPage() {
                         })
                       }
                       aria-label={n.pinned_at ? "Unpin note" : "Pin note"}
+                      aria-pressed={Boolean(n.pinned_at)}
                     >
                       {n.pinned_at ? <PushPinSlash size={16} /> : <PushPin size={16} />}
                     </button>

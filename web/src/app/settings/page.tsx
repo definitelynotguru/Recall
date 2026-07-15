@@ -242,6 +242,15 @@ export default function SettingsPage() {
     }
   };
 
+  const copyDebugPayload = async (payload: unknown) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      toast("Debug report copied");
+    } catch {
+      toast("Could not copy debug report", "error");
+    }
+  };
+
   const exportZip = async () => {
     setExporting(true);
     try {
@@ -540,11 +549,7 @@ export default function SettingsPage() {
                       type="button"
                       className="btn btn-secondary"
                       style={{ padding: "6px 10px", fontSize: "0.8rem" }}
-                      onClick={() =>
-                        navigator.clipboard.writeText(
-                          JSON.stringify(r.payload, null, 2),
-                        )
-                      }
+                      onClick={() => void copyDebugPayload(r.payload)}
                     >
                       Copy
                     </button>

@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 type NoteRef = { id: string; title: string };
 
@@ -8,8 +14,11 @@ type Props = {
   notes: NoteRef[];
   query: string;
   position: { top: number; left: number };
+  editorRef: RefObject<HTMLTextAreaElement | null>;
+  listboxId: string;
   onSelect: (note: NoteRef) => void;
   onClose: () => void;
+  onActiveDescendantChange: (id: string | null) => void;
 };
 
 const MAX_RESULTS = 8;
@@ -18,17 +27,22 @@ export function WikiLinkAutocomplete({
   notes,
   query,
   position,
+  editorRef,
+  listboxId,
   onSelect,
   onClose,
+  onActiveDescendantChange,
 }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? notes.filter((n) => n.title.toLowerCase().includes(q))
-    : notes;
-  const results = filtered.slice(0, MAX_RESULTS);
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? notes.filter((note) => note.title.toLowerCase().includes(q))
+      : notes;
+    return filtered.slice(0, MAX_RESULTS);
+  }, [notes, query]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setActiveIndex(0), 0);
@@ -36,7 +50,23 @@ export function WikiLinkAutocomplete({
   }, [query]);
 
   useEffect(() => {
+    const active = results[activeIndex];
+    onActiveDescendantChange(
+      active ? `${listboxId}-option-${active.id}` : null,
+    );
+    return () => onActiveDescendantChange(null);
+  }, [activeIndex, listboxId, onActiveDescendantChange, results]);
+
+  useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (document.activeElement !== editorRef.current) return;
+      if (results.length === 0) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onClose();
+        }
+        return;
+      }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setActiveIndex((i) => Math.min(i + 1, results.length - 1));
@@ -55,9 +85,7 @@ export function WikiLinkAutocomplete({
     };
     window.addEventListener("keydown", handleKey, true);
     return () => window.removeEventListener("keydown", handleKey, true);
-  }, [results, activeIndex, onSelect, onClose]);
-
-  if (results.length === 0) return null;
+  }, [results, activeIndex, editorRef, onSelect, onClose]);
 
   return (
     <ul
@@ -65,10 +93,22 @@ export function WikiLinkAutocomplete({
       style={{ top: position.top, left: position.left }}
       ref={listRef}
       role="listbox"
+      id={listboxId}
     >
+      {results.length === 0 && (
+        <li
+          role="option"
+          aria-disabled="true"
+          aria-selected="false"
+          className="wiki-autocomplete-item"
+        >
+          No matching notes
+        </li>
+      )}
       {results.map((note, i) => (
         <li
           key={note.id}
+          id={`${listboxId}-option-${note.id}`}
           role="option"
           aria-selected={i === activeIndex}
           className={`wiki-autocomplete-item ${i === activeIndex ? "active" : ""}`}
