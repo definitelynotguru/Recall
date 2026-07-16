@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.notesreminders.app.MainActivity
 import com.notesreminders.app.NotesApp
 import com.notesreminders.app.R
@@ -50,7 +51,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val title = note?.title?.ifBlank { "Reminder" } ?: "Reminder"
         val body = note?.body?.take(120) ?: ""
 
-        createChannel(context)
+        NotificationChannels.ensureChannels(context)
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -130,9 +131,13 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setColor(0xFFEF6F2E.toInt())
+            .setColor(ContextCompat.getColor(context, R.color.accent))
             .setContentTitle(title)
             .setContentText(body.ifBlank { "Tap to open note" })
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(body.ifBlank { "Tap to open note" }),
+            )
             .setContentIntent(openPending)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -203,10 +208,6 @@ class ReminderReceiver : BroadcastReceiver() {
         val snoozeUntil = snoozeUntilIso ?: java.time.Instant.now().plusSeconds(3600).toString()
         app.notesRepository.snoozeReminder(reminderId, snoozeUntil)
         NotificationManagerCompat.from(context).cancel(reminderId.hashCode())
-    }
-
-    private fun createChannel(context: Context) {
-        NotificationChannels.ensureChannels(context)
     }
 
     companion object {

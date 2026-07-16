@@ -13,7 +13,12 @@ export default function LoginPage() {
       new URLSearchParams(window.location.search).get("reason") ===
         "session_expired",
   );
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("mode") === "register"
+      ? "register"
+      : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registerSecret, setRegisterSecret] = useState("");
@@ -51,16 +56,7 @@ export default function LoginPage() {
   return (
     <div className="auth-split">
       <section className="auth-hero">
-        <p
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.7rem",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--accent)",
-            margin: "0 0 24px",
-          }}
-        >
+        <p className="auth-kicker">
           Personal workspace
         </p>
         <h1>
@@ -74,22 +70,15 @@ export default function LoginPage() {
 
       <section className="auth-form-side">
         <div className="auth-form-panel panel panel-pad">
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "1.35rem",
-              margin: "0 0 6px",
-              letterSpacing: "-0.02em",
-            }}
-          >
+          <h2 className="auth-title">
             {mode === "login" ? "Welcome back" : "Create your vault"}
           </h2>
-          <p style={{ color: "var(--text-muted)", margin: "0 0 28px", fontSize: "0.9rem" }}>
+          <p className="auth-subtitle">
             Syncs across web and your phone.
           </p>
 
           {sessionExpired && (
-            <p className="error-text" role="alert" style={{ marginBottom: 16 }}>
+            <p className="error-text auth-alert" role="alert">
               Your session expired. Please sign in again.
             </p>
           )}
@@ -139,8 +128,7 @@ export default function LoginPage() {
             {error && <p className="error-text" role="alert">{error}</p>}
             <button
               type="submit"
-              className="btn btn-primary"
-              style={{ width: "100%", marginTop: 8 }}
+              className="btn btn-primary auth-submit"
               disabled={submitting}
             >
               {submitting
@@ -151,7 +139,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p style={{ marginTop: 20, textAlign: "center", fontSize: "0.85rem" }}>
+          <p className="auth-switch">
             <button
               type="button"
               className="btn-ghost"

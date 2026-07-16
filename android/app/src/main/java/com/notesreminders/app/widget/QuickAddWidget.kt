@@ -51,16 +51,20 @@ class QuickAddWidget : GlanceAppWidget() {
                         .background(GlanceTheme.colors.surface),
                 ) {
                     Text(
-                        "Upcoming",
+                        "Recall",
                         style = TextStyle(
                             color = GlanceTheme.colors.primary,
                             fontWeight = FontWeight.Bold,
                         ),
                     )
-                    Spacer(GlanceModifier.height(6.dp))
+                    Text(
+                        "Upcoming reminders",
+                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
+                    )
+                    Spacer(GlanceModifier.height(8.dp))
                     if (items.isEmpty()) {
                         Text(
-                            "No reminders",
+                            "Nothing scheduled",
                             style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant),
                         )
                     } else {
@@ -86,7 +90,7 @@ class QuickAddWidget : GlanceAppWidget() {
                     }
                     Spacer(GlanceModifier.height(8.dp))
                     Text(
-                        "Quick add",
+                        "+ New note",
                         modifier = GlanceModifier
                             .fillMaxWidth()
                             .padding(8.dp)

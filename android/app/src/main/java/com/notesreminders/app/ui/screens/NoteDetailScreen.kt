@@ -1,12 +1,16 @@
 package com.notesreminders.app.ui.screens
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -24,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.data.local.NoteRevisionEntity
@@ -45,7 +50,6 @@ import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.pickNextReminder
 import com.notesreminders.app.ui.components.rememberReminderScheduleState
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallFieldColors
 
 @Composable
@@ -155,116 +159,126 @@ fun NoteDetailScreen(
         }
     }
 
-    Column(
+    Box(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .imePadding(),
     ) {
-        NoteDetailToolbar(
-            isPinned = isPinned,
-            isArchived = isArchived,
-            preview = preview,
-            onBack = {
-                viewModel.flushNoteSave(noteId, title, body)
-                onBack()
-            },
-            onSync = { viewModel.syncNow() },
-            onTogglePin = {
-                val pinned = !isPinned
-                isPinned = pinned
-                viewModel.setNotePinned(noteId, pinned)
-            },
-            onToggleArchive = {
-                val archived = !isArchived
-                isArchived = archived
-                viewModel.setNoteArchived(noteId, archived)
-            },
-            onTogglePreview = { preview = !preview },
-            onHistory = { showHistory = true },
-            onDelete = { showDeleteNoteDialog = true },
-        )
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .widthIn(max = 760.dp)
+                .align(Alignment.TopCenter)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+        ) {
+            NoteDetailToolbar(
+                isPinned = isPinned,
+                isArchived = isArchived,
+                preview = preview,
+                onBack = {
+                    viewModel.flushNoteSave(noteId, title, body)
+                    onBack()
+                },
+                onSync = { viewModel.syncNow() },
+                onTogglePin = {
+                    val pinned = !isPinned
+                    isPinned = pinned
+                    viewModel.setNotePinned(noteId, pinned)
+                },
+                onToggleArchive = {
+                    val archived = !isArchived
+                    isArchived = archived
+                    viewModel.setNoteArchived(noteId, archived)
+                },
+                onTogglePreview = { preview = !preview },
+                onHistory = { showHistory = true },
+                onDelete = { showDeleteNoteDialog = true },
+            )
 
-        NoteConflictBanner(
-            conflict = noteConflict,
-            onKeepLocal = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_LOCAL) } },
-            onKeepServer = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_SERVER) } },
-            onMerge = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.MERGE) } },
-        )
+            NoteConflictBanner(
+                conflict = noteConflict,
+                onKeepLocal = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_LOCAL) } },
+                onKeepServer = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.KEEP_SERVER) } },
+                onMerge = { noteConflict?.let { viewModel.resolveConflict(it.id, ConflictResolution.MERGE) } },
+            )
 
-        Text(
-            "$saveStatus · Sync uploads to web",
-            style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
+            Text(
+                "$saveStatus · Sync uploads to web",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
 
-        NoteEditorSection(
-            title = title,
-            body = body,
-            preview = preview,
-            fieldColors = fieldColors,
-            onTitleChange = {
-                title = it
-                saveStatus = "Unsaved…"
-                viewModel.scheduleNoteSave(noteId, title, body)
-            },
-            onBodyChange = {
-                body = it
-                saveStatus = "Unsaved…"
-                viewModel.scheduleNoteSave(noteId, title, body)
-            },
-        )
+            NoteEditorSection(
+                title = title,
+                body = body,
+                preview = preview,
+                fieldColors = fieldColors,
+                onTitleChange = {
+                    title = it
+                    saveStatus = "Unsaved…"
+                    viewModel.scheduleNoteSave(noteId, title, body)
+                },
+                onBodyChange = {
+                    body = it
+                    saveStatus = "Unsaved…"
+                    viewModel.scheduleNoteSave(noteId, title, body)
+                },
+            )
 
-        Spacer(Modifier.height(28.dp))
-        NoteTagSection(
-            allTags = allTags,
-            selectedTagIds = selectedTagIds,
-            newTagName = newTagName,
-            fieldColors = fieldColors,
-            onTagNameChange = { newTagName = it },
-            onAssignTag = { viewModel.assignTag(noteId, it) },
-            onUnassignTag = { viewModel.unassignTag(noteId, it) },
-            onCreateTag = {
-                val name = newTagName.trim()
-                if (name.isNotEmpty()) {
-                    viewModel.createTagAndAssign(noteId, name) { newTagName = "" }
-                }
-            },
-        )
+            Spacer(Modifier.height(28.dp))
+            NoteTagSection(
+                allTags = allTags,
+                selectedTagIds = selectedTagIds,
+                newTagName = newTagName,
+                fieldColors = fieldColors,
+                onTagNameChange = { newTagName = it },
+                onAssignTag = { viewModel.assignTag(noteId, it) },
+                onUnassignTag = { viewModel.unassignTag(noteId, it) },
+                onCreateTag = {
+                    val name = newTagName.trim()
+                    if (name.isNotEmpty()) {
+                        viewModel.createTagAndAssign(noteId, name) { newTagName = "" }
+                    }
+                },
+            )
 
-        Spacer(Modifier.height(16.dp))
-        NextNudgeCard(
-            reminder = pickNextReminder(reminders),
-            noteTitle = title,
-        )
+            Spacer(Modifier.height(16.dp))
+            NextNudgeCard(
+                reminder = pickNextReminder(reminders),
+                noteTitle = title,
+            )
 
-        Spacer(Modifier.height(28.dp))
-        NoteReminderSection(
-            reminders = reminders,
-            fetchingReminders = fetchingReminders,
-            onAddReminder = { openCreateDialog() },
-            onFetchReminders = {
-                viewModel.flushNoteSave(noteId, title, body)
-                val existing = reminders.map { it.fireAt to it.repeatRule }
-                val prefs = viewModel.userPrefs
-                val found = ReminderDetect.detect(
-                    title,
-                    body,
-                    prefs.defaultReminderHour,
-                    prefs.defaultReminderMinute,
-                )
-                    .filter { d -> !ReminderDetect.isDuplicate(d, existing) }
-                detectedList = found
-                selectedDetected = found
-                    .filter { it.confidence == "high" }
-                    .map { it.id }
-                    .toSet()
-                showDetectDialog = true
-            },
-            onEditReminder = { schedule.openEdit(it) },
-            onDeleteReminder = { reminderToDelete = it },
-        )
+            Spacer(Modifier.height(28.dp))
+            NoteReminderSection(
+                reminders = reminders,
+                fetchingReminders = fetchingReminders,
+                onAddReminder = { openCreateDialog() },
+                onFetchReminders = {
+                    viewModel.flushNoteSave(noteId, title, body)
+                    val existing = reminders.map { it.fireAt to it.repeatRule }
+                    val prefs = viewModel.userPrefs
+                    val found = ReminderDetect.detect(
+                        title,
+                        body,
+                        prefs.defaultReminderHour,
+                        prefs.defaultReminderMinute,
+                    )
+                        .filter { d -> !ReminderDetect.isDuplicate(d, existing) }
+                    detectedList = found
+                    selectedDetected = found
+                        .filter { it.confidence == "high" }
+                        .map { it.id }
+                        .toSet()
+                    showDetectDialog = true
+                },
+                onEditReminder = { schedule.openEdit(it) },
+                onDeleteReminder = { reminderToDelete = it },
+            )
+            Spacer(Modifier.height(32.dp))
+        }
     }
 
     DetectedRemindersDialog(
@@ -317,7 +331,7 @@ fun NoteDetailScreen(
             text = {
                 Text(
                     "This removes the note and all its reminders on this device. Sync to apply on web.",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -328,7 +342,11 @@ fun NoteDetailScreen(
                 }
             },
             dismissButton = {
-                RecallDialogTextButton("Cancel", { showDeleteNoteDialog = false }, RecallColors.ParchmentMuted)
+                RecallDialogTextButton(
+                    "Cancel",
+                    { showDeleteNoteDialog = false },
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             },
         )
     }
@@ -340,7 +358,7 @@ fun NoteDetailScreen(
             text = {
                 Text(
                     formatReminderFireAt(target.fireAt),
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -351,7 +369,11 @@ fun NoteDetailScreen(
                 }
             },
             dismissButton = {
-                RecallDialogTextButton("Cancel", { reminderToDelete = null }, RecallColors.ParchmentMuted)
+                RecallDialogTextButton(
+                    "Cancel",
+                    { reminderToDelete = null },
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             },
         )
     }
@@ -359,6 +381,9 @@ fun NoteDetailScreen(
     if (showHistory) {
         AlertDialog(
             onDismissRequest = { showHistory = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("Version history") },
             text = {
                 Column(
@@ -370,7 +395,7 @@ fun NoteDetailScreen(
                     if (revisions.isEmpty()) {
                         Text(
                             "No saved revisions yet. Earlier edits on this device will appear here.",
-                            color = RecallColors.ParchmentMuted,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -391,7 +416,7 @@ fun NoteDetailScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showHistory = false }) {
-                    Text("Close", color = RecallColors.Copper)
+                    Text("Close")
                 }
             },
         )
@@ -407,25 +432,25 @@ private fun RevisionRow(
         Text(
             revision.title.ifBlank { "Untitled" },
             style = MaterialTheme.typography.bodyMedium,
-            color = RecallColors.Parchment,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             "${revision.createdAt.take(19).replace("T", " ")} · ${revision.source}",
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (revision.body.isNotBlank()) {
             Spacer(Modifier.height(4.dp))
             Text(
                 revision.body.take(160),
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3,
             )
         }
         Spacer(Modifier.height(6.dp))
         TextButton(onClick = onRestore) {
-            Text("Restore as copy", color = RecallColors.Copper)
+            Text("Restore as copy")
         }
     }
 }

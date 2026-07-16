@@ -18,9 +18,9 @@ export function Backlinks({ notes, currentTitle }: Props) {
   if (backlinks.length === 0) return null;
 
   return (
-    <div className="panel panel-pad" style={{ marginBottom: 28 }}>
+    <div className="content-section">
       <h2 className="settings-heading">Linked from</h2>
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+      <ul className="backlink-list">
         {backlinks.map((note) => (
           <li key={note.id}>
             <Link href={`/notes/${note.id}`}>

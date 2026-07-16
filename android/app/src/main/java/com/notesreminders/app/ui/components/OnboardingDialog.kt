@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.Templates
 import com.notesreminders.app.ui.AppViewModel
-import com.notesreminders.app.ui.theme.RecallColors
 
 private data class SurveyOption(val index: Int, val label: String, val hint: String)
 
@@ -55,7 +56,7 @@ fun OnboardingDialog(
             Column {
                 Text(
                     "Pick how you'll use Recall. We'll create editable starter notes you can tweak or delete.",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))
                 SURVEY_OPTIONS.forEach { opt ->
@@ -63,7 +64,7 @@ fun OnboardingDialog(
                         Modifier
                             .fillMaxWidth()
                             .clickable { checked = checked.copyOf().also { it[opt.index] = !it[opt.index] } }
-                            .height(44.dp),
+                            .heightIn(min = 56.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Checkbox(
@@ -74,8 +75,16 @@ fun OnboardingDialog(
                         )
                         Spacer(Modifier.width(8.dp))
                         Column {
-                            Text(opt.label, color = RecallColors.Parchment, fontWeight = FontWeight.Medium)
-                            Text(opt.hint, color = RecallColors.ParchmentMuted, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                            Text(
+                                opt.label,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                opt.hint,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
                 }
@@ -85,7 +94,7 @@ fun OnboardingDialog(
             RecallDialogConfirmButton(
                 "Create starter notes",
                 {
-                    val indices = checked.indices.filter { checked[it] }.toList()
+                    val indices = checked.indices.filter { checked[it] }
                     if (indices.isNotEmpty()) {
                         viewModel.createStarterNotesFromSurvey(indices) {
                             onRequestNotifications()
@@ -99,7 +108,7 @@ fun OnboardingDialog(
             )
         },
         dismissButton = {
-            RecallDialogTextButton("Skip", onDismiss, RecallColors.ParchmentMuted)
+            RecallDialogTextButton("Skip", onDismiss, MaterialTheme.colorScheme.onSurfaceVariant)
         },
     )
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -43,15 +44,14 @@ import com.notesreminders.app.ui.components.RecallAlertDialog
 import com.notesreminders.app.ui.components.RecallDialogDestructiveButton
 import com.notesreminders.app.ui.components.RecallDialogTextButton
 import com.notesreminders.app.ui.components.RecallPanel
+import com.notesreminders.app.ui.components.RecallPanelStyle
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
 import com.notesreminders.app.ui.components.rememberReminderScheduleState
 import com.notesreminders.app.ui.components.pickNextReminder
 import com.notesreminders.app.reminders.RepeatUtils
-import com.notesreminders.app.ui.theme.RecallColors
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
@@ -106,27 +106,33 @@ fun TodayScreen(
         )
         Spacer(Modifier.height(12.dp))
 
-        RecallPanel {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+        RecallPanel(style = RecallPanelStyle.Accent) {
+            Text(
+                "Daily note",
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "Open or create today's note from your Daily Journal template.",
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(4.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Daily note", color = RecallColors.Parchment, style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { viewModel.openToday(onOpenNote) }) {
                     Text(
-                        "Open or create today's note from your Daily Journal template.",
-                        color = RecallColors.ParchmentMuted,
-                        style = MaterialTheme.typography.bodySmall,
+                        "Open today",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { viewModel.openToday(onOpenNote) }) {
-                        Text("Open today", color = RecallColors.Copper)
-                    }
-                    TextButton(onClick = onOpenCalendar) {
-                        Text("Calendar", color = RecallColors.ParchmentMuted)
-                    }
+                TextButton(onClick = onOpenCalendar) {
+                    Text(
+                        "Calendar",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
                 }
             }
         }
@@ -139,8 +145,18 @@ fun TodayScreen(
         ) {
             val grouped = groupReminders(reminders, notes)
             if (reminders.isEmpty()) {
-                RecallPanel {
-                    Text("Nothing scheduled yet.", color = RecallColors.ParchmentMuted)
+                RecallPanel(style = RecallPanelStyle.Raised) {
+                    Text(
+                        "No reminders scheduled",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Open a note and add a reminder when something needs your attention.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             } else {
                 LazyColumn {
@@ -148,13 +164,13 @@ fun TodayScreen(
                         if (items.isNotEmpty()) {
                             item {
                                 Text(
-                                    section.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = RecallColors.ParchmentMuted,
+                                    section,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(bottom = 12.dp, top = 8.dp),
                                 )
                             }
-                            itemsIndexed(items) { _, item ->
+                            items(items) { item ->
                                 TimelineReminderCard(
                                     data = item,
                                     onOpenNote = onOpenNote,
@@ -190,7 +206,7 @@ fun TodayScreen(
         defaultMinute = viewModel.userPrefs.defaultReminderMinute,
         showDelete = schedule.editingReminder != null,
         onDelete = {
-            reminderToDelete = schedule.editingReminder!!.id
+            schedule.editingReminder?.id?.let { reminderToDelete = it }
             schedule.dismiss()
         },
         onDismiss = { schedule.dismiss() },
@@ -204,7 +220,7 @@ fun TodayScreen(
             text = {
                 Text(
                     "This cancels the scheduled nudge on this device.",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -214,7 +230,11 @@ fun TodayScreen(
                 }
             },
             dismissButton = {
-                RecallDialogTextButton("Cancel", { reminderToDelete = null }, RecallColors.ParchmentMuted)
+                RecallDialogTextButton(
+                    "Cancel",
+                    { reminderToDelete = null },
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             },
         )
     }
@@ -237,51 +257,52 @@ private fun TimelineReminderCard(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(RecallColors.Copper),
+                    .background(MaterialTheme.colorScheme.primary),
             )
             Box(
                 Modifier
                     .width(1.dp)
                     .height(48.dp)
-                    .background(RecallColors.BorderStrong),
+                    .background(MaterialTheme.colorScheme.outlineVariant),
             )
         }
         Spacer(Modifier.width(14.dp))
         RecallPanel(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onOpenNote(data.reminder.noteId) },
+            modifier = Modifier.weight(1f),
         ) {
             Text(
                 data.note?.title?.ifBlank { "Untitled" } ?: "Note",
                 style = MaterialTheme.typography.titleMedium,
-                color = RecallColors.Parchment,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             data.reminder.repeatRule?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     RepeatUtils.formatRepeatLabel(it),
                     style = MaterialTheme.typography.labelSmall,
-                    color = RecallColors.Copper,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .background(RecallColors.CopperDim)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Row {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { onOpenNote(data.reminder.noteId) }) {
+                    Text("Open")
+                }
                 TextButton(onClick = { onComplete(data.reminder.id) }) {
-                    Text("Done", color = RecallColors.Copper)
+                    Text("Done")
                 }
                 TextButton(onClick = { onSnooze(data.reminder.id) }) {
-                    Text("+1h", color = RecallColors.ParchmentMuted)
+                    Text("+1h")
                 }
             }
         }
@@ -290,14 +311,14 @@ private fun TimelineReminderCard(
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = "Edit",
-                    tint = RecallColors.Copper,
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
             IconButton(onClick = { onDelete(data.reminder.id) }) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = RecallColors.ParchmentMuted,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

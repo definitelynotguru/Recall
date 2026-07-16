@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,25 +12,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.outlined.PostAdd
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -49,7 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
@@ -58,12 +50,11 @@ import com.notesreminders.app.ui.components.RecallAlertDialog
 import com.notesreminders.app.ui.components.RecallDialogDestructiveButton
 import com.notesreminders.app.ui.components.RecallDialogTextButton
 import com.notesreminders.app.ui.components.RecallPanel
+import com.notesreminders.app.ui.components.RecallPanelStyle
 import com.notesreminders.app.ui.components.RecallScreenHeader
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallFieldColors
 import com.notesreminders.app.ui.theme.recallTagFilterChipColors
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NotesListScreen(
     viewModel: AppViewModel,
@@ -111,13 +102,21 @@ fun NotesListScreen(
                 TextButton(onClick = { localStatus = "active" }) {
                     Text(
                         "Active",
-                        color = if (localStatus == "active") RecallColors.Copper else RecallColors.ParchmentMuted,
+                        color = if (localStatus == "active") {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
                 TextButton(onClick = { localStatus = "archived" }) {
                     Text(
                         "Archived",
-                        color = if (localStatus == "archived") RecallColors.Copper else RecallColors.ParchmentMuted,
+                        color = if (localStatus == "archived") {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
@@ -151,14 +150,23 @@ fun NotesListScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (notes.isEmpty()) {
-                    Text(
-                        "Your notebook is empty.",
-                        color = RecallColors.ParchmentMuted,
-                        modifier = Modifier.padding(24.dp),
-                    )
+                    RecallPanel(
+                        modifier = Modifier.padding(top = 12.dp),
+                        style = RecallPanelStyle.Raised,
+                    ) {
+                        Text(
+                            "Your notebook is ready",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Create a blank note or start from a template.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 } else {
                     LazyColumn {
-                        itemsIndexed(notes, key = { _, note -> note.id }) { _, note ->
+                        items(notes, key = { note -> note.id }) { note ->
                             SwipeableNoteRow(
                                 note = note,
                                 onOpen = onOpenNote,
@@ -191,12 +199,15 @@ fun NotesListScreen(
                     expanded = true,
                     onDismissRequest = { showTemplateMenu = false },
                 ) {
-                    if (templates.isEmpty()) {
-                        DropdownMenuItem(
-                            text = { Text("No templates yet") },
-                            onClick = { showTemplateMenu = false },
-                        )
-                    } else {
+                    DropdownMenuItem(
+                        text = { Text("Blank note") },
+                        onClick = {
+                            showTemplateMenu = false
+                            viewModel.createNote(onOpenNote)
+                        },
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    )
+                    if (templates.isNotEmpty()) {
                         templates.forEach { tpl ->
                             DropdownMenuItem(
                                 text = { Text(tpl.title.ifBlank { "Untitled template" }) },
@@ -209,19 +220,16 @@ fun NotesListScreen(
                     }
                 }
             }
-            if (templates.isNotEmpty()) {
-                SmallFloatingActionButton(
-                    onClick = { showTemplateMenu = !showTemplateMenu },
-                    containerColor = RecallColors.InkElevated,
-                    contentColor = RecallColors.Copper,
-                ) {
-                    Icon(Icons.Outlined.PostAdd, contentDescription = "New from template")
-                }
-            }
             FloatingActionButton(
-                onClick = { viewModel.createNote(onOpenNote) },
-                containerColor = RecallColors.Copper,
-                contentColor = RecallColors.Ink,
+                onClick = {
+                    if (templates.isEmpty()) {
+                        viewModel.createNote(onOpenNote)
+                    } else {
+                        showTemplateMenu = !showTemplateMenu
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
                 Icon(Icons.Default.Add, contentDescription = "New note")
             }
@@ -235,7 +243,7 @@ fun NotesListScreen(
             text = {
                 Text(
                     "\"${note.title.ifBlank { "Untitled" }}\" and its reminders will be removed on this device.",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             confirmButton = {
@@ -246,7 +254,11 @@ fun NotesListScreen(
                 }
             },
             dismissButton = {
-                RecallDialogTextButton("Cancel", { noteToDelete = null }, RecallColors.ParchmentMuted)
+                RecallDialogTextButton(
+                    "Cancel",
+                    { noteToDelete = null },
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             },
         )
     }
@@ -292,14 +304,14 @@ private fun SwipeableNoteRow(
                 Modifier
                     .fillMaxSize()
                     .padding(vertical = 6.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(RecallColors.Error.copy(alpha = 0.18f)),
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.errorContainer),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = RecallColors.Error,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(end = 28.dp),
                 )
             }
@@ -324,17 +336,6 @@ private fun NoteRowContent(
             .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .width(4.dp)
-                .height(52.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(RecallColors.Copper, RecallColors.Copper.copy(alpha = 0f)),
-                    ),
-                ),
-        )
         Column(
             Modifier
                 .weight(1f)
@@ -344,12 +345,12 @@ private fun NoteRowContent(
             Text(
                 note.title.ifBlank { "Untitled" },
                 style = MaterialTheme.typography.titleMedium,
-                color = RecallColors.Parchment,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 note.body.replace(Regex("[#*_`\n]"), " ").trim().ifBlank { "Empty page" },
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -358,13 +359,13 @@ private fun NoteRowContent(
             TextButton(onClick = onTogglePin) {
                 Text(
                     if (note.pinnedAt == null) "Pin" else "Unpin",
-                    color = RecallColors.Copper,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             TextButton(onClick = onToggleArchive) {
                 Text(
                     if (note.status == "archived") "Unarchive" else "Archive",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

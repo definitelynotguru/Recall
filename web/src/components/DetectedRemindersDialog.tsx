@@ -76,40 +76,25 @@ function DetectedRemindersDialogContent({
     <div className="dialog-overlay" onClick={onClose}>
       <div
         ref={dialogRef}
-        className="dialog-sheet panel panel-pad"
+        className="dialog-sheet dialog-medium panel panel-pad"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onDialogKeyDown}
-        style={{ maxWidth: 520 }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="detected-reminders-title"
         aria-describedby="detected-reminders-description"
         tabIndex={-1}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 16,
-          }}
-        >
+        <div className="dialog-header">
           <div>
             <h2
               id="detected-reminders-title"
-              style={{
-                fontFamily: "var(--font-display)",
-                margin: "0 0 6px",
-                fontSize: "1.25rem",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
+              className="dialog-title note-info-heading"
             >
               <Sparkle size={22} weight="duotone" color="var(--accent)" />
               Detected reminders
             </h2>
-            <p id="detected-reminders-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="detected-reminders-description" className="dialog-subtitle">
               We read dates and times in your note and guessed smart repeats (e.g.
               birthdays → yearly).
             </p>
@@ -120,11 +105,11 @@ function DetectedRemindersDialogContent({
         </div>
 
         {suggestions.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", margin: "0 0 20px" }}>
+          <p className="dialog-copy">
             No dates or times found. Try lines like{" "}
-            <code style={{ fontSize: "0.8rem" }}>Day: 22 · Month: October · Year: 2026</code>{" "}
-            or <code style={{ fontSize: "0.8rem" }}>tomorrow at 9am</code> /{" "}
-            <code style={{ fontSize: "0.8rem" }}>next Friday at 2pm</code>. Likely matches are
+            <code>Day: 22 · Month: October · Year: 2026</code>{" "}
+            or <code>tomorrow at 9am</code> /{" "}
+            <code>next Friday at 2pm</code>. Likely matches are
             pre-selected; review Maybe suggestions.
           </p>
         ) : (
@@ -139,29 +124,18 @@ function DetectedRemindersDialogContent({
                   />
                   <div>
                     <strong>{s.label}</strong>
-                    <span className="timeline-meta" style={{ display: "block", marginTop: 4 }}>
+                    <span className="timeline-meta meta-block">
                       {formatFireAt(s.fireAt)}
                     </span>
-                    <span style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                    <span className="detected-reminder-tags">
                       <span className="chip">{formatRepeatLabel(s.repeatRule)}</span>
                       <span
-                        className="chip"
-                        style={
-                          s.confidence === "maybe"
-                            ? { opacity: 0.85, borderStyle: "dashed" }
-                            : undefined
-                        }
+                        className={`chip${s.confidence === "maybe" ? " confidence-maybe" : ""}`}
                       >
                         {formatConfidenceLabel(s.confidence)}
                       </span>
                     </span>
-                    <p
-                      style={{
-                        margin: "8px 0 0",
-                        fontSize: "0.8rem",
-                        color: "var(--text-muted)",
-                      }}
-                    >
+                    <p className="detected-reminder-reason">
                       {s.reason}
                     </p>
                   </div>

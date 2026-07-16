@@ -8,16 +8,23 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun NoteDetailToolbar(
@@ -32,12 +39,14 @@ fun NoteDetailToolbar(
     onHistory: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(Modifier.fillMaxWidth()) {
         IconButton(onClick = onBack) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = RecallColors.Parchment,
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
         Spacer(Modifier.weight(1f))
@@ -45,38 +54,61 @@ fun NoteDetailToolbar(
             Icon(
                 Icons.Outlined.Sync,
                 contentDescription = "Sync",
-                tint = RecallColors.Copper,
-            )
-        }
-        IconButton(onClick = onHistory) {
-            Icon(
-                Icons.Outlined.History,
-                contentDescription = "Version history",
-                tint = RecallColors.ParchmentMuted,
-            )
-        }
-        IconButton(onClick = onTogglePin) {
-            Icon(
-                Icons.Outlined.PushPin,
-                contentDescription = if (isPinned) "Unpin" else "Pin",
-                tint = if (isPinned) RecallColors.Copper else RecallColors.ParchmentMuted,
-            )
-        }
-        IconButton(onClick = onToggleArchive) {
-            Icon(
-                if (isArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
-                contentDescription = if (isArchived) "Unarchive" else "Archive",
-                tint = if (isArchived) RecallColors.Copper else RecallColors.ParchmentMuted,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         TextButton(onClick = onTogglePreview) {
-            Text(if (preview) "Edit" else "Preview", color = RecallColors.Copper)
+            Text(if (preview) "Edit" else "Preview")
         }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "Delete note",
-                tint = RecallColors.Error,
+        IconButton(onClick = { menuExpanded = true }) {
+            Icon(Icons.Outlined.MoreVert, contentDescription = "More note actions")
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Version history") },
+                leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
+                onClick = {
+                    menuExpanded = false
+                    onHistory()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(if (isPinned) "Unpin note" else "Pin note") },
+                leadingIcon = { Icon(Icons.Outlined.PushPin, contentDescription = null) },
+                onClick = {
+                    menuExpanded = false
+                    onTogglePin()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(if (isArchived) "Unarchive note" else "Archive note") },
+                leadingIcon = {
+                    Icon(
+                        if (isArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onToggleArchive()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete note", color = MaterialTheme.colorScheme.error) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onDelete()
+                },
             )
         }
     }

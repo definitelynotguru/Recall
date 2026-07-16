@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,11 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallScreenHeader
-import com.notesreminders.app.ui.theme.RecallColors
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -79,7 +81,7 @@ fun CalendarScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Spacer(Modifier.height(16.dp))
         RecallScreenHeader(
             title = "Calendar",
@@ -98,24 +100,40 @@ fun CalendarScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = {
-                if (month == 0) { month = 11; year-- } else month--
+                if (month == 0) {
+                    month = 11
+                    year--
+                } else {
+                    month--
+                }
             }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = RecallColors.Parchment)
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Previous month",
+                )
             }
             Text(
                 "${MONTHS[month]} $year",
-                color = RecallColors.Parchment,
+                color = MaterialTheme.colorScheme.onBackground,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { viewModel.openToday(onOpenNote) }) {
-                    Text("Today", color = RecallColors.Copper)
+                    Text("Today")
                 }
                 IconButton(onClick = {
-                    if (month == 11) { month = 0; year++ } else month++
+                    if (month == 11) {
+                        month = 0
+                        year++
+                    } else {
+                        month++
+                    }
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = RecallColors.Parchment)
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Next month",
+                    )
                 }
             }
         }
@@ -125,10 +143,10 @@ fun CalendarScreen(
             WEEKDAYS.forEach { d ->
                 Text(
                     d,
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -147,6 +165,7 @@ fun CalendarScreen(
                     val isToday = date == today.toString()
                     DayCell(
                         day = day,
+                        dateLabel = "${MONTHS[month]} $day, $year",
                         hasNote = hasNote,
                         isToday = isToday,
                         onClick = { viewModel.openDailyNote(date, onOpenNote) },
@@ -160,6 +179,7 @@ fun CalendarScreen(
 @Composable
 private fun DayCell(
     day: Int,
+    dateLabel: String,
     hasNote: Boolean,
     isToday: Boolean,
     onClick: () -> Unit,
@@ -167,14 +187,33 @@ private fun DayCell(
     Box(
         Modifier
             .aspectRatio(1f)
+            .minimumInteractiveComponentSize()
+            .semantics {
+                contentDescription = buildString {
+                    append(dateLabel)
+                    if (isToday) append(", today")
+                    if (hasNote) append(", has daily note")
+                }
+            }
             .clip(CircleShape)
+            .background(
+                if (isToday) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    androidx.compose.ui.graphics.Color.Transparent
+                },
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "$day",
-                color = if (isToday) RecallColors.Copper else RecallColors.Parchment,
+                color = if (isToday) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
             )
             if (hasNote) {
@@ -183,7 +222,7 @@ private fun DayCell(
                     Modifier
                         .size(5.dp)
                         .clip(CircleShape)
-                        .background(RecallColors.Copper),
+                        .background(MaterialTheme.colorScheme.primary),
                 )
             }
         }

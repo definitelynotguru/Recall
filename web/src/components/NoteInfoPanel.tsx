@@ -48,35 +48,35 @@ export function NoteInfoPanel({ body, createdAt, updatedAt }: Props) {
   const chars = body.length;
 
   return (
-    <div className="panel panel-pad" style={{ marginBottom: 28 }}>
-      <h2 className="settings-heading">
-        <Info size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+    <div className="content-section">
+      <h2 className="settings-heading note-info-heading">
+        <Info size={18} />
         Note info
       </h2>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px", marginTop: 12 }}>
+      <div className="note-info-grid">
         <div>
-          <span className="settings-muted">Words</span>
-          <p style={{ margin: "2px 0 0", fontSize: "1.1rem", fontWeight: 600 }}>{words}</p>
+          <span className="note-info-label">Words</span>
+          <p className="note-info-value">{words}</p>
         </div>
         <div>
-          <span className="settings-muted">Characters</span>
-          <p style={{ margin: "2px 0 0", fontSize: "1.1rem", fontWeight: 600 }}>{chars}</p>
+          <span className="note-info-label">Characters</span>
+          <p className="note-info-value">{chars}</p>
         </div>
         <div>
-          <span className="settings-muted">Reading time</span>
-          <p style={{ margin: "2px 0 0", fontSize: "1.1rem", fontWeight: 600 }}>{readingTime(words)}</p>
+          <span className="note-info-label">Reading time</span>
+          <p className="note-info-value">{readingTime(words)}</p>
         </div>
         <div>
-          <span className="settings-muted">Last edited</span>
-          <p style={{ margin: "2px 0 0", fontSize: "1.1rem", fontWeight: 600 }}>{relativeTime(updatedAt)}</p>
+          <span className="note-info-label">Last edited</span>
+          <p className="note-info-value">{relativeTime(updatedAt)}</p>
         </div>
         <div>
-          <span className="settings-muted">Created</span>
-          <p style={{ margin: "2px 0 0", fontSize: "0.9rem" }}>{formatDate(createdAt)}</p>
+          <span className="note-info-label">Created</span>
+          <p className="note-info-value">{formatDate(createdAt)}</p>
         </div>
         <div>
-          <span className="settings-muted">Modified</span>
-          <p style={{ margin: "2px 0 0", fontSize: "0.9rem" }}>{formatDate(updatedAt)}</p>
+          <span className="note-info-label">Modified</span>
+          <p className="note-info-value">{formatDate(updatedAt)}</p>
         </div>
       </div>
     </div>

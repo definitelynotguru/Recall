@@ -6,47 +6,50 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.m3.Markdown
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun NoteEditorSection(
     title: String,
     body: String,
     preview: Boolean,
-    fieldColors: androidx.compose.material3.TextFieldColors,
+    fieldColors: TextFieldColors,
     onTitleChange: (String) -> Unit,
     onBodyChange: (String) -> Unit,
 ) {
-    RecallPanel {
-        OutlinedTextField(
-            value = title,
-            onValueChange = onTitleChange,
-            label = { Text("Title") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = fieldColors,
-            textStyle = MaterialTheme.typography.headlineMedium.copy(
-                color = RecallColors.Parchment,
-            ),
-            singleLine = true,
-        )
-        Spacer(Modifier.height(16.dp))
-        if (preview) {
+    OutlinedTextField(
+        value = title,
+        onValueChange = onTitleChange,
+        label = { Text("Title") },
+        placeholder = { Text("Untitled note") },
+        modifier = Modifier.fillMaxWidth(),
+        colors = fieldColors,
+        textStyle = MaterialTheme.typography.headlineMedium.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+        ),
+        singleLine = true,
+    )
+    Spacer(Modifier.height(12.dp))
+    if (preview) {
+        RecallPanel(style = RecallPanelStyle.Raised) {
             MarkdownPreview(body)
-        } else {
-            OutlinedTextField(
-                value = body,
-                onValueChange = onBodyChange,
-                label = { Text("Body \u2014 Markdown") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(360.dp),
-                colors = fieldColors,
-            )
         }
+    } else {
+        OutlinedTextField(
+            value = body,
+            onValueChange = onBodyChange,
+            label = { Text("Body — Markdown") },
+            placeholder = { Text("Start writing…") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(420.dp),
+            colors = fieldColors,
+            textStyle = MaterialTheme.typography.bodyLarge,
+        )
     }
 }
 

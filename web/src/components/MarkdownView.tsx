@@ -14,7 +14,7 @@ export function MarkdownView({
   const rendered = noteTitles ? renderWikiLinks(content, noteTitles) : content;
 
   if (!rendered.trim()) {
-    return <p style={{ color: "var(--muted)" }}>No content yet.</p>;
+    return <p className="markdown-empty">No content yet.</p>;
   }
   return (
     <div className="markdown-body">

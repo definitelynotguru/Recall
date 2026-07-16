@@ -28,12 +28,12 @@ export function LocalOnlyBanner({ onSignUp }: Props) {
   if (dismissed) return null;
 
   return (
-    <div className="hint-banner">
+    <div className="hint-banner local-only-banner">
       <span>
         You&apos;re writing locally. Sign up to sync across devices.
       </span>
       <Link
-        href="/register"
+        href="/login?mode=register"
         className="btn btn-primary"
         onClick={onSignUp}
       >
@@ -44,10 +44,9 @@ export function LocalOnlyBanner({ onSignUp }: Props) {
       </Link>
       <button
         type="button"
-        className="btn btn-ghost"
+        className="btn btn-ghost banner-dismiss"
         onClick={dismiss}
         aria-label="Dismiss"
-        style={{ marginLeft: "auto" }}
       >
         ✕
       </button>

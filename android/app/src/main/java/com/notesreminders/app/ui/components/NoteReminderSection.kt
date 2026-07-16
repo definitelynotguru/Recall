@@ -1,15 +1,13 @@
 package com.notesreminders.app.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -22,10 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.ReminderEntity
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
 import com.notesreminders.app.ui.theme.recallSecondaryButtonColors
 
@@ -40,27 +36,25 @@ fun NoteReminderSection(
 ) {
     Text(
         "Reminders",
-        style = MaterialTheme.typography.headlineMedium,
-        color = RecallColors.Parchment,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onBackground,
     )
     Spacer(Modifier.height(8.dp))
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(RecallColors.CopperDim)
-            .padding(14.dp),
-    ) {
-        Icon(Icons.Default.Notifications, null, tint = RecallColors.Copper)
-        Spacer(Modifier.width(12.dp))
-        Text(
-            "Reminders notify on this device. Sync uploads changes to the web.",
-            style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
-        )
+    RecallPanel(style = RecallPanelStyle.Accent) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Notifications, null)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Reminders notify on this device. Sync uploads changes to the web.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
     Spacer(Modifier.height(16.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Button(
             onClick = onAddReminder,
             colors = recallPrimaryButtonColors(),
@@ -88,14 +82,14 @@ fun NoteReminderSection(
                     Text(
                         formatReminderFireAt(r.fireAt),
                         style = MaterialTheme.typography.titleMedium,
-                        color = RecallColors.Parchment,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     r.repeatRule?.let {
                         Spacer(Modifier.height(4.dp))
                         Text(
                             it.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = RecallColors.Copper,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -104,14 +98,14 @@ fun NoteReminderSection(
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = "Edit",
-                            tint = RecallColors.Copper,
+                            tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                     IconButton(onClick = { onDeleteReminder(r) }) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Delete",
-                            tint = RecallColors.ParchmentMuted,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

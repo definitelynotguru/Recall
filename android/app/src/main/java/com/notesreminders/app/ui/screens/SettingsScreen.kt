@@ -4,6 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -30,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -42,7 +42,6 @@ import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
 import com.notesreminders.app.ui.components.RecallScreenHeader
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallFieldColors
 import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
 import com.notesreminders.app.ui.theme.recallSwitchColors
@@ -68,7 +67,7 @@ fun SettingsScreen(
     var sendingDebug by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var updating by remember { mutableStateOf(false) }
-    val activity = LocalContext.current as? Activity
+    val activity = context as? Activity
     val exportBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -114,12 +113,12 @@ fun SettingsScreen(
                     Text(
                         "Recall ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.titleMedium,
-                        color = RecallColors.Parchment,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         "Install over current app",
                         style = MaterialTheme.typography.bodySmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Button(
@@ -135,39 +134,39 @@ fun SettingsScreen(
                     },
                     enabled = !updating && activity != null,
                     colors = recallPrimaryButtonColors(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    contentPadding = PaddingValues(
                         horizontal = 16.dp,
                         vertical = 6.dp,
                     ),
                 ) {
                     Text(
                         if (updating) "…" else "Update",
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
             updateMessage?.let { msg ->
                 Spacer(Modifier.height(8.dp))
-                Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+                Text(msg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
-            Text("Sync status", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Sync status", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             val lastSync by viewModel.lastSyncAt.collectAsState()
             Text(
                 lastSync?.let { "Last sync: $it" } ?: "Not synced yet on this device",
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (hasPendingSync) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Pending local changes — tap Sync in the header",
                     style = MaterialTheme.typography.bodySmall,
-                    color = RecallColors.Copper,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             Spacer(Modifier.height(12.dp))
@@ -182,7 +181,7 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
-            Text("Permissions", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Permissions", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             val notificationsOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -191,13 +190,13 @@ fun SettingsScreen(
             Text(
                 if (notificationsOk) "Notifications enabled" else "Notifications disabled — reminders won't appear",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (notificationsOk) RecallColors.ParchmentMuted else RecallColors.Error,
+                color = if (notificationsOk) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 if (exactAlarmsOk) "Exact alarms allowed" else "Exact alarms off — timing may drift",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (exactAlarmsOk) RecallColors.ParchmentMuted else RecallColors.Error,
+                color = if (exactAlarmsOk) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
             )
             if (!exactAlarmsOk) {
                 Spacer(Modifier.height(8.dp))
@@ -206,7 +205,7 @@ fun SettingsScreen(
                         context.startActivity(ReminderPermissions.exactAlarmSettingsIntent(context))
                     },
                 ) {
-                    Text("Open alarm settings", color = RecallColors.Copper)
+                    Text("Open alarm settings")
                 }
             }
         }
@@ -214,43 +213,46 @@ fun SettingsScreen(
         if (syncErrors.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             RecallPanel {
-                Text("Dead-letter / skipped items", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+                Text("Skipped sync items", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Rows that failed validation and were not uploaded. Retry re-queues the item; Discard drops the report.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))
                 syncErrors.take(12).forEach { error ->
                     Text(
                         "${error.entityType} · ${error.entityId.take(8)}\u2026",
                         style = MaterialTheme.typography.labelMedium,
-                        color = RecallColors.Parchment,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         error.message,
                         style = MaterialTheme.typography.bodySmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     error.payload?.let { payload ->
                         Text(
                             "Payload: ${payload.take(80)}${if (payload.length > 80) "\u2026" else ""}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = RecallColors.ParchmentMuted,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(
                         "Detected ${error.detectedAt.take(10)}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         TextButton(onClick = { viewModel.retrySyncError(error) }) {
-                            Text("Retry", color = RecallColors.Copper)
+                            Text("Retry")
                         }
                         TextButton(onClick = { viewModel.discardSyncError(error) }) {
-                            Text("Discard", color = RecallColors.ParchmentMuted)
+                            Text("Discard")
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -261,45 +263,48 @@ fun SettingsScreen(
         Spacer(Modifier.height(16.dp))
         if (conflicts.isNotEmpty()) {
             RecallPanel {
-                Text("Conflicts", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+                Text("Conflicts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
                 conflicts.forEach { conflict ->
                     Text(
                         "Note changed in two places",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = RecallColors.Parchment,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     if (conflict.localTitle != conflict.serverTitle) {
                         Text(
                             "Title — local: ${conflict.localTitle.ifBlank { "Untitled" }}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = RecallColors.ParchmentMuted,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             "Title — server: ${conflict.serverTitle.ifBlank { "Untitled" }}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = RecallColors.ParchmentMuted,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(
                         "Body — local: ${conflict.localBody.take(120)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         "Body — server: ${conflict.serverBody.take(120)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_LOCAL) }) {
-                            Text("Keep local", color = RecallColors.Copper)
+                            Text("Keep local")
                         }
                         TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.KEEP_SERVER) }) {
-                            Text("Keep server", color = RecallColors.Copper)
+                            Text("Keep server")
                         }
                         TextButton(onClick = { viewModel.resolveConflict(conflict.id, ConflictResolution.MERGE) }) {
-                            Text("Merge both", color = RecallColors.Copper)
+                            Text("Merge both")
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -308,15 +313,18 @@ fun SettingsScreen(
         }
 
         RecallPanel {
-            Text("Backup", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Backup", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             Text(
                 "Export notes as Markdown in a zip with metadata.json, or back up and restore everything as JSON.",
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Button(
                     onClick = { exportMarkdown.launch("recall-export.zip") },
                     colors = recallPrimaryButtonColors(),
@@ -324,15 +332,15 @@ fun SettingsScreen(
                     Text("Export Markdown")
                 }
                 TextButton(onClick = { exportBackup.launch("recall-backup.json") }) {
-                    Text("Export JSON", color = RecallColors.Copper)
+                    Text("Export JSON")
                 }
                 TextButton(onClick = { importBackup.launch(arrayOf("application/json", "text/*", "*/*")) }) {
-                    Text("Import", color = RecallColors.Copper)
+                    Text("Import")
                 }
             }
             backupMessage?.let { msg ->
                 Spacer(Modifier.height(8.dp))
-                Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+                Text(msg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -344,12 +352,12 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
-            Text("Reminder defaults", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Reminder defaults", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             Text(
                 "Timezone: $zone · used when Fetch reminders finds no time",
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
@@ -376,11 +384,11 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("12-hour clock", color = RecallColors.Parchment)
+                    Text("12-hour clock", color = MaterialTheme.colorScheme.onSurface)
                     Text(
                         "Reminder picker shows AM/PM",
                         style = MaterialTheme.typography.bodySmall,
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Switch(
@@ -395,7 +403,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Auto-sync after reminder edits", color = RecallColors.ParchmentMuted)
+                Text("Auto-sync after reminder edits", color = MaterialTheme.colorScheme.onSurface)
                 Switch(
                     checked = prefs.autoSyncAfterReminder,
                     onCheckedChange = { prefs.autoSyncAfterReminder = it },
@@ -408,7 +416,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("Auto-sync after note edits", color = RecallColors.ParchmentMuted)
+                Text("Auto-sync after note edits", color = MaterialTheme.colorScheme.onSurface)
                 Switch(
                     checked = prefs.autoSyncAfterNote,
                     onCheckedChange = { prefs.autoSyncAfterNote = it },
@@ -419,12 +427,12 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
-            Text("Debug", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Diagnostics", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             Text(
                 "Send a diagnostic report to the server (no passwords). Use after sync errors — view reports on web Settings.",
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
             TextButton(
@@ -441,23 +449,24 @@ fun SettingsScreen(
             ) {
                 Text(
                     if (sendingDebug) "Sending…" else "Send debug report",
-                    color = RecallColors.Copper,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             debugMessage?.let { msg ->
                 Spacer(Modifier.height(8.dp))
-                Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+                Text(msg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         Spacer(Modifier.height(16.dp))
         RecallPanel {
-            Text("Introduction", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+            Text("Introduction", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(8.dp))
             TextButton(onClick = onReplayOnboarding) {
-                Text("Replay introduction", color = RecallColors.Copper)
+                Text("Replay introduction")
             }
         }
+        Spacer(Modifier.height(32.dp))
     }
 }
 
@@ -470,16 +479,20 @@ private fun TemplatesPanel(
     var seedMsg by remember { mutableStateOf<String?>(null) }
 
     RecallPanel {
-        Text("Templates", style = MaterialTheme.typography.titleMedium, color = RecallColors.Parchment)
+        Text("Templates", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
         Text(
             "Reusable note starters with {{date}}, {{time}}, and {{title}} variables. Hidden from your note list.",
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
         if (templates.isEmpty()) {
-            Text("No templates yet.", style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+            Text(
+                "No templates yet.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
             templates.forEach { tpl ->
                 Row(
@@ -487,16 +500,19 @@ private fun TemplatesPanel(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = { onOpenNote(tpl.id) }) {
-                        Text(tpl.title.ifBlank { "Untitled template" }, color = RecallColors.Parchment)
+                        Text(tpl.title.ifBlank { "Untitled template" })
                     }
                     TextButton(onClick = { viewModel.deleteTemplate(tpl) }) {
-                        Text("Delete", color = RecallColors.Error)
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Button(
                 onClick = { viewModel.createTemplate(onOpenNote) },
                 colors = recallPrimaryButtonColors(),
@@ -508,12 +524,12 @@ private fun TemplatesPanel(
                     seedMsg = if (count > 0) "Added $count default templates" else "Defaults already present"
                 }
             }) {
-                Text("Restore defaults", color = RecallColors.Copper)
+                Text("Restore defaults")
             }
         }
         seedMsg?.let { msg ->
             Spacer(Modifier.height(8.dp))
-            Text(msg, style = MaterialTheme.typography.bodySmall, color = RecallColors.ParchmentMuted)
+            Text(msg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

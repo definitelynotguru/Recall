@@ -9,10 +9,10 @@ type Props = {
 
 export function ReminderMeta({ fireAt, repeatRule, className }: Props) {
   return (
-    <div className={className}>
+    <div className={`reminder-meta${className ? ` ${className}` : ""}`}>
       <span className="timeline-meta">{formatFireAt(fireAt)}</span>
       {repeatRule && (
-        <span className="chip" style={{ marginLeft: 8 }}>
+        <span className="chip">
           {formatRepeatLabel(repeatRule)}
         </span>
       )}

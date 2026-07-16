@@ -2,6 +2,7 @@ package com.notesreminders.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteConflictEntity
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun NoteConflictBanner(
@@ -24,17 +24,17 @@ fun NoteConflictBanner(
 ) {
     conflict ?: return
     Spacer(Modifier.height(12.dp))
-    RecallPanel {
+    RecallPanel(style = RecallPanelStyle.Raised) {
         Text(
             "Sync conflict on this note",
             style = MaterialTheme.typography.titleMedium,
-            color = RecallColors.Parchment,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             "This note changed in two places. Review both versions and choose how to resolve.",
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
         ConflictVersionPanel(
@@ -49,15 +49,18 @@ fun NoteConflictBanner(
             body = conflict.serverBody,
         )
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             TextButton(onClick = onKeepLocal) {
-                Text("Keep local", color = RecallColors.Copper)
+                Text("Keep local")
             }
             TextButton(onClick = onKeepServer) {
-                Text("Keep server", color = RecallColors.Copper)
+                Text("Keep server")
             }
             TextButton(onClick = onMerge) {
-                Text("Merge both", color = RecallColors.Copper)
+                Text("Merge both")
             }
         }
     }
@@ -73,13 +76,13 @@ private fun ConflictVersionPanel(
         Text(
             "$label · ${title.ifBlank { "Untitled" }}",
             style = MaterialTheme.typography.bodyMedium,
-            color = RecallColors.Parchment,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(4.dp))
         Text(
             body.ifBlank { "(empty)" }.take(280),
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

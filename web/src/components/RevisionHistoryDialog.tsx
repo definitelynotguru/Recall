@@ -62,7 +62,7 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
     >
       {loading && <p className="settings-muted">Loading…</p>}
       {!loading && error && (
-        <p className="settings-muted" style={{ color: "var(--danger, #c0392b)" }}>
+        <p className="error-text">
           {error}
         </p>
       )}
@@ -70,36 +70,25 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
         <p className="settings-muted">No saved revisions yet. Earlier edits will appear here.</p>
       )}
       {!loading && revisions.length > 0 && (
-        <ul className="detected-reminder-list" style={{ marginTop: 4 }}>
+        <ul className="detected-reminder-list revision-list">
           {revisions.map((r) => (
-            <li key={r.id} style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <strong style={{ fontSize: "0.9rem" }}>
-                    <ClockCounterClockwise size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
+            <li key={r.id}>
+              <div className="revision-row">
+                <div className="revision-row-copy">
+                  <strong className="revision-title">
+                    <ClockCounterClockwise size={14} className="revision-icon" />
                     {r.title || "Untitled"}
                   </strong>
-                  <span className="timeline-meta" style={{ display: "block", marginTop: 4 }}>
+                  <span className="timeline-meta meta-block">
                     {new Date(r.created_at).toLocaleString()} · {r.source}
                   </span>
-                  <p
-                    className="timeline-meta"
-                    style={{
-                      margin: "6px 0 0",
-                      whiteSpace: "pre-wrap",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
+                  <p className="timeline-meta revision-preview">
                     {r.body || "(empty)"}
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                  className="btn btn-secondary btn-compact"
                   disabled={restoring === r.id}
                   onClick={() => void restore(r)}
                 >

@@ -250,10 +250,9 @@ function NotesContent() {
   const virtualizer = useVirtualizer({
     count: notes.length,
     getScrollElement: () => listRef.current,
-    estimateSize: () => 96,
+    estimateSize: () => 92,
     overscan: 6,
-    // Matches the .note-row margin-bottom that absolute positioning neutralizes.
-    gap: 2,
+    gap: 0,
   });
 
   const createNote = async () => {
@@ -461,7 +460,7 @@ function NotesContent() {
       </div>
 
       {!isLocal && allTags.length > 0 && (
-        <div className="tag-picker" style={{ marginBottom: 20 }}>
+        <div className="tag-picker filter-tags">
           <button
             type="button"
             className={`chip tag-chip ${tagFilter === null ? "selected" : ""}`}
@@ -510,7 +509,7 @@ function NotesContent() {
             className="notes-scroll-spacer"
             style={{ height: virtualizer.getTotalSize() }}
           >
-            {virtualizer.getVirtualItems().map((virtualItem, sliceIndex) => {
+            {virtualizer.getVirtualItems().map((virtualItem) => {
               const n = notes[virtualItem.index];
               const titleId = `note-title-${n.id}`;
               return (
@@ -521,9 +520,6 @@ function NotesContent() {
                   className="note-row"
                   style={
                     {
-                      // Bounded per-slice index keeps the staggered entrance
-                      // delay small; the absolute index would hide far rows.
-                      "--i": sliceIndex,
                       position: "absolute",
                       top: virtualItem.start,
                       left: 0,

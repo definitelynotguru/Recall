@@ -69,12 +69,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
-                style={
-                  options.destructive
-                    ? { background: "var(--error)", boxShadow: "none" }
-                    : undefined
-                }
+                className={`btn ${options.destructive ? "btn-danger" : "btn-primary"}`}
                 onClick={() => close(true)}
               >
                 {options.confirmLabel ?? "Confirm"}
@@ -82,10 +77,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             </>
           }
         >
-          <p
-            id="confirm-message"
-            style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.95rem" }}
-          >
+          <p id="confirm-message" className="dialog-copy">
             {options.message}
           </p>
         </DialogShell>

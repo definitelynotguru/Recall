@@ -492,7 +492,7 @@ export default function NoteDetailPage() {
   if (authLoading || loading) {
     return (
       <RequireAuth allowLocal>
-        <div className="skeleton" style={{ height: 120 }} />
+        <div className="skeleton skeleton-title" />
         <div className="skeleton" />
       </RequireAuth>
     );
@@ -503,17 +503,18 @@ export default function NoteDetailPage() {
       <RequireAuth allowLocal>
         <div className="empty-state">
           <p>{loadError}</p>
-          <button type="button" className="btn btn-secondary" onClick={() => void load()}>
-            Try again
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => router.push("/notes")}
-            style={{ marginLeft: 8 }}
-          >
-            Back to notes
-          </button>
+          <div className="empty-state-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => void load()}>
+              Try again
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => router.push("/notes")}
+            >
+              Back to notes
+            </button>
+          </div>
         </div>
       </RequireAuth>
     );
@@ -570,9 +571,8 @@ export default function NoteDetailPage() {
           {saveStatus === "error" && (
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost save-status-retry"
               onClick={() => void retry()}
-              style={{ marginLeft: 8 }}
             >
               Retry save
             </button>
@@ -596,21 +596,21 @@ export default function NoteDetailPage() {
         </button>
       </div>
 
-      <div className="panel panel-pad" style={{ marginBottom: 28 }}>
-        <div className="field" style={{ marginBottom: 16 }}>
+      <div className="panel panel-pad editor-panel">
+        <div className="field editor-title-field">
           <label htmlFor="title">Title</label>
           <input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ fontFamily: "var(--font-display)", fontSize: "1.2rem", fontWeight: 600 }}
+            className="editor-title-input"
           />
         </div>
 
         {preview ? (
           <MarkdownView content={body} noteTitles={titleToIdMap} />
         ) : (
-          <div className="field" style={{ marginBottom: 0, position: "relative" }}>
+          <div className="field editor-body-field">
             <label htmlFor="body">Body — Markdown</label>
             <FloatingToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
             <div className="md-toolbar-mobile">
@@ -657,7 +657,7 @@ export default function NoteDetailPage() {
       {!isLocal && <NextNudgeCard reminder={nextReminder} scope="note" />}
 
       {!isLocal && (
-        <div className="panel panel-pad" style={{ marginBottom: 28 }}>
+        <div className="content-section">
           <h2 className="settings-heading">Tags</h2>
           <div className="tag-picker">
             {allTags.map((tag) => (
@@ -677,7 +677,7 @@ export default function NoteDetailPage() {
               </button>
             ))}
           </div>
-          <div className="reminder-actions-row" style={{ marginTop: 12 }}>
+          <div className="reminder-actions-row section-spacing">
             <input
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
@@ -696,8 +696,8 @@ export default function NoteDetailPage() {
 
       {!isLocal && (
         <>
-          <header className="page-header" style={{ marginBottom: 20 }}>
-            <h1 style={{ fontSize: "1.35rem" }}>Reminders</h1>
+          <header className="section-header">
+            <h2 className="section-title section-title-small">Reminders</h2>
           </header>
 
           {showSyncBanner && <SyncHintBanner />}
@@ -717,9 +717,9 @@ export default function NoteDetailPage() {
             </button>
           </div>
 
-          <div style={{ marginTop: 20 }}>
+          <div className="section-spacing">
             {reminders.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              <p className="empty-copy">
                 No reminders on this note yet.
               </p>
             ) : (

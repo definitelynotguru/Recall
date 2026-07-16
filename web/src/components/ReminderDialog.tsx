@@ -226,27 +226,15 @@ function ReminderDialogContent({
         aria-describedby="reminder-dialog-description"
         tabIndex={-1}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 20,
-          }}
-        >
+        <div className="dialog-header">
           <div>
             <h2
               id="reminder-dialog-title"
-              style={{
-                fontFamily: "var(--font-display)",
-                margin: "0 0 6px",
-                fontSize: "1.25rem",
-                letterSpacing: "-0.02em",
-              }}
+              className="dialog-title"
             >
               {isEdit ? "Edit reminder" : "Schedule nudge"}
             </h2>
-            <p id="reminder-dialog-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="reminder-dialog-description" className="dialog-subtitle">
               Android delivers the notification
             </p>
           </div>
@@ -337,12 +325,12 @@ function ReminderDialogContent({
                 value={repeat}
                 onChange={(e) => setRepeat(e.target.value)}
                 placeholder="e.g. freq=weekly;days=TU,TH"
-                style={{ marginTop: 10 }}
+                className="field-spaced"
               />
             </>
           )}
           {repeat && (
-            <p className="settings-muted" style={{ margin: "8px 0 0", fontSize: "0.82rem" }}>
+            <p className="field-help">
               {formatRepeatLabel(repeat)}
             </p>
           )}
@@ -368,7 +356,7 @@ function ReminderDialogContent({
                 max={1440}
                 value={nagIntervalMinutes}
                 onChange={(e) => setNagIntervalMinutes(Number(e.target.value))}
-                style={{ marginTop: 10 }}
+                className="field-spaced"
               />
             </>
           )}
@@ -378,10 +366,9 @@ function ReminderDialogContent({
           {isEdit && (
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost dialog-destructive"
               onClick={handleDelete}
               disabled={deleting || saving}
-              style={{ marginRight: "auto", color: "var(--error)" }}
             >
               <Trash size={18} />
               {deleting ? "Deleting…" : "Delete"}

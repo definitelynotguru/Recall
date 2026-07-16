@@ -39,12 +39,11 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="timeline">
-          {reminders.map((r, i) => (
+          {reminders.map((r) => (
             <Link
               key={r.id}
               href={`/notes/${r.note_id}`}
               className="timeline-item-link timeline-item"
-              style={{ "--i": i } as React.CSSProperties}
             >
               <h3>{r.note_title || "Untitled"}</h3>
               <span className="timeline-meta">

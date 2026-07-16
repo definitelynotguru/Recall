@@ -28,7 +28,7 @@ export function RequireAuth({
       <div className="app-layout">
         <main className="main-content">
           <div className="skeleton" />
-          <div className="skeleton" style={{ width: "70%" }} />
+          <div className="skeleton skeleton-short" />
         </main>
       </div>
     );

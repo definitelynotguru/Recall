@@ -22,9 +22,9 @@ import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.RepeatUtils
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
+import com.notesreminders.app.ui.components.RecallPanelStyle
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.formatReminderFireAt
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun HistoryScreen(
@@ -57,8 +57,16 @@ fun HistoryScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             if (history.isEmpty()) {
-                RecallPanel {
-                    Text("No completed or cancelled reminders yet.", color = RecallColors.ParchmentMuted)
+                RecallPanel(style = RecallPanelStyle.Raised) {
+                    Text(
+                        "No reminder history yet",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        "Completed and cancelled reminders will appear here.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             } else {
                 LazyColumn {
@@ -90,20 +98,22 @@ private fun HistoryReminderRow(
         Text(
             note?.title?.ifBlank { "Untitled" } ?: "Note",
             style = MaterialTheme.typography.titleMedium,
-            color = RecallColors.Parchment,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "${reminder.status} · ${formatReminderFireAt(reminder.completedAt ?: reminder.fireAt)}",
+            "${reminder.status.replaceFirstChar { it.uppercase() }} · ${
+                formatReminderFireAt(reminder.completedAt ?: reminder.fireAt)
+            }",
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         reminder.repeatRule?.let { rule ->
             Spacer(Modifier.height(6.dp))
             Text(
                 RepeatUtils.formatRepeatLabel(rule),
                 style = MaterialTheme.typography.labelSmall,
-                color = RecallColors.Copper,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }

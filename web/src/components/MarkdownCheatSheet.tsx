@@ -57,37 +57,24 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
     <div className="dialog-overlay" onClick={onClose}>
       <div
         ref={dialogRef}
-        className="dialog-sheet panel panel-pad"
+        className="dialog-sheet dialog-wide panel panel-pad"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onDialogKeyDown}
-        style={{ maxWidth: 720, maxHeight: "85vh", overflow: "auto" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="markdown-cheat-sheet-title"
         aria-describedby="markdown-cheat-sheet-description"
         tabIndex={-1}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 20,
-          }}
-        >
+        <div className="dialog-header">
           <div>
             <h2
               id="markdown-cheat-sheet-title"
-              style={{
-                fontFamily: "var(--font-display)",
-                margin: "0 0 6px",
-                fontSize: "1.25rem",
-                letterSpacing: "-0.02em",
-              }}
+              className="dialog-title"
             >
               Markdown cheat sheet
             </h2>
-            <p id="markdown-cheat-sheet-description" style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+            <p id="markdown-cheat-sheet-description" className="dialog-subtitle">
               Syntax reference for formatting your notes
             </p>
           </div>
@@ -96,40 +83,19 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 20,
-          }}
-        >
+        <div className="cheat-sheet-grid">
           {CHEAT_SHEET_SECTIONS.map((section) => (
-            <div key={section.title} className="panel panel-pad" style={{ margin: 0 }}>
-              <h3
-                style={{
-                  margin: "0 0 10px",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  color: "var(--text-muted)",
-                }}
-              >
+            <div key={section.title} className="cheat-sheet-item">
+              <h3>
                 {section.title}
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="cheat-sheet-content">
                 <pre
-                  className="mono"
-                  style={{
-                    margin: 0,
-                    padding: 10,
-                    background: "var(--surface-2)",
-                    borderRadius: 8,
-                    fontSize: "0.82rem",
-                    overflow: "auto",
-                  }}
+                  className="mono cheat-sheet-code"
                 >
                   {section.syntax}
                 </pre>
-                <div style={{ fontSize: "0.85rem" }}>
+                <div>
                   <MarkdownView content={section.syntax} />
                 </div>
               </div>
@@ -137,7 +103,7 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
           ))}
         </div>
 
-        <div className="dialog-actions" style={{ marginTop: 20 }}>
+        <div className="dialog-actions">
           <button type="button" className="btn btn-primary" onClick={onClose}>
             Got it
           </button>
