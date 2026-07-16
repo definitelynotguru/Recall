@@ -7,7 +7,7 @@ export function SyncHintBanner() {
   if (!loadUserPrefs().showSyncHint) return null;
 
   return (
-    <div className="hint-banner" style={{ marginTop: 16 }}>
+    <div className="hint-banner sync-hint-banner">
       <DeviceMobile size={22} weight="duotone" color="var(--accent)" />
       <span>
         <strong>Phone notifications.</strong> Open Recall on Android and tap{" "}

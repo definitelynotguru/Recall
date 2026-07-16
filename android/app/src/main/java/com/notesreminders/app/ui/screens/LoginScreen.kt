@@ -1,6 +1,5 @@
 package com.notesreminders.app.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,10 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -26,12 +26,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.RecallPanel
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallFieldColors
 import com.notesreminders.app.ui.theme.recallPrimaryButtonColors
 
@@ -48,30 +49,28 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(RecallColors.InkElevated, RecallColors.Ink),
-                ),
-            )
-            .imePadding(),
+            .imePadding()
+            .safeDrawingPadding(),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .widthIn(max = 520.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             Text(
                 "Recall",
-                style = MaterialTheme.typography.displayLarge,
-                color = RecallColors.Parchment,
+                style = MaterialTheme.typography.displayMedium,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 "Notes that remember",
                 style = MaterialTheme.typography.bodyLarge,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(28.dp))
 
@@ -79,7 +78,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                 Text(
                     if (isRegister) "Create vault" else "Welcome back",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = RecallColors.Parchment,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(20.dp))
 
@@ -90,6 +89,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = fieldColors,
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 )
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
@@ -99,6 +99,8 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = fieldColors,
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 )
                 if (isRegister) {
                     Spacer(Modifier.height(12.dp))
@@ -109,11 +111,13 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         colors = fieldColors,
                         singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     )
                 }
                 error?.let {
                     Spacer(Modifier.height(12.dp))
-                    Text(it, color = RecallColors.Error, style = MaterialTheme.typography.bodySmall)
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 Spacer(Modifier.height(20.dp))
                 Button(
@@ -142,7 +146,7 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
             ) {
                 Text(
                     if (isRegister) "Have an account? Sign in" else "Need an account? Register",
-                    color = RecallColors.ParchmentMuted,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

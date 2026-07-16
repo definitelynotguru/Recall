@@ -1,24 +1,20 @@
 package com.notesreminders.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallRepeatFilterChipColors
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReminderEditorFields(
     reminderDate: String,
@@ -29,7 +25,7 @@ fun ReminderEditorFields(
     use12Hour: Boolean,
     repeatRule: String,
     onRepeatChange: (String) -> Unit,
-    fieldColors: androidx.compose.material3.TextFieldColors,
+    fieldColors: TextFieldColors,
     defaultHour: Int,
     defaultMinute: Int,
 ) {
@@ -51,8 +47,8 @@ fun ReminderEditorFields(
     Spacer(Modifier.height(8.dp))
     Text(
         "Quick pick",
-        style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-        color = RecallColors.ParchmentMuted,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(6.dp))
     FlowRow(

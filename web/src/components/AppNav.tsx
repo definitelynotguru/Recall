@@ -56,15 +56,8 @@ export function AppNav() {
         <ThemeToggle />
       </nav>
 
-      <div className="sidebar-footer" style={{ marginTop: "auto" }}>
-        <p
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--text-muted)",
-            margin: "0 0 12px",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
+      <div className="sidebar-footer">
+        <p className="sidebar-account" title={user.email}>
           {user.email}
         </p>
         <button type="button" className="nav-item" onClick={() => logout()}>

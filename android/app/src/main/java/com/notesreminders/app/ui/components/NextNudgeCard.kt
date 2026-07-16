@@ -2,7 +2,6 @@ package com.notesreminders.app.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -12,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.reminders.RepeatUtils
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun NextNudgeCard(
@@ -21,30 +19,33 @@ fun NextNudgeCard(
     modifier: Modifier = Modifier,
 ) {
     if (reminder == null) return
-    RecallPanel(modifier = modifier.fillMaxWidth()) {
+    RecallPanel(
+        modifier = modifier,
+        style = RecallPanelStyle.Raised,
+    ) {
         Text(
             "Next nudge",
             style = MaterialTheme.typography.labelSmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.height(6.dp))
         Text(
             noteTitle?.ifBlank { "Untitled" } ?: "Note",
             style = MaterialTheme.typography.titleMedium,
-            color = RecallColors.Parchment,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(4.dp))
         Text(
             formatReminderFireAt(reminder.fireAt),
             style = MaterialTheme.typography.bodySmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         reminder.repeatRule?.let { rule ->
             Spacer(Modifier.height(6.dp))
             Text(
                 RepeatUtils.formatRepeatLabel(rule),
                 style = MaterialTheme.typography.labelSmall,
-                color = RecallColors.Copper,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 2.dp),
             )
         }
@@ -52,18 +53,16 @@ fun NextNudgeCard(
         Text(
             "Delivered on your phone after sync",
             style = MaterialTheme.typography.labelSmall,
-            color = RecallColors.ParchmentMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 fun pickNextReminder(reminders: List<ReminderEntity>): ReminderEntity? {
     val now = java.time.Instant.now()
-    return reminders
-        .filter { it.status == "active" && it.deletedAt == null }
-        .sortedBy { it.fireAt }
-        .firstOrNull { java.time.Instant.parse(it.fireAt) >= now }
-        ?: reminders
-            .filter { it.status == "active" && it.deletedAt == null }
-            .minByOrNull { it.fireAt }
+    val activeReminders = reminders.filter { it.status == "active" && it.deletedAt == null }
+    return activeReminders
+        .filter { java.time.Instant.parse(it.fireAt) >= now }
+        .minByOrNull { it.fireAt }
+        ?: activeReminders.minByOrNull { it.fireAt }
 }

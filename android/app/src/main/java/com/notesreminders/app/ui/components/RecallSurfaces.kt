@@ -1,32 +1,48 @@
 package com.notesreminders.app.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.notesreminders.app.ui.theme.RecallColors
 
-val RecallShapeLg = RoundedCornerShape(12.dp)
+enum class RecallPanelStyle {
+    Grouped,
+    Raised,
+    Accent,
+}
 
 @Composable
 fun RecallPanel(
     modifier: Modifier = Modifier,
+    style: RecallPanelStyle = RecallPanelStyle.Grouped,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RecallShapeLg)
-            .background(RecallColors.InkSurface.copy(alpha = 0.85f))
-            .border(1.dp, RecallColors.BorderStrong, RecallShapeLg)
-            .padding(20.dp),
-        content = content,
-    )
+    val colors = MaterialTheme.colorScheme
+    val containerColor = when (style) {
+        RecallPanelStyle.Grouped -> colors.surface
+        RecallPanelStyle.Raised -> colors.surfaceVariant
+        RecallPanelStyle.Accent -> colors.primaryContainer
+    }
+    val contentColor = when (style) {
+        RecallPanelStyle.Accent -> colors.onPrimaryContainer
+        else -> colors.onSurface
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = containerColor,
+        contentColor = contentColor,
+        tonalElevation = if (style == RecallPanelStyle.Raised) 1.dp else 0.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            content = content,
+        )
+    }
 }

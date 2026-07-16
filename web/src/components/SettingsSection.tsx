@@ -7,7 +7,7 @@ type Props = {
 
 export function SettingsSection({ title, children }: Props) {
   return (
-    <section className="panel panel-pad" style={{ marginTop: 16 }}>
+    <section className="settings-section">
       <h2 className="settings-heading">{title}</h2>
       {children}
     </section>

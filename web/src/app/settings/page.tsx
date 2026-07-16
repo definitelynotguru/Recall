@@ -340,14 +340,13 @@ export default function SettingsPage() {
           </ul>
         )}
         {syncServerTime && (
-          <p className="settings-muted" style={{ marginBottom: 0, fontSize: "0.82rem" }}>
+          <p className="settings-muted settings-inline-meta">
             Server time: {new Date(syncServerTime).toLocaleString()}
           </p>
         )}
         <button
           type="button"
-          className="btn btn-secondary"
-          style={{ marginTop: 12 }}
+          className="btn btn-secondary settings-action"
           onClick={() => {
             setSyncLoading(true);
             void loadSyncStatus();
@@ -468,7 +467,7 @@ export default function SettingsPage() {
             <Copy size={18} />
             {copied ? "Copied" : "Copy to clipboard"}
           </button>
-          <label className="btn btn-secondary" style={{ cursor: "pointer" }}>
+          <label className="btn btn-secondary file-button">
             <UploadSimple size={18} />
             {importing ? "Importing…" : "Import JSON"}
             <input
@@ -487,8 +486,7 @@ export default function SettingsPage() {
         </div>
         {importMsg && (
           <p
-            className="settings-muted"
-            style={{ marginTop: 12, marginBottom: 0 }}
+            className="settings-muted status-message"
             role="status"
           >
             {importMsg}
@@ -506,39 +504,29 @@ export default function SettingsPage() {
         ) : debugReports.length === 0 ? (
           <p className="settings-muted">No reports yet.</p>
         ) : (
-          <ul className="detected-reminder-list" style={{ marginTop: 12 }}>
+          <ul className="detected-reminder-list report-list">
             {debugReports.map((r) => (
-              <li key={r.id} style={{ marginBottom: 12 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
+              <li key={r.id} className="report-row">
+                <div className="report-header">
                   <div>
-                    <strong style={{ fontSize: "0.85rem" }}>
+                    <strong className="report-title">
                       {new Date(r.created_at).toLocaleString()}
                     </strong>
                     <span
-                      className="timeline-meta"
-                      style={{ display: "block", marginTop: 4 }}
+                      className="timeline-meta meta-block"
                     >
                       {r.app_version || "app"} · {r.device_id.slice(0, 8)}…
                     </span>
                     <span
-                      className="timeline-meta"
-                      style={{ display: "block", marginTop: 4 }}
+                      className="timeline-meta meta-block"
                     >
                       {r.summary}
                     </span>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="compact-actions">
                     <button
                       type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                      className="btn btn-secondary btn-compact"
                       onClick={() =>
                         setExpandedId(expandedId === r.id ? null : r.id)
                       }
@@ -547,8 +535,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                      className="btn btn-secondary btn-compact"
                       onClick={() => void copyDebugPayload(r.payload)}
                     >
                       Copy
@@ -556,17 +543,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {expandedId === r.id && (
-                  <pre
-                    style={{
-                      marginTop: 10,
-                      padding: 12,
-                      background: "var(--surface)",
-                      borderRadius: 8,
-                      fontSize: "0.72rem",
-                      overflow: "auto",
-                      maxHeight: 320,
-                    }}
-                  >
+                  <pre className="debug-json">
                     {JSON.stringify(r.payload, null, 2)}
                   </pre>
                 )}
@@ -591,8 +568,7 @@ export default function SettingsPage() {
               <li key={tpl.id}>
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  style={{ padding: 0, fontWeight: "inherit" }}
+                  className="btn btn-ghost template-link-button"
                   onClick={() => router.push(`/notes/${tpl.id}`)}
                 >
                   <span className="chip">{tpl.title || "Untitled template"}</span>
@@ -609,7 +585,7 @@ export default function SettingsPage() {
             ))}
           </ul>
         )}
-        <div className="reminder-actions-row" style={{ marginTop: 12 }}>
+        <div className="reminder-actions-row settings-action">
           <button type="button" className="btn btn-primary" onClick={newTemplate}>
             <Plus size={18} weight="bold" />
             New template
@@ -632,7 +608,7 @@ export default function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="Notifications">
-        <p className="settings-muted" style={{ margin: 0 }}>
+        <p className="settings-muted settings-inline-meta">
           Reminders created here sync to your Android app. Your phone schedules
           and delivers every notification — this web app never pings you.
         </p>

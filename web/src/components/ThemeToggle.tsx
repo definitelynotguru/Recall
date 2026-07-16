@@ -45,6 +45,7 @@ export function ThemeToggle() {
       title={theme === "dark" ? "Light theme" : "Dark theme"}
     >
       {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+      <span className="nav-item-label">Appearance</span>
     </button>
   );
 }

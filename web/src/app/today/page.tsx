@@ -108,11 +108,10 @@ export default function TodayPage() {
     }
   };
 
-  const renderItem = (r: ApiReminder, index: number, overdue = false) => (
+  const renderItem = (r: ApiReminder, overdue = false) => (
     <div
       key={r.id}
       className={`timeline-item timeline-item-with-actions${overdue ? " timeline-item-overdue" : ""}`}
-      style={{ "--i": index } as React.CSSProperties}
     >
       <div className="timeline-item-body">
         <Link href={`/notes/${r.note_id}`} className="timeline-item-link">
@@ -165,7 +164,6 @@ export default function TodayPage() {
   const section = (
     title: string,
     items: ApiReminder[],
-    offset: number,
     overdue = false,
   ) =>
     items.length > 0 && (
@@ -173,11 +171,10 @@ export default function TodayPage() {
         <p className={`timeline-label${overdue ? " timeline-label-overdue" : ""}`}>
           {title}
         </p>
-        {items.map((r, i) => renderItem(r, offset + i, overdue))}
+        {items.map((r) => renderItem(r, overdue))}
       </div>
     );
 
-  let idx = 0;
   const activeCount = reminders.filter((r) => r.status === "active").length;
   const nextGlobal = pickNextReminder(reminders);
 
@@ -194,11 +191,11 @@ export default function TodayPage() {
         </p>
       </header>
 
-      <div className="panel panel-pad" style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="daily-note-strip">
         <NotePencil size={22} color="var(--accent)" />
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div className="daily-note-copy">
           <strong>Daily note</strong>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.85rem" }}>
+          <p>
             Open or create today&apos;s note, generated from your Daily Journal template.
           </p>
         </div>
@@ -222,7 +219,7 @@ export default function TodayPage() {
         <>
           <div className="skeleton" />
           <div className="skeleton" />
-          <div className="skeleton" style={{ width: "85%" }} />
+          <div className="skeleton skeleton-shorter" />
         </>
       ) : activeCount === 0 ? (
         <div className="empty-state">
@@ -233,15 +230,11 @@ export default function TodayPage() {
         </div>
       ) : (
         <div className="timeline">
-          {section("Overdue", groups.overdue, idx, true)}
-          {(idx += groups.overdue.length)}
-          {section("Today", groups.today, idx)}
-          {(idx += groups.today.length)}
-          {section("Tomorrow", groups.tomorrow, idx)}
-          {(idx += groups.tomorrow.length)}
-          {section("This week", groups.thisWeek, idx)}
-          {(idx += groups.thisWeek.length)}
-          {section("Later", groups.later, idx)}
+          {section("Overdue", groups.overdue, true)}
+          {section("Today", groups.today)}
+          {section("Tomorrow", groups.tomorrow)}
+          {section("This week", groups.thisWeek)}
+          {section("Later", groups.later)}
         </div>
       )}
 

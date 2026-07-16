@@ -15,7 +15,7 @@ export function NextNudgeCard({ reminder, scope = "global" }: Props) {
 
   return (
     <div className="next-nudge-card panel panel-pad">
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div className="next-nudge-content">
         <DeviceMobile size={24} weight="duotone" color="var(--accent)" />
         <div>
           <p className="next-nudge-label">
@@ -23,7 +23,7 @@ export function NextNudgeCard({ reminder, scope = "global" }: Props) {
           </p>
           <p className="next-nudge-time">{formatFireAt(reminder.fire_at)}</p>
           {reminder.repeat_rule && (
-            <span className="chip" style={{ marginTop: 8 }}>
+            <span className="chip next-nudge-repeat">
               {formatRepeatLabel(reminder.repeat_rule)}
             </span>
           )}

@@ -112,15 +112,15 @@ function CalendarInner() {
   );
 
   return (
-    <div className="container" style={{ maxWidth: 720 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1 style={{ fontFamily: "var(--font-display)", margin: 0, fontSize: "1.5rem" }}>
+    <div className="calendar-page">
+      <div className="calendar-header">
+        <h1 className="calendar-title">
           {new Intl.DateTimeFormat(undefined, {
             month: "long",
             year: "numeric",
           }).format(new Date(viewYear, viewMonth, 1))}
         </h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="calendar-actions">
           <button type="button" className="btn btn-ghost" onClick={() => navigateMonth(-1)} aria-label="Previous month">
             <CaretLeft size={20} />
           </button>
@@ -166,7 +166,7 @@ function CalendarInner() {
         })}
       </div>
 
-      <p style={{ color: "var(--muted)", marginTop: 20, fontSize: "0.85rem" }}>
+      <p className="calendar-help">
         Tap any day to open or create a daily note. Days with a dot already have a note.
       </p>
     </div>

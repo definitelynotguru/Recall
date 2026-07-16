@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.recallFieldColors
 
 @Composable
@@ -53,7 +53,7 @@ fun ReminderScheduleDialog(
                 if (showDelete) {
                     Spacer(Modifier.height(12.dp))
                     TextButton(onClick = onDelete) {
-                        Text("Delete reminder", color = RecallColors.Error)
+                        Text("Delete reminder", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -62,7 +62,7 @@ fun ReminderScheduleDialog(
             RecallDialogConfirmButton("Save", onSave)
         },
         dismissButton = {
-            RecallDialogTextButton("Cancel", onDismiss, RecallColors.ParchmentMuted)
+            RecallDialogTextButton("Cancel", onDismiss, MaterialTheme.colorScheme.onSurfaceVariant)
         },
     )
 }

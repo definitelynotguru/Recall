@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "@phosphor-icons/react";
-import { useId, type CSSProperties, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
 
 type Props = {
@@ -27,7 +27,6 @@ export function DialogShell({
   ariaLabelledBy,
   ariaDescribedBy,
 }: Props) {
-  const sheetStyle: CSSProperties = { maxWidth };
   const { dialogRef, onDialogKeyDown } = useDialogA11y(onClose);
   const generatedTitleId = useId();
   const generatedDescriptionId = useId();
@@ -43,43 +42,28 @@ export function DialogShell({
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onDialogKeyDown}
-        style={sheetStyle}
+        style={{ maxWidth }}
         role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: subtitle ? 20 : 16,
-          }}
-        >
+        <div className="dialog-header">
           <div>
             <h2
               id={titleId}
-              style={{
-                fontFamily: "var(--font-display)",
-                margin: subtitle ? "0 0 6px" : 0,
-                fontSize: "1.25rem",
-                letterSpacing: "-0.02em",
-              }}
+              className="dialog-title"
             >
               {title}
             </h2>
             {subtitle && (
-              <p
-                id={descriptionId}
-                style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}
-              >
+              <p id={descriptionId} className="dialog-subtitle">
                 {subtitle}
               </p>
             )}
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn-ghost dialog-close" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
         </div>

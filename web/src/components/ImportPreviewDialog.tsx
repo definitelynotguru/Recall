@@ -44,10 +44,10 @@ export function ImportPreviewDialog({
       }
     >
       {preview.warnings.length > 0 && (
-        <div className="hint-banner" style={{ marginBottom: 16 }}>
+        <div className="hint-banner import-warning">
           <div>
             {preview.warnings.map((warning) => (
-              <p key={warning} style={{ margin: "0 0 6px" }}>
+              <p key={warning}>
                 {warning}
               </p>
             ))}

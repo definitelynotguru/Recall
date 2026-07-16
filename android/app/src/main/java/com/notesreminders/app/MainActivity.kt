@@ -9,8 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -27,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.notesreminders.app.reminders.ReminderPermissions
@@ -59,7 +63,6 @@ import com.notesreminders.app.ui.screens.LoginScreen
 import com.notesreminders.app.ui.screens.NoteDetailScreen
 import com.notesreminders.app.ui.screens.NotesListScreen
 import com.notesreminders.app.ui.screens.TodayScreen
-import com.notesreminders.app.ui.theme.RecallColors
 import com.notesreminders.app.ui.theme.NotesTheme
 
 class MainActivity : ComponentActivity() {
@@ -222,44 +225,45 @@ private fun MainShell(
     var showOnboarding by remember { mutableStateOf(!viewModel.userPrefs.onboardingDone) }
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
-    val showBottomBar = currentRoute in tabs.map { it.route }
+    val showBottomBar = tabs.any { it.route == currentRoute }
+    val useNavigationRail = LocalConfiguration.current.screenWidthDp >= 600
+
+    fun navigateToTab(route: String) {
+        nav.navigate(route) {
+            popUpTo(nav.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     Scaffold(
-        containerColor = RecallColors.Ink,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (showBottomBar) {
+            if (showBottomBar && !useNavigationRail) {
                 NavigationBar(
-                    containerColor = RecallColors.InkElevated,
-                    contentColor = RecallColors.Parchment,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
                 ) {
                     tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navigateToTab(tab.route) },
                             icon = {
                                 Icon(
                                     tab.icon,
                                     contentDescription = tab.label,
-                                    tint = if (selected) RecallColors.Copper else RecallColors.ParchmentMuted,
                                 )
                             },
-                            label = {
-                                Text(
-                                    tab.label,
-                                    color = if (selected) RecallColors.Copper else RecallColors.ParchmentMuted,
-                                )
-                            },
+                            label = { Text(tab.label) },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = RecallColors.CopperDim,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                         )
                     }
@@ -267,77 +271,95 @@ private fun MainShell(
             }
         },
     ) { padding ->
-        Column(
+        Row(
             modifier = Modifier
                 .padding(padding)
-                .background(RecallColors.Ink),
+                .fillMaxSize(),
         ) {
-            if (!isOnline) {
-                OfflineSyncBanner(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    onReconnect = {
-                        viewModel.refreshConnectivity()
-                        viewModel.syncNow()
-                    },
-                )
+            if (showBottomBar && useNavigationRail) {
+                NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                    tabs.forEach { tab ->
+                        NavigationRailItem(
+                            selected = currentRoute == tab.route,
+                            onClick = { navigateToTab(tab.route) },
+                            icon = { Icon(tab.icon, contentDescription = tab.label) },
+                            label = { Text(tab.label) },
+                        )
+                    }
+                }
             }
-            NavHost(
-                navController = nav,
-                startDestination = "today",
-                modifier = Modifier.weight(1f),
-            ) {
-            composable("today") {
-                TodayScreen(
-                    viewModel = viewModel,
-                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
-                    onRequestExactAlarms = onRequestExactAlarms,
-                    onLogout = { viewModel.logout { onLogout() } },
-                    onOpenCalendar = { nav.navigate("calendar") { launchSingleTop = true } },
-                )
-            }
-            composable("notes") {
-                NotesListScreen(
-                    viewModel = viewModel,
-                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
-                    onLogout = { viewModel.logout { onLogout() } },
-                )
-            }
-            composable("calendar") {
-                CalendarScreen(
-                    viewModel = viewModel,
-                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
-                    onLogout = { viewModel.logout { onLogout() } },
-                )
-            }
-            composable("history") {
-                HistoryScreen(
-                    viewModel = viewModel,
-                    onOpenNote = { noteId -> nav.navigate("note/$noteId") },
-                    onLogout = { viewModel.logout { onLogout() } },
-                )
-            }
-            composable("settings") {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onLogout = { viewModel.logout { onLogout() } },
-                    onReplayOnboarding = {
-                        viewModel.userPrefs.onboardingDone = false
-                        showOnboarding = true
-                    },
-                    onOpenNote = { id -> nav.navigate("note/$id") { launchSingleTop = true } },
-                )
-            }
-            composable("note/{id}") { entry ->
-                val id = entry.arguments?.getString("id") ?: return@composable
-                NoteDetailScreen(
-                    noteId = id,
-                    viewModel = viewModel,
-                    onBack = { nav.popBackStack() },
-                    onDeleted = { nav.popBackStack() },
-                    onOpenNote = { newId -> nav.navigate("note/$newId") { launchSingleTop = true } },
-                    onRequestExactAlarms = onRequestExactAlarms,
-                )
-            }
+            Column(Modifier.weight(1f)) {
+                if (!isOnline) {
+                    OfflineSyncBanner(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        onReconnect = {
+                            viewModel.refreshConnectivity()
+                            viewModel.syncNow()
+                        },
+                    )
+                }
+                NavHost(
+                    navController = nav,
+                    startDestination = "today",
+                    modifier = Modifier.weight(1f),
+                ) {
+                    composable("today") {
+                        TodayScreen(
+                            viewModel = viewModel,
+                            onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                            onRequestExactAlarms = onRequestExactAlarms,
+                            onLogout = { viewModel.logout { onLogout() } },
+                            onOpenCalendar = { nav.navigate("calendar") { launchSingleTop = true } },
+                        )
+                    }
+                    composable("notes") {
+                        NotesListScreen(
+                            viewModel = viewModel,
+                            onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                            onLogout = { viewModel.logout { onLogout() } },
+                        )
+                    }
+                    composable("calendar") {
+                        CalendarScreen(
+                            viewModel = viewModel,
+                            onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                            onLogout = { viewModel.logout { onLogout() } },
+                        )
+                    }
+                    composable("history") {
+                        HistoryScreen(
+                            viewModel = viewModel,
+                            onOpenNote = { noteId -> nav.navigate("note/$noteId") },
+                            onLogout = { viewModel.logout { onLogout() } },
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
+                            viewModel = viewModel,
+                            onLogout = { viewModel.logout { onLogout() } },
+                            onReplayOnboarding = {
+                                viewModel.userPrefs.onboardingDone = false
+                                showOnboarding = true
+                            },
+                            onOpenNote = { id ->
+                                nav.navigate("note/$id") { launchSingleTop = true }
+                            },
+                        )
+                    }
+                    composable("note/{id}") { entry ->
+                        val id = entry.arguments?.getString("id") ?: return@composable
+                        NoteDetailScreen(
+                            noteId = id,
+                            viewModel = viewModel,
+                            onBack = { nav.popBackStack() },
+                            onDeleted = { nav.popBackStack() },
+                            onOpenNote = { newId ->
+                                nav.navigate("note/$newId") { launchSingleTop = true }
+                            },
+                            onRequestExactAlarms = onRequestExactAlarms,
+                        )
+                    }
+                }
             }
         }
     }

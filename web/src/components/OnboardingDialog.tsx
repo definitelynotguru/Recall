@@ -73,21 +73,16 @@ export function OnboardingDialog({ open, onClose }: Props) {
         className="dialog-sheet panel panel-pad"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onDialogKeyDown}
-        style={{ maxWidth: 480 }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
         aria-describedby="onboarding-description"
         tabIndex={-1}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+        <div className="dialog-header">
           <h2
             id="onboarding-title"
-            style={{
-              fontFamily: "var(--font-display)",
-              margin: 0,
-              fontSize: "1.35rem",
-            }}
+            className="dialog-title"
           >
             Welcome to Recall
           </h2>
@@ -96,11 +91,11 @@ export function OnboardingDialog({ open, onClose }: Props) {
           </button>
         </div>
 
-        <p id="onboarding-description" style={{ color: "var(--muted)", marginTop: 0, marginBottom: 16 }}>
+        <p id="onboarding-description" className="dialog-copy">
           How will you use Recall? We&apos;ll create editable starter notes you can tweak or delete.
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        <div className="onboarding-options">
           {SURVEY_OPTIONS.map((opt) => {
             const on = selected.has(opt.index);
             return (
@@ -109,51 +104,27 @@ export function OnboardingDialog({ open, onClose }: Props) {
                 type="button"
                 onClick={() => toggle(opt.index)}
                 aria-pressed={on}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: on ? "1px solid var(--accent)" : "1px solid var(--border)",
-                  background: on ? "var(--accent-soft, rgba(212,165,116,0.12))" : "transparent",
-                  cursor: "pointer",
-                }}
+                className="onboarding-option"
               >
-                <span
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 6,
-                    border: on ? "none" : "1px solid var(--border)",
-                    background: on ? "var(--accent)" : "transparent",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  {on && <Check size={14} color="var(--bg)" />}
+                <span className="onboarding-check">
+                  {on && <Check size={14} />}
                 </span>
                 <span>
-                  <strong style={{ display: "block", fontSize: "0.95rem" }}>{opt.label}</strong>
-                  <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{opt.title}</span>
+                  <strong className="onboarding-option-title">{opt.label}</strong>
+                  <span className="onboarding-option-note">{opt.title}</span>
                 </span>
               </button>
             );
           })}
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn btn-ghost" onClick={dismiss} style={{ flex: 1 }}>
+        <div className="onboarding-actions">
+          <button type="button" className="btn btn-ghost" onClick={dismiss}>
             Skip
           </button>
           <button
             type="button"
             className="btn btn-primary"
-            style={{ flex: 2 }}
             disabled={selected.size === 0 || creating}
             onClick={() => void createStarterNotes()}
           >

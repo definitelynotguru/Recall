@@ -5,32 +5,75 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 private val RecallDark = darkColorScheme(
-    primary = RecallColors.Copper,
-    onPrimary = RecallColors.Ink,
-    background = RecallColors.Ink,
-    onBackground = RecallColors.Parchment,
-    surface = RecallColors.InkElevated,
-    onSurface = RecallColors.Parchment,
-    surfaceVariant = RecallColors.InkSurface,
-    onSurfaceVariant = RecallColors.ParchmentMuted,
-    outline = RecallColors.BorderStrong,
-    error = RecallColors.Error,
+    primary = RecallColors.Accent,
+    onPrimary = RecallColors.DarkBackground,
+    primaryContainer = RecallColors.AccentContainerDark,
+    onPrimaryContainer = RecallColors.OnAccentContainerDark,
+    secondary = RecallColors.DarkText,
+    onSecondary = RecallColors.DarkBackground,
+    secondaryContainer = RecallColors.DarkRaised,
+    onSecondaryContainer = RecallColors.DarkText,
+    tertiary = RecallColors.DarkMuted,
+    onTertiary = RecallColors.DarkBackground,
+    background = RecallColors.DarkBackground,
+    onBackground = RecallColors.DarkText,
+    surface = RecallColors.DarkSurface,
+    onSurface = RecallColors.DarkText,
+    surfaceVariant = RecallColors.DarkRaised,
+    onSurfaceVariant = RecallColors.DarkMuted,
+    outline = RecallColors.DarkOutline,
+    outlineVariant = RecallColors.DarkBorder,
+    surfaceTint = RecallColors.Accent,
+    inverseSurface = RecallColors.DarkText,
+    inverseOnSurface = RecallColors.DarkBackground,
+    inversePrimary = RecallColors.AccentDark,
+    error = RecallColors.ErrorDark,
+    onError = Color(0xFF690005),
+    errorContainer = RecallColors.ErrorContainerDark,
+    onErrorContainer = RecallColors.ErrorDark,
 )
 
 private val RecallLight = lightColorScheme(
-    primary = RecallColors.Copper,
-    onPrimary = Color(0xFF020202),
-    background = Color(0xFFFAFAFA),
-    onBackground = Color(0xFF020202),
-    surface = Color(0xFFF6F1E7),
-    onSurface = Color(0xFF020202),
-    surfaceVariant = Color(0xFFD6D3D2),
-    onSurfaceVariant = Color(0xFF5C5855),
-    outline = Color(0xFFB8B3B0),
-    error = RecallColors.Error,
+    primary = RecallColors.AccentDark,
+    onPrimary = RecallColors.LightSurface,
+    primaryContainer = RecallColors.AccentContainerLight,
+    onPrimaryContainer = RecallColors.OnAccentContainerLight,
+    secondary = RecallColors.LightText,
+    onSecondary = RecallColors.LightSurface,
+    secondaryContainer = RecallColors.LightRaised,
+    onSecondaryContainer = RecallColors.LightText,
+    tertiary = RecallColors.LightMuted,
+    onTertiary = RecallColors.LightSurface,
+    background = RecallColors.LightBackground,
+    onBackground = RecallColors.LightText,
+    surface = RecallColors.LightSurface,
+    onSurface = RecallColors.LightText,
+    surfaceVariant = RecallColors.LightRaised,
+    onSurfaceVariant = RecallColors.LightMuted,
+    outline = RecallColors.LightOutline,
+    outlineVariant = RecallColors.LightBorder,
+    surfaceTint = RecallColors.AccentDark,
+    inverseSurface = RecallColors.DarkSurface,
+    inverseOnSurface = RecallColors.DarkText,
+    inversePrimary = RecallColors.Accent,
+    error = RecallColors.ErrorLight,
+    onError = RecallColors.LightSurface,
+    errorContainer = RecallColors.ErrorContainerLight,
+    onErrorContainer = Color(0xFF410002),
+)
+
+private val RecallShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(20.dp),
 )
 
 @Composable
@@ -39,6 +82,7 @@ fun NotesTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (dark) RecallDark else RecallLight,
         typography = RecallTypography,
+        shapes = RecallShapes,
         content = content,
     )
 }

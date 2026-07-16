@@ -3,7 +3,10 @@ package com.notesreminders.app.ui.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.MaterialTheme
@@ -13,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.reminders.DetectedReminder
-import com.notesreminders.app.ui.theme.RecallColors
 
 @Composable
 fun DetectedRemindersDialog(
@@ -30,11 +32,15 @@ fun DetectedRemindersDialog(
         onDismissRequest = onDismiss,
         title = "Detected reminders",
         text = {
-            Column {
+            Column(
+                Modifier
+                    .heightIn(max = 440.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 if (detected.isEmpty()) {
                     Text(
                         "No dates found. Try phrases like \"in 3 minutes\", \"tomorrow at 9am\", or Day/Month/Year fields.",
-                        color = RecallColors.ParchmentMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 } else {
@@ -58,7 +64,7 @@ fun DetectedRemindersDialog(
             }
         },
         dismissButton = {
-            RecallDialogTextButton("Cancel", onDismiss, RecallColors.ParchmentMuted)
+            RecallDialogTextButton("Cancel", onDismiss, MaterialTheme.colorScheme.onSurfaceVariant)
         },
     )
 }
@@ -82,31 +88,31 @@ private fun DetectedReminderRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = CheckboxDefaults.colors(
-                checkedColor = RecallColors.Copper,
-                checkmarkColor = RecallColors.Ink,
+                checkedColor = MaterialTheme.colorScheme.primary,
+                checkmarkColor = MaterialTheme.colorScheme.onPrimary,
             ),
         )
         Column(Modifier.weight(1f)) {
-            Text(item.label, color = RecallColors.Parchment)
+            Text(item.label, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 formatted,
                 style = MaterialTheme.typography.labelSmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "$confidenceLabel · ${(item.repeatRule ?: "once").uppercase()}",
                 style = MaterialTheme.typography.labelSmall,
-                color = RecallColors.Copper,
+                color = MaterialTheme.colorScheme.primary,
             )
             Text(
                 "“${item.source.take(80)}”",
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 item.reason,
                 style = MaterialTheme.typography.bodySmall,
-                color = RecallColors.ParchmentMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

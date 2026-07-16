@@ -15,8 +15,8 @@ export default function Home() {
   }, [user, loading, router]);
 
   return (
-    <main className="empty-state">
-      <p style={{ color: "var(--muted)" }}>Loading…</p>
+    <main className="empty-state loading-page">
+      <p>Loading…</p>
     </main>
   );
 }
