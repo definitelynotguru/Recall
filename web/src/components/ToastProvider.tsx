@@ -52,7 +52,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toast-stack" aria-live="polite">
         {toasts.map((t) => (
-          <ToastItem key={t.id} toast={t} onDismiss={() => dismiss(t.id)} />
+          <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
         ))}
       </div>
     </ToastContext.Provider>
@@ -64,17 +64,37 @@ function ToastItem({
   onDismiss,
 }: {
   toast: Toast;
-  onDismiss: () => void;
+  onDismiss: (id: number) => void;
 }) {
+  const [closing, setClosing] = useState(false);
+
   useEffect(() => {
-    // Actionable toasts (e.g. retry) linger longer so the user can act.
+    if (closing) return;
     const duration = toast.action ? 8000 : 3200;
-    const id = window.setTimeout(onDismiss, duration);
+    const id = window.setTimeout(() => setClosing(true), duration);
     return () => window.clearTimeout(id);
-  }, [toast.action, onDismiss]);
+  }, [closing, toast.action]);
+
+  useEffect(() => {
+    if (!closing) return;
+    const id = window.setTimeout(() => onDismiss(toast.id), 220);
+    return () => window.clearTimeout(id);
+  }, [closing, onDismiss, toast.id]);
 
   return (
-    <div className={`toast toast-${toast.variant}`} role="status">
+    <div
+      className={`toast toast-${toast.variant}${closing ? " toast-closing" : ""}`}
+      role="status"
+      onTransitionEnd={(event) => {
+        if (
+          closing &&
+          event.target === event.currentTarget &&
+          event.propertyName === "opacity"
+        ) {
+          onDismiss(toast.id);
+        }
+      }}
+    >
       <span className="toast-message">{toast.message}</span>
       {toast.action && (
         <button
@@ -82,7 +102,7 @@ function ToastItem({
           className="toast-action"
           onClick={() => {
             toast.action?.onClick();
-            onDismiss();
+            setClosing(true);
           }}
         >
           {toast.action.label}

@@ -9,6 +9,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -289,7 +298,21 @@ private fun MainShell(
                 }
             }
             Column(Modifier.weight(1f)) {
-                if (!isOnline) {
+                AnimatedVisibility(
+                    visible = !isOnline,
+                    enter = fadeIn(
+                        tween(150, easing = LinearOutSlowInEasing),
+                    ) + slideInVertically(
+                        tween(220, easing = FastOutSlowInEasing),
+                        initialOffsetY = { -it / 4 },
+                    ),
+                    exit = fadeOut(
+                        tween(120, easing = FastOutLinearInEasing),
+                    ) + slideOutVertically(
+                        tween(180, easing = FastOutSlowInEasing),
+                        targetOffsetY = { -it / 4 },
+                    ),
+                ) {
                     OfflineSyncBanner(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         onReconnect = {
