@@ -1682,6 +1682,25 @@ code {
   border-color: var(--border);
   background: var(--surface-elevated);
   box-shadow: 0 4px 8px rgba(20, 18, 16, 0.22);
+  opacity: 0;
+  transform: scale(0.98);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: opacity 160ms var(--ease-signature),
+    transform 160ms var(--ease-signature);
+}
+
+.template-menu[data-state="open"] {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+@starting-style {
+  .template-menu[data-state="open"] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
 }
 
 .template-menu-wrap {
@@ -1751,7 +1770,23 @@ code {
   border-color: var(--border);
   background: var(--surface-elevated);
   box-shadow: 0 6px 8px rgba(20, 18, 16, 0.26);
-  animation: dialog-in 180ms var(--ease-signature) both;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms var(--ease-signature),
+    transform 180ms var(--ease-signature);
+}
+
+.toast-closing {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+@starting-style {
+  .toast {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .toast-message {
@@ -2156,5 +2191,11 @@ code {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .template-menu,
+  .toast {
+    transform: none !important;
+    transition-duration: 100ms !important;
   }
 }

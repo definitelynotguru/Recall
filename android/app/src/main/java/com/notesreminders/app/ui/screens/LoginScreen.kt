@@ -1,5 +1,14 @@
 package com.notesreminders.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,18 +111,34 @@ fun LoginScreen(viewModel: AppViewModel, onLoggedIn: () -> Unit) {
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 )
-                if (isRegister) {
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = registerSecret,
-                        onValueChange = { registerSecret = it },
-                        label = { Text("Registration secret") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = fieldColors,
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    )
+                AnimatedVisibility(
+                    visible = isRegister,
+                    enter = fadeIn(
+                        tween(140, easing = LinearOutSlowInEasing),
+                    ) + slideInVertically(
+                        tween(220, easing = FastOutSlowInEasing),
+                        initialOffsetY = { -it / 8 },
+                    ),
+                    exit = fadeOut(
+                        tween(100, easing = FastOutLinearInEasing),
+                    ) + slideOutVertically(
+                        tween(180, easing = FastOutSlowInEasing),
+                        targetOffsetY = { -it / 8 },
+                    ),
+                ) {
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = registerSecret,
+                            onValueChange = { registerSecret = it },
+                            label = { Text("Registration secret") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = fieldColors,
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        )
+                    }
                 }
                 error?.let {
                     Spacer(Modifier.height(12.dp))

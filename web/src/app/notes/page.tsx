@@ -79,6 +79,7 @@ function NotesContent() {
       : null;
   const [templates, setTemplates] = useState<ApiNote[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [templateMenuMounted, setTemplateMenuMounted] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const templateTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -100,6 +101,16 @@ function NotesContent() {
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [query, router, searchParams]);
+
+  useEffect(() => {
+    if (showTemplateMenu) {
+      setTemplateMenuMounted(true);
+      return;
+    }
+    if (!templateMenuMounted) return;
+    const id = window.setTimeout(() => setTemplateMenuMounted(false), 180);
+    return () => window.clearTimeout(id);
+  }, [showTemplateMenu, templateMenuMounted]);
 
   useEffect(() => {
     if (!showTemplateMenu) return;
@@ -430,11 +441,14 @@ function NotesContent() {
               <Plus size={18} weight="bold" />
               From template
             </button>
-            {showTemplateMenu && (
+            {(showTemplateMenu || templateMenuMounted) && (
               <div
                 id="template-menu"
                 className="template-menu"
+                data-state={showTemplateMenu ? "open" : "closed"}
                 role="menu"
+                aria-hidden={!showTemplateMenu}
+                inert={!showTemplateMenu}
                 onKeyDown={handleTemplateMenuKeyDown}
                 onBlur={(event) => {
                   if (!event.currentTarget.contains(event.relatedTarget)) {
