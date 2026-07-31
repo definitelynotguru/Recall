@@ -6,7 +6,10 @@ import {
 } from "./domain";
 
 /** Gson on Android omits null keys; treat missing as null. */
-const nullableString = z.string().nullish().transform((v) => v ?? null);
+const nullableString = z
+  .string()
+  .nullish()
+  .transform((v) => v ?? null);
 
 const syncNoteSchema = z.object({
   id: z.string().uuid(),
@@ -29,7 +32,11 @@ const syncReminderSchema = z.object({
   repeat_rule: nullableString,
   intensity: reminderIntensitySchema,
   reminder_mode: z.enum(["once", "persistent", "deadline"]).default("once"),
-  nag_interval_minutes: z.number().int().nullish().transform((v) => v ?? null),
+  nag_interval_minutes: z
+    .number()
+    .int()
+    .nullish()
+    .transform((v) => v ?? null),
   status: reminderStatusSchema,
   completed_at: nullableString,
   created_at: z.string(),

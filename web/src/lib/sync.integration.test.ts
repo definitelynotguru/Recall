@@ -61,20 +61,26 @@ describe.skipIf(!hasDb)("processSync ownership", () => {
     await processSync(attackerUserId, "test-device", epoch, [], []);
 
     const attackTime = new Date("2026-06-01T00:00:00.000Z");
-    await processSync(attackerUserId, "test-device", epoch, [
-      {
-        id: victimNoteId,
-        title: "Hijacked",
-        body: "Attacker wins",
-        status: "active",
-        pinned_at: null,
-        is_template: false,
-        daily_date: null,
-        created_at: attackTime.toISOString(),
-        updated_at: attackTime.toISOString(),
-        deleted_at: null,
-      },
-    ], []);
+    await processSync(
+      attackerUserId,
+      "test-device",
+      epoch,
+      [
+        {
+          id: victimNoteId,
+          title: "Hijacked",
+          body: "Attacker wins",
+          status: "active",
+          pinned_at: null,
+          is_template: false,
+          daily_date: null,
+          created_at: attackTime.toISOString(),
+          updated_at: attackTime.toISOString(),
+          deleted_at: null,
+        },
+      ],
+      [],
+    );
 
     const db = getDb();
     const [victimNote] = await db

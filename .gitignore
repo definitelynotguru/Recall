@@ -1,19 +1,37 @@
 # Web
 web/node_modules/
 web/.next/
-web/.env.local
+web/coverage/
 web/shared/
+web/test-results/
+web/playwright-report/
+
+# Env / secrets (keep examples)
+.env
+.env.*
+!.env.example
+!**/.env.example
+web/.env.local
+android/local.properties
 
 # Android
 android/.gradle/
 android/build/
 android/app/build/
-android/local.properties
+android/app/schemas/**/tmp/
 dist/*.apk
 *.iml
 .idea/
-
-# OS
-.DS_Store
 android/.kotlin/
+
+# IDE / editor
+.vscode/
+!.vscode/extensions.json
+.cursor/
+
+# OS / tooling
+.DS_Store
 .tools/
+*.log
+.turbo/
+.eslintcache

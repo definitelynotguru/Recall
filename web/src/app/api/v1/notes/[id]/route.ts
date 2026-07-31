@@ -77,7 +77,11 @@ export async function PATCH(
     .select()
     .from(notes)
     .where(
-      and(eq(notes.id, id), eq(notes.userId, user!.userId), isNull(notes.deletedAt)),
+      and(
+        eq(notes.id, id),
+        eq(notes.userId, user!.userId),
+        isNull(notes.deletedAt),
+      ),
     )
     .limit(1);
 
@@ -150,9 +154,7 @@ export async function DELETE(
     await tx
       .update(reminders)
       .set({ deletedAt: now, updatedAt: now, status: "cancelled" })
-      .where(
-        and(eq(reminders.noteId, id), eq(reminders.userId, user!.userId)),
-      );
+      .where(and(eq(reminders.noteId, id), eq(reminders.userId, user!.userId)));
 
     await tx
       .update(noteTags)

@@ -1,8 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { applyPrefixLines, applyWrap, type EditorState } from "@/lib/format-commands";
-import { MarkdownToolbar, ToolbarButtons, readState, restoreSelection } from "./MarkdownToolbar";
+import {
+  applyPrefixLines,
+  applyWrap,
+  type EditorState,
+} from "@/lib/format-commands";
+import {
+  MarkdownToolbar,
+  ToolbarButtons,
+  readState,
+  restoreSelection,
+} from "./MarkdownToolbar";
 
 type Props = {
   value: string;
@@ -29,7 +38,9 @@ export function FloatingToolbar({ value, onChange, textareaRef }: Props) {
   const updateSelection = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
-    setHasSelection(el.selectionStart !== el.selectionEnd && document.activeElement === el);
+    setHasSelection(
+      el.selectionStart !== el.selectionEnd && document.activeElement === el,
+    );
   }, [textareaRef]);
 
   useEffect(() => {

@@ -80,7 +80,10 @@ describe("apiFetch token refresh", () => {
     const refreshResponse = new Promise<Response>((resolve) => {
       resolveRefresh = resolve;
     });
-    vi.stubGlobal("fetch", vi.fn(() => refreshResponse));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => refreshResponse),
+    );
 
     const refresh = refreshAccessToken();
     setAccessToken(null);

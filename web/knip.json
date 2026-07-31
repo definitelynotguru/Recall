@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,route,loading,error,not-found}.{ts,tsx}",
+    "src/proxy.ts",
+    "scripts/**/*.{js,mjs,ts}",
+    "drizzle.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "eslint.config.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.{js,mjs,ts}", "e2e/**/*.{ts,tsx}"],
+  "ignore": [
+    "shared/**",
+    "drizzle/**",
+    "coverage/**",
+    ".next/**",
+    "src/**/*.test.ts",
+    "src/**/*.integration.test.ts"
+  ],
+  "ignoreDependencies": [
+    "@tailwindcss/postcss",
+    "tailwindcss",
+    "eslint-config-next",
+    "drizzle-kit"
+  ]
+}

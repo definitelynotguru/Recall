@@ -6,9 +6,7 @@ type LoadErrorProps = {
 export function LoadError({ message, onRetry }: LoadErrorProps) {
   return (
     <div className="empty-state">
-      <p className="error-text">
-        {message}
-      </p>
+      <p className="error-text">{message}</p>
       <button type="button" className="btn btn-secondary" onClick={onRetry}>
         Try again
       </button>

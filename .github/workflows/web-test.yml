@@ -47,5 +47,7 @@ jobs:
       - run: npm ci
       - run: npm run db:push
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
+      - run: npm run knip -- --no-exit-code
       - run: npm run build

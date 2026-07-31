@@ -35,15 +35,13 @@ export async function GET(request: NextRequest) {
   const templatesMode = params.get("templates") ?? "hide";
   const dailyDate = params.get("daily_date")?.trim() ?? "";
   const limitParam = params.get("limit");
-  const limit = limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
+  const limit =
+    limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
   if (!["active", "archived", "all"].includes(status)) {
     return errorResponse("Invalid status", 400);
   }
 
-  const filters = [
-    eq(notes.userId, user!.userId),
-    isNull(notes.deletedAt),
-  ];
+  const filters = [eq(notes.userId, user!.userId), isNull(notes.deletedAt)];
   if (status !== "all") {
     filters.push(eq(notes.status, status));
   }

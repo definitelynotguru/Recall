@@ -2,7 +2,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { noteTags, notes, tags } from "@/lib/db/schema";
-import { requireAuth, jsonResponse, errorResponse, toApiTag } from "@/lib/api-utils";
+import {
+  requireAuth,
+  jsonResponse,
+  errorResponse,
+  toApiTag,
+} from "@/lib/api-utils";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 const putSchema = z.object({
@@ -51,7 +56,13 @@ export async function PUT(
   const [note] = await db
     .select()
     .from(notes)
-    .where(and(eq(notes.id, id), eq(notes.userId, user!.userId), isNull(notes.deletedAt)))
+    .where(
+      and(
+        eq(notes.id, id),
+        eq(notes.userId, user!.userId),
+        isNull(notes.deletedAt),
+      ),
+    )
     .limit(1);
   if (!note) return errorResponse("Note not found", 404);
 
@@ -59,9 +70,16 @@ export async function PUT(
     ? await db
         .select()
         .from(tags)
-        .where(and(eq(tags.userId, user!.userId), inArray(tags.id, body.tag_ids), isNull(tags.deletedAt)))
+        .where(
+          and(
+            eq(tags.userId, user!.userId),
+            inArray(tags.id, body.tag_ids),
+            isNull(tags.deletedAt),
+          ),
+        )
     : [];
-  if (validTags.length !== body.tag_ids.length) return errorResponse("Invalid tag", 400);
+  if (validTags.length !== body.tag_ids.length)
+    return errorResponse("Invalid tag", 400);
 
   const now = new Date();
   const existing = await db

@@ -10,7 +10,10 @@ const MAX_BACKUP_BYTES = 5_000_000;
 const backupSchema = z.object({
   exported_at: z.string().optional(),
   notes: z.array(z.record(z.string(), z.unknown())),
-  reminders_by_note: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
+  reminders_by_note: z.record(
+    z.string(),
+    z.array(z.record(z.string(), z.unknown())),
+  ),
   tags: z.array(z.record(z.string(), z.unknown())).optional(),
   note_tags: z.array(z.record(z.string(), z.unknown())).optional(),
 });
@@ -21,7 +24,10 @@ export async function POST(request: NextRequest) {
 
   const rateKey = `backup-import:${user!.userId}:${getClientIp(request)}`;
   if (!(await rateLimit(rateKey, { max: 5, windowMs: 60_000 }))) {
-    return errorResponse("Too many import requests — try again in a minute", 429);
+    return errorResponse(
+      "Too many import requests — try again in a minute",
+      429,
+    );
   }
 
   const rawText = await request.text();
@@ -46,7 +52,10 @@ export async function POST(request: NextRequest) {
   try {
     bundle = parseBackupJson(rawText);
   } catch (e) {
-    return errorResponse(e instanceof Error ? e.message : "Invalid backup", 400);
+    return errorResponse(
+      e instanceof Error ? e.message : "Invalid backup",
+      400,
+    );
   }
 
   try {

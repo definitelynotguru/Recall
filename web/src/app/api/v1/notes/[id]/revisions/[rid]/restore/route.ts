@@ -22,7 +22,11 @@ export async function POST(
     .select({ id: notes.id })
     .from(notes)
     .where(
-      and(eq(notes.id, id), eq(notes.userId, user!.userId), isNull(notes.deletedAt)),
+      and(
+        eq(notes.id, id),
+        eq(notes.userId, user!.userId),
+        isNull(notes.deletedAt),
+      ),
     )
     .limit(1);
   if (!note) return errorResponse("Note not found", 404);

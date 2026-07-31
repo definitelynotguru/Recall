@@ -15,9 +15,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { expandTemplate, DEFAULT_TEMPLATES } from "@/lib/templates";
 
 const dailySchema = z.object({
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
 });
 
 const DAILY_TEMPLATE_BODY = DEFAULT_TEMPLATES[0].body;

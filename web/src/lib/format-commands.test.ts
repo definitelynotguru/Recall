@@ -41,19 +41,28 @@ describe("applyWrap", () => {
 
 describe("applyPrefixLines", () => {
   it("prefixes the current line", () => {
-    const out = applyPrefixLines({ value: "one\ntwo\nthree", selectionStart: 4, selectionEnd: 7 }, "- ");
+    const out = applyPrefixLines(
+      { value: "one\ntwo\nthree", selectionStart: 4, selectionEnd: 7 },
+      "- ",
+    );
     expect(out.value).toBe("one\n- two\nthree");
     expect(out.selectionStart).toBe(4);
     expect(out.selectionEnd).toBe(9);
   });
 
   it("prefixes multiple selected lines", () => {
-    const out = applyPrefixLines({ value: "a\nb\nc", selectionStart: 0, selectionEnd: 3 }, "# ");
+    const out = applyPrefixLines(
+      { value: "a\nb\nc", selectionStart: 0, selectionEnd: 3 },
+      "# ",
+    );
     expect(out.value).toBe("# a\n# b\nc");
   });
 
   it("does not double-prefix lines already prefixed", () => {
-    const out = applyPrefixLines({ value: "- a\nb", selectionStart: 0, selectionEnd: 5 }, "- ");
+    const out = applyPrefixLines(
+      { value: "- a\nb", selectionStart: 0, selectionEnd: 5 },
+      "- ",
+    );
     expect(out.value).toBe("- a\n- b");
   });
 });

@@ -1,0 +1,62 @@
+name: Feature request
+description: Propose a product or developer-experience improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Use the repo priority labels (P0–P3). See docs/ISSUE_LABELS.md.
+      options:
+        - P0 — blocking launch / critical user path
+        - P1 — high value soon
+        - P2 — valuable, not urgent
+        - P3 — nice to have
+      default: 2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - web
+        - android
+        - api
+        - sync
+        - docs
+        - ci
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or maintainer pain does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist an agent can verify.
+      placeholder: |
+        - [ ] …
+        - [ ] …
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

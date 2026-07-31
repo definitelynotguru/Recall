@@ -167,6 +167,9 @@ export function buildMarkdownArchive(bundle: BackupBundle): MarkdownArchive {
 
   files["metadata.json"] = strToU8(JSON.stringify(meta, null, 2));
   const bytes = zipSync(files);
-  const stamp = new Date(meta.exported_at).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const stamp = new Date(meta.exported_at)
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:T]/g, "-");
   return { filename: `recall-export-${stamp}.zip`, bytes, meta };
 }

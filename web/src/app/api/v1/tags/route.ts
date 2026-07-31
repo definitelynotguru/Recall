@@ -2,7 +2,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { tags } from "@/lib/db/schema";
-import { requireAuth, jsonResponse, errorResponse, toApiTag } from "@/lib/api-utils";
+import {
+  requireAuth,
+  jsonResponse,
+  errorResponse,
+  toApiTag,
+} from "@/lib/api-utils";
 import { and, asc, eq, isNull } from "drizzle-orm";
 
 const tagSchema = z.object({

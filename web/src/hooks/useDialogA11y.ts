@@ -1,16 +1,14 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  type KeyboardEvent,
-  type RefObject,
-} from "react";
+import { useEffect, useRef, type KeyboardEvent, type RefObject } from "react";
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useDialogA11y(onClose: () => void, active = true): {
+export function useDialogA11y(
+  onClose: () => void,
+  active = true,
+): {
   dialogRef: RefObject<HTMLDivElement | null>;
   onDialogKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
 } {

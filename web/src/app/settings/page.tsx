@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { DownloadSimple, Copy, UploadSimple, Trash, Plus } from "@phosphor-icons/react";
+import {
+  DownloadSimple,
+  Copy,
+  UploadSimple,
+  Trash,
+  Plus,
+} from "@phosphor-icons/react";
 import {
   importBackup,
   exportBackupBundle,
@@ -20,11 +26,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/components/AuthProvider";
 import { useOnMount } from "@/hooks/useOnMount";
 import { apiFetch, ApiNote, ApiTag } from "@/lib/api-client";
-import {
-  loadUserPrefs,
-  saveUserPrefs,
-  type UserPrefs,
-} from "@/lib/user-prefs";
+import { loadUserPrefs, saveUserPrefs, type UserPrefs } from "@/lib/user-prefs";
 import { listTemplates, createTemplate } from "@/lib/api-client";
 import { DEFAULT_TEMPLATES } from "@/lib/templates";
 
@@ -66,7 +68,9 @@ export default function SettingsPage() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<BackupPreview | null>(null);
+  const [importPreview, setImportPreview] = useState<BackupPreview | null>(
+    null,
+  );
   const [pendingBundle, setPendingBundle] = useState<BackupBundle | null>(null);
   const [prefs, setPrefs] = useState<UserPrefs>(loadUserPrefs());
   const [copied, setCopied] = useState(false);
@@ -97,41 +101,51 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const loadSyncStatus = useCallback(async (generation = loadGeneration.current) => {
-    try {
-      const res = await apiFetch<{ devices: SyncDevice[]; server_time: string }>(
-        "/sync/status",
-      );
-      if (generation === loadGeneration.current) {
-        setSyncDevices(res.devices);
-        setSyncServerTime(res.server_time);
+  const loadSyncStatus = useCallback(
+    async (generation = loadGeneration.current) => {
+      try {
+        const res = await apiFetch<{
+          devices: SyncDevice[];
+          server_time: string;
+        }>("/sync/status");
+        if (generation === loadGeneration.current) {
+          setSyncDevices(res.devices);
+          setSyncServerTime(res.server_time);
+        }
+      } catch {
+        // Keep the last successful sync state on transient failures.
+      } finally {
+        if (generation === loadGeneration.current) setSyncLoading(false);
       }
-    } catch {
-      // Keep the last successful sync state on transient failures.
-    } finally {
-      if (generation === loadGeneration.current) setSyncLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  const loadTemplates = useCallback(async (generation = loadGeneration.current) => {
-    try {
-      const loadedTemplates = await listTemplates();
-      if (generation === loadGeneration.current) {
-        setTemplates(loadedTemplates);
+  const loadTemplates = useCallback(
+    async (generation = loadGeneration.current) => {
+      try {
+        const loadedTemplates = await listTemplates();
+        if (generation === loadGeneration.current) {
+          setTemplates(loadedTemplates);
+        }
+      } catch {
+        // Keep the last successful template list on transient failures.
+      } finally {
+        if (generation === loadGeneration.current) setTemplatesLoading(false);
       }
-    } catch {
-      // Keep the last successful template list on transient failures.
-    } finally {
-      if (generation === loadGeneration.current) setTemplatesLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const newTemplate = async () => {
     try {
       const note = await createTemplate("Untitled template", "");
       router.push(`/notes/${note.id}`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not create template", "error");
+      toast(
+        e instanceof Error ? e.message : "Could not create template",
+        "error",
+      );
     }
   };
 
@@ -164,7 +178,9 @@ export default function SettingsPage() {
         await createTemplate(d.title, d.body);
       }
       await loadTemplates();
-      toast(`Added ${toCreate.length} default template${toCreate.length > 1 ? "s" : ""}`);
+      toast(
+        `Added ${toCreate.length} default template${toCreate.length > 1 ? "s" : ""}`,
+      );
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not add defaults", "error");
     }
@@ -277,12 +293,17 @@ export default function SettingsPage() {
     try {
       const text = await file.text();
       const bundle = parseBackupJson(text);
-      const existing = await apiFetch<{ notes: ApiNote[] }>("/notes?status=all&limit=all");
+      const existing = await apiFetch<{ notes: ApiNote[] }>(
+        "/notes?status=all&limit=all",
+      );
       const existingIds = new Set(existing.notes.map((n) => n.id));
       setPendingBundle(bundle);
       setImportPreview(parseBackupPreview(bundle, existingIds));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Invalid backup file", "error");
+      toast(
+        err instanceof Error ? err.message : "Invalid backup file",
+        "error",
+      );
     }
   };
 
@@ -293,7 +314,9 @@ export default function SettingsPage() {
     try {
       const result = await importBackup(pendingBundle);
       const warningNote =
-        result.warnings.length > 0 ? ` Warnings: ${result.warnings.join(" ")}` : "";
+        result.warnings.length > 0
+          ? ` Warnings: ${result.warnings.join(" ")}`
+          : "";
       setImportMsg(
         `Imported ${result.notes} notes and ${result.reminders} reminders.${warningNote}`,
       );
@@ -434,10 +457,10 @@ export default function SettingsPage() {
 
       <SettingsSection title="Backup & restore">
         <p className="settings-muted">
-          Export or import all notes and reminders. The <strong>Export all</strong> button
-          downloads a zip of Markdown files plus a <code>metadata.json</code> with tags,
-          dates, pinned status, and reminders. Import merges by id (updates existing, adds
-          new).
+          Export or import all notes and reminders. The{" "}
+          <strong>Export all</strong> button downloads a zip of Markdown files
+          plus a <code>metadata.json</code> with tags, dates, pinned status, and
+          reminders. Import merges by id (updates existing, adds new).
         </p>
         <div className="reminder-actions-row">
           <button
@@ -485,10 +508,7 @@ export default function SettingsPage() {
           </label>
         </div>
         {importMsg && (
-          <p
-            className="settings-muted status-message"
-            role="status"
-          >
+          <p className="settings-muted status-message" role="status">
             {importMsg}
           </p>
         )}
@@ -496,8 +516,8 @@ export default function SettingsPage() {
 
       <SettingsSection title="Debug reports">
         <p className="settings-muted">
-          Reports sent from Android Settings → Send debug report (sync errors, dirty
-          counts, no tokens).
+          Reports sent from Android Settings → Send debug report (sync errors,
+          dirty counts, no tokens).
         </p>
         {debugLoading ? (
           <p className="settings-muted">Loading…</p>
@@ -512,14 +532,10 @@ export default function SettingsPage() {
                     <strong className="report-title">
                       {new Date(r.created_at).toLocaleString()}
                     </strong>
-                    <span
-                      className="timeline-meta meta-block"
-                    >
+                    <span className="timeline-meta meta-block">
                       {r.app_version || "app"} · {r.device_id.slice(0, 8)}…
                     </span>
-                    <span
-                      className="timeline-meta meta-block"
-                    >
+                    <span className="timeline-meta meta-block">
                       {r.summary}
                     </span>
                   </div>
@@ -555,8 +571,10 @@ export default function SettingsPage() {
 
       <SettingsSection title="Templates">
         <p className="settings-muted">
-          Reusable note starters with <code>{`{{date}}`}</code>, <code>{`{{time}}`}</code>, and
-          <code>{` {{title}} `}</code> variables. Templates are hidden from your note list.
+          Reusable note starters with <code>{`{{date}}`}</code>,{" "}
+          <code>{`{{time}}`}</code>, and
+          <code>{` {{title}} `}</code> variables. Templates are hidden from your
+          note list.
         </p>
         {templatesLoading ? (
           <p className="settings-muted">Loading…</p>
@@ -571,7 +589,9 @@ export default function SettingsPage() {
                   className="btn btn-ghost template-link-button"
                   onClick={() => router.push(`/notes/${tpl.id}`)}
                 >
-                  <span className="chip">{tpl.title || "Untitled template"}</span>
+                  <span className="chip">
+                    {tpl.title || "Untitled template"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -586,7 +606,11 @@ export default function SettingsPage() {
           </ul>
         )}
         <div className="reminder-actions-row settings-action">
-          <button type="button" className="btn btn-primary" onClick={newTemplate}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={newTemplate}
+          >
             <Plus size={18} weight="bold" />
             New template
           </button>
@@ -602,7 +626,11 @@ export default function SettingsPage() {
 
       <SettingsSection title="Introduction">
         <p className="settings-muted">Replay the three-step welcome tour.</p>
-        <button type="button" className="btn btn-secondary" onClick={replayOnboarding}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={replayOnboarding}
+        >
           Replay introduction
         </button>
       </SettingsSection>

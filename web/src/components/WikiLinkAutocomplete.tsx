@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 type NoteRef = { id: string; title: string };
 

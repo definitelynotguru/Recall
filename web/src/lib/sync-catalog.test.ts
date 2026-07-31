@@ -22,7 +22,10 @@ function row(id: string, iso: string) {
 describe("computePaginationCursor", () => {
   it("returns null cursor and no has_more when no limit is given", () => {
     const result = computePaginationCursor(
-      [[row("a", "2026-06-01T00:00:00.000Z")], [row("b", "2026-06-02T00:00:00.000Z")]],
+      [
+        [row("a", "2026-06-01T00:00:00.000Z")],
+        [row("b", "2026-06-02T00:00:00.000Z")],
+      ],
       undefined,
     );
     expect(result.next_cursor).toBeNull();

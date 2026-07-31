@@ -1,0 +1,77 @@
+name: Bug report
+description: Report a defect in the web app, API, Android client, or sync.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Use the repo priority labels (P0–P3). See docs/ISSUE_LABELS.md.
+      options:
+        - P0 — production broken / data loss / security
+        - P1 — major feature broken, no workaround
+        - P2 — important issue with workaround
+        - P3 — minor / polish
+      default: 2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - web
+        - android
+        - api
+        - sync
+        - docs
+        - ci
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: Short description of the failure.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps an agent or human can follow.
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser/OS, Android version, deploy URL, or commit SHA if known.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste relevant errors. Redact tokens, passwords, and DATABASE_URL.
+    validations:
+      required: false

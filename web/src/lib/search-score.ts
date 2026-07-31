@@ -43,7 +43,10 @@ export function tokenize(query: string): string[] {
 }
 
 function words(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
 }
 
 function exactMatch(haystack: string, token: string): boolean {
@@ -71,13 +74,15 @@ export function scoreNote(note: SearchableNote, query: string): number {
   let score = 0;
   for (const token of tokens) {
     if (exactMatch(title, token)) score += TITLE_WEIGHT;
-    else if (fuzzyMatchWord(titleWords, token)) score += TITLE_WEIGHT * FUZZY_RATIO;
+    else if (fuzzyMatchWord(titleWords, token))
+      score += TITLE_WEIGHT * FUZZY_RATIO;
 
     if (exactMatch(tags, token)) score += TAG_WEIGHT;
     else if (fuzzyMatchWord(tagWords, token)) score += TAG_WEIGHT * FUZZY_RATIO;
 
     if (exactMatch(body, token)) score += BODY_WEIGHT;
-    else if (fuzzyMatchWord(bodyWords, token)) score += BODY_WEIGHT * FUZZY_RATIO;
+    else if (fuzzyMatchWord(bodyWords, token))
+      score += BODY_WEIGHT * FUZZY_RATIO;
   }
   return score;
 }
@@ -92,9 +97,15 @@ export function makeSnippet(body: string, query: string, radius = 40): string {
     const idx = lower.indexOf(token);
     if (idx !== -1 && (pos === -1 || idx < pos)) pos = idx;
   }
-  if (pos === -1) return text.slice(0, radius * 2).trim() + (text.length > radius * 2 ? "…" : "");
+  if (pos === -1)
+    return (
+      text.slice(0, radius * 2).trim() + (text.length > radius * 2 ? "…" : "")
+    );
   const start = Math.max(0, pos - radius);
-  const end = Math.min(text.length, pos + tokenLengthAt(text, pos, tokens) + radius);
+  const end = Math.min(
+    text.length,
+    pos + tokenLengthAt(text, pos, tokens) + radius,
+  );
   return (
     (start > 0 ? "…" : "") +
     text.slice(start, end).trim() +
@@ -111,11 +122,18 @@ function tokenLengthAt(text: string, pos: number, tokens: string[]): number {
   return len || 1;
 }
 
-export function searchNotes(notes: SearchableNote[], query: string): ScoredNote[] {
+export function searchNotes(
+  notes: SearchableNote[],
+  query: string,
+): ScoredNote[] {
   const q = query.trim();
   if (!q) return [];
   const scored = notes
-    .map((n) => ({ ...n, score: scoreNote(n, q), snippet: makeSnippet(n.body ?? "", q) }))
+    .map((n) => ({
+      ...n,
+      score: scoreNote(n, q),
+      snippet: makeSnippet(n.body ?? "", q),
+    }))
     .filter((n) => n.score > 0);
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

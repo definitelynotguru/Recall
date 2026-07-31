@@ -3,7 +3,10 @@ export type TemplateContext = {
   now?: Date;
 };
 
-export function expandTemplate(text: string, ctx: TemplateContext = {}): string {
+export function expandTemplate(
+  text: string,
+  ctx: TemplateContext = {},
+): string {
   const now = ctx.now ?? new Date();
   const date = now.toISOString().slice(0, 10);
   const time = now.toISOString().slice(11, 16);

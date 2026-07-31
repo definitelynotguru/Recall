@@ -2,14 +2,18 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { jsonResponse } from "@/lib/api-utils";
 import { validateAuthSecrets } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   let dbConnected = false;
   try {
     await db.execute(sql`SELECT 1`);
     dbConnected = true;
-  } catch {
+  } catch (error) {
     dbConnected = false;
+    logger.warn("health check database unavailable", {
+      err: error instanceof Error ? error.message : "unknown",
+    });
   }
 
   const auth = validateAuthSecrets();
@@ -23,6 +27,7 @@ export async function GET() {
   }
 
   if (!auth.ok) {
+    logger.warn("health check auth secrets missing");
     return Response.json(
       { status: "degraded", db: "connected", auth: "not_configured" },
       { status: 503 },

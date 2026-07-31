@@ -3,7 +3,9 @@ import { GET, POST } from "./route";
 
 describe("/api/v1/notes", () => {
   it("GET requires auth", async () => {
-    const res = await GET(new Request("http://localhost/api/v1/notes") as never);
+    const res = await GET(
+      new Request("http://localhost/api/v1/notes") as never,
+    );
     expect(res.status).toBe(401);
   });
 

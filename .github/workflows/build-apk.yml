@@ -90,6 +90,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Recall ${{ steps.version.outputs.tag }}
           files: android/app/build/outputs/apk/debug/${{ steps.version.outputs.apk }}
+          generate_release_notes: true
           make_latest: true
           overwrite_files: true
 

@@ -27,21 +27,38 @@ cp local.properties.example local.properties
 
 See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) for deployment details.
 
-## Tests
+## Tests and quality
 
 ```bash
-cd web && npm test && npm run build
-cd android && ./gradlew :app:testDebugUnitTest
+# Web
+cd web && npm test && npm run lint && npm run format:check && npm run build
+
+# Android
+cd android && ./gradlew :app:testDebugUnitTest spotlessCheck detekt
+
+# Or from repo root
+make ci-web
+make ci-android
 ```
 
 Integration tests in `web/src/lib/sync.integration.test.ts` require `DATABASE_URL`.
 
+Optional local hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
 ## Pull requests
 
 1. Fork the repo and create a branch from `main`.
-2. Keep changes focused; match existing code style.
+2. Keep changes focused; match existing code style (Prettier on web, Spotless/ktlint on Android).
 3. Run web and Android unit tests before opening a PR.
 4. Update docs if you change setup, env vars, or user-facing behavior.
+5. Use issue templates and priority labels (`P0`–`P3`). See [docs/ISSUE_LABELS.md](docs/ISSUE_LABELS.md).
+6. Agent-oriented setup lives in [AGENTS.md](AGENTS.md).
 
 ## CI for forks
 

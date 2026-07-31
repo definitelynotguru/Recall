@@ -28,7 +28,8 @@ export function NextNudgeCard({ reminder, scope = "global" }: Props) {
             </span>
           )}
           <p className="next-nudge-foot">
-            Delivered on your Android device after you sync — not in the browser.
+            Delivered on your Android device after you sync — not in the
+            browser.
           </p>
         </div>
       </div>

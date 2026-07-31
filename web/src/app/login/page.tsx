@@ -56,12 +56,8 @@ export default function LoginPage() {
   return (
     <div className="auth-split">
       <section className="auth-hero">
-        <p className="auth-kicker">
-          Personal workspace
-        </p>
-        <h1>
-          Notes that remember for you.
-        </h1>
+        <p className="auth-kicker">Personal workspace</p>
+        <h1>Notes that remember for you.</h1>
         <p>
           Write on web. Get nudged on Android. One calm place for thoughts and
           timed reminders.
@@ -73,9 +69,7 @@ export default function LoginPage() {
           <h2 className="auth-title">
             {mode === "login" ? "Welcome back" : "Create your vault"}
           </h2>
-          <p className="auth-subtitle">
-            Syncs across web and your phone.
-          </p>
+          <p className="auth-subtitle">Syncs across web and your phone.</p>
 
           {sessionExpired && (
             <p className="error-text auth-alert" role="alert">
@@ -125,7 +119,11 @@ export default function LoginPage() {
                 />
               </div>
             )}
-            {error && <p className="error-text" role="alert">{error}</p>}
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
             <button
               type="submit"
               className="btn btn-primary auth-submit"

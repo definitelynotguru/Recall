@@ -46,18 +46,24 @@ Optional Redis rate limiting: `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_T
 | `npm run dev` | Next.js dev server (stages shared fixtures first) |
 | `npm run build` | Production build |
 | `npm start` | Serve production build |
-| `npm run lint` | ESLint |
-| `npm test` | Vitest unit + schema tests (`vitest run`) |
+| `npm run lint` | ESLint (includes complexity / max-lines warnings) |
+| `npm run format` | Prettier write |
+| `npm run format:check` | Prettier check (CI) |
+| `npm test` | Vitest with coverage thresholds |
 | `npm run test:e2e` | Playwright smoke tests |
+| `npm run knip` | Unused export / dependency detection |
 | `npm run db:push` | Apply Drizzle schema to `DATABASE_URL` |
 | `npm run db:generate` | Generate Drizzle migrations |
+
+Root orchestration (optional): `make help`, `make ci-web`, `make ci-android`.
 
 ### Tests
 
 ```bash
 cd web
-npm test                          # unit + pure tests (no DB required for most)
+npm test                          # unit + coverage thresholds (no DB for most)
 npm run lint
+npm run format:check
 npm run build
 
 # Integration tests that hit Postgres need DATABASE_URL (and secrets) set:
@@ -75,7 +81,7 @@ Vitest includes: `src/**/*.test.ts` and `src/**/*.integration.test.ts`.
 
 - UI: `web/src/app/` (routes), `web/src/components/`, `web/src/hooks/`
 - API: `web/src/app/api/v1/**/route.ts`
-- Domain/lib: `web/src/lib/` (`auth.ts`, `sync.ts`, `sync-merge.ts`, `reminder-detect.ts`, `db/schema.ts`)
+- Domain/lib: `web/src/lib/` (`auth.ts`, `sync.ts`, `sync-merge.ts`, `reminder-detect.ts`, `logger.ts`, `db/schema.ts`)
 - Request ID: `web/src/proxy.ts` sets `X-Request-Id` on `/api/*`
 - Health: `GET /api/v1/health`
 - Schema/ORM: Drizzle (`web/src/lib/db/`, `web/drizzle/`)
@@ -84,12 +90,15 @@ Vitest includes: `src/**/*.test.ts` and `src/**/*.integration.test.ts`.
 ### Web conventions
 
 - TypeScript with `strict: true` (`web/tsconfig.json`).
-- ESLint via `eslint-config-next` (`web/eslint.config.mjs`).
+- ESLint via `eslint-config-next` (`web/eslint.config.mjs`); complexity warn at 20, max-lines warn at 500.
+- Format with Prettier (`npm run format`). Do not hand-fight style.
 - Prefer existing patterns in `web/src/lib/api-utils.ts` for JSON/auth helpers.
+- Use `web/src/lib/logger.ts` for server logs (JSON + secret scrubbing). Never log tokens/passwords.
 - Auth: short-lived Bearer access JWT + rotating refresh tokens; cookie refresh is CSRF-guarded (`SameSite=Strict` + `Sec-Fetch-Site`).
 - Sync is dirty-upload + last-writer-wins; see ADR `docs/adr/0002-sync-protocol-over-rest-crud.md`.
 - Keep API under `/api/v1`; do not invent unversioned public routes.
 - Do not hardcode secrets. Use env vars from `.env.example` only as placeholders.
+- Coverage floors live in `web/vitest.config.ts` (lib code). Keep or raise them; do not delete thresholds.
 
 ## Android app (`android/`)
 
@@ -109,8 +118,11 @@ Open `android/` in Android Studio, or build with Gradle (JDK 17):
 cd android
 ./gradlew :app:testDebugUnitTest
 ./gradlew detekt
+./gradlew spotlessCheck
 ./gradlew :app:lintDebug
 ./gradlew :app:assembleDebug
+# Auto-format Kotlin when needed:
+./gradlew spotlessApply
 ```
 
 Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
@@ -132,7 +144,8 @@ Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
 - Offline-first: Room is source of truth on device; notifications only fire on Android (not web).
 - `API_BASE_URL` **must** end with `/api/v1`.
 - Sanitize dirty rows before upload (`SyncPayloadSanitizer`); permanent failures surface in Settings.
-- Detekt runs in CI with `ignoreFailures = true` today; still keep changes clean when practical.
+- Format Kotlin with Spotless/ktlint (`./gradlew spotlessApply`).
+- Detekt enforces cyclomatic complexity and naming (Composable functions may use PascalCase). CI still sets `ignoreFailures = true` for gradual cleanup; do not add new hotspots.
 - Prefer existing Compose Material3 / theme tokens in `ui/theme/`.
 
 ## Cross-cutting product rules
@@ -157,18 +170,38 @@ Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 Forks: default CI does not need production secrets. Do not enable deploy/db-push without your own Vercel/Neon credentials.
 
+## Tooling for agents
+
+| Tool | Where | Notes |
+| --- | --- | --- |
+| Prettier | `web/` | `npm run format` / `format:check` |
+| ESLint complexity | `web/eslint.config.mjs` | warn thresholds |
+| knip | `web/knip.json` | unused deps/exports |
+| Vitest coverage | `web/vitest.config.ts` | enforced floors |
+| Spotless + ktlint | Android Gradle | `spotlessCheck` / `spotlessApply` |
+| Detekt | `android/app/detekt.yml` | complexity + naming |
+| pre-commit | `.pre-commit-config.yaml` | optional local hooks (secrets, large files, prettier, eslint) |
+| Dependabot | `.github/dependabot.yml` | weekly npm/gradle/actions |
+| CODEOWNERS | `.github/CODEOWNERS` | default `@definitelynotguru` |
+| Issue templates | `.github/ISSUE_TEMPLATE/` | bug + feature; priority P0–P3 |
+| Labels | `docs/ISSUE_LABELS.md` | priority / type / area |
+
+Install local hooks (optional): `pip install pre-commit && pre-commit install`.
+
 ## Safe change checklist
 
 Before opening a PR:
 
 1. Scope changes to the app you touch (`web/` and/or `android/`); update `shared/` fixtures if detection logic changes.
-2. Run the relevant tests:
-   - Web: `cd web && npm test && npm run lint`
-   - Android: `cd android && ./gradlew :app:testDebugUnitTest`
+2. Run the relevant checks:
+   - Web: `cd web && npm test && npm run lint && npm run format:check`
+   - Android: `cd android && ./gradlew :app:testDebugUnitTest spotlessCheck`
+   - Or: `make ci-web` / `make ci-android`
 3. If schema changes: update Drizzle schema/migrations and document env impact; run `npm run db:push` locally.
 4. If API changes: update `docs/openapi.yaml` and keep Android models in sync when fields are shared.
-5. Never commit `.env.local`, `local.properties`, tokens, or real database URLs.
+5. Never commit `.env`, `.env.local`, `local.properties`, tokens, or real database URLs.
 6. Match existing code style; keep PRs focused. See `CONTRIBUTING.md` and `.github/pull_request_template.md`.
+7. Label issues/PRs with priority (`P0`–`P3`) and area when applicable (`docs/ISSUE_LABELS.md`).
 
 ## Interactive QA (agent-followable)
 

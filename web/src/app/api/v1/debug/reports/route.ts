@@ -12,9 +12,7 @@ export async function GET(request: NextRequest) {
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - REPORT_RETENTION_DAYS);
-  await db.delete(debugReports).where(
-    lt(debugReports.createdAt, cutoff),
-  );
+  await db.delete(debugReports).where(lt(debugReports.createdAt, cutoff));
 
   const limitParam = request.nextUrl.searchParams.get("limit");
   const limit = Math.min(Math.max(Number(limitParam) || 20, 1), 50);
@@ -43,7 +41,8 @@ function summarizePayload(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "—";
   const p = payload as Record<string, unknown>;
   const sync = p.sync as Record<string, unknown> | undefined;
-  const lastError = typeof p.last_sync_error === "string" ? p.last_sync_error : "";
+  const lastError =
+    typeof p.last_sync_error === "string" ? p.last_sync_error : "";
   const warnings = Array.isArray(p.sanitize_warnings)
     ? p.sanitize_warnings.length
     : 0;

@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
 
   const sinceParam = request.nextUrl.searchParams.get("since") ?? "";
   const parsed = parseIsoDate(sinceParam);
-  const isFull =
-    parsed === null || parsed.getTime() <= EPOCH.getTime() + 1000;
+  const isFull = parsed === null || parsed.getTime() <= EPOCH.getTime() + 1000;
   const since = isFull ? EPOCH : parsed;
 
   const result = await pollSyncChanges(user!.userId, since);

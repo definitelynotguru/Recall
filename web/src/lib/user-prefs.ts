@@ -19,7 +19,9 @@ export function loadUserPrefs(): UserPrefs {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<UserPrefs>;
     return {
-      defaultReminderHour: clampHour(parsed.defaultReminderHour ?? DEFAULTS.defaultReminderHour),
+      defaultReminderHour: clampHour(
+        parsed.defaultReminderHour ?? DEFAULTS.defaultReminderHour,
+      ),
       defaultReminderMinute: clampMinute(
         parsed.defaultReminderMinute ?? DEFAULTS.defaultReminderMinute,
       ),

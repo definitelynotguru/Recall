@@ -1,0 +1,35 @@
+# Local hooks for formatting, secrets, and large files.
+# Install once: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+        args: [--unsafe]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: web-prettier
+        name: Prettier (web)
+        entry: bash -c 'cd web && npx prettier --check "src/**/*.{ts,tsx,js,jsx,mjs,css,json,md}" "eslint.config.mjs" "vitest.config.ts" "playwright.config.ts" "package.json"'
+        language: system
+        files: ^web/
+        pass_filenames: false
+      - id: web-eslint
+        name: ESLint (web)
+        entry: bash -c 'cd web && npm run lint'
+        language: system
+        files: ^web/src/.*\.(ts|tsx|js|jsx|mjs)$
+        pass_filenames: false

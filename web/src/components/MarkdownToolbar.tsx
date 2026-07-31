@@ -9,7 +9,11 @@ import {
   TextHOne,
   TextItalic,
 } from "@phosphor-icons/react";
-import { applyPrefixLines, applyWrap, type EditorState } from "@/lib/format-commands";
+import {
+  applyPrefixLines,
+  applyWrap,
+  type EditorState,
+} from "@/lib/format-commands";
 
 type Props = {
   value: string;
@@ -18,10 +22,18 @@ type Props = {
 };
 
 export function readState(el: HTMLTextAreaElement, value: string): EditorState {
-  return { value, selectionStart: el.selectionStart, selectionEnd: el.selectionEnd };
+  return {
+    value,
+    selectionStart: el.selectionStart,
+    selectionEnd: el.selectionEnd,
+  };
 }
 
-export function restoreSelection(el: HTMLTextAreaElement, start: number, end: number) {
+export function restoreSelection(
+  el: HTMLTextAreaElement,
+  start: number,
+  end: number,
+) {
   requestAnimationFrame(() => {
     el.focus();
     el.setSelectionRange(start, end);
@@ -65,22 +77,58 @@ export type ToolbarButtonsProps = {
 export function ToolbarButtons({ onWrap, onPrefixLines }: ToolbarButtonsProps) {
   return (
     <>
-      <button type="button" className="md-tool" title="Bold" aria-label="Bold" onClick={() => onWrap("**", "**", "bold")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Bold"
+        aria-label="Bold"
+        onClick={() => onWrap("**", "**", "bold")}
+      >
         <TextB size={18} weight="bold" />
       </button>
-      <button type="button" className="md-tool" title="Italic" aria-label="Italic" onClick={() => onWrap("*", "*", "italic")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Italic"
+        aria-label="Italic"
+        onClick={() => onWrap("*", "*", "italic")}
+      >
         <TextItalic size={18} />
       </button>
-      <button type="button" className="md-tool" title="Heading" aria-label="Heading" onClick={() => onPrefixLines("# ")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Heading"
+        aria-label="Heading"
+        onClick={() => onPrefixLines("# ")}
+      >
         <TextHOne size={18} weight="bold" />
       </button>
-      <button type="button" className="md-tool" title="Bullet list" aria-label="Bullet list" onClick={() => onPrefixLines("- ")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Bullet list"
+        aria-label="Bullet list"
+        onClick={() => onPrefixLines("- ")}
+      >
         <List size={18} />
       </button>
-      <button type="button" className="md-tool" title="Inline code" aria-label="Inline code" onClick={() => onWrap("`", "`", "code")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Inline code"
+        aria-label="Inline code"
+        onClick={() => onWrap("`", "`", "code")}
+      >
         <Code size={18} />
       </button>
-      <button type="button" className="md-tool" title="Link" aria-label="Link" onClick={() => onWrap("[", "](https://)", "link text")}>
+      <button
+        type="button"
+        className="md-tool"
+        title="Link"
+        aria-label="Link"
+        onClick={() => onWrap("[", "](https://)", "link text")}
+      >
         <LinkSimple size={18} />
       </button>
     </>
