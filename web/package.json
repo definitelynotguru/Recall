@@ -48,8 +48,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
-    "@tailwindcss/postcss": "^4.3.1",
+    "@playwright/test": "^1.62.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -57,7 +57,7 @@
     "@vitest/coverage-v8": "^3.2.7",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.12",
     "knip": "^5.88.1",
     "prettier": "^3.9.6",
     "tailwindcss": "^4",
