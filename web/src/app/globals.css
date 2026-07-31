@@ -87,7 +87,8 @@ body {
   font-size: 0.9375rem;
   line-height: 1.6;
   letter-spacing: -0.006em;
-  transition: background-color 180ms var(--ease-signature),
+  transition:
+    background-color 180ms var(--ease-signature),
     color 180ms var(--ease-signature);
 }
 
@@ -110,7 +111,8 @@ a {
   color: var(--accent-ink);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
-  transition: color 160ms var(--ease-signature),
+  transition:
+    color 160ms var(--ease-signature),
     opacity 160ms var(--ease-signature);
 }
 
@@ -220,7 +222,8 @@ svg {
   font-weight: 550;
   line-height: 1;
   text-decoration: none;
-  transition: color 160ms var(--ease-signature),
+  transition:
+    color 160ms var(--ease-signature),
     background-color 160ms var(--ease-signature),
     transform 140ms var(--ease-signature);
 }
@@ -385,7 +388,8 @@ button.nav-item {
   background: var(--bg);
   color: var(--text);
   font-size: 0.9375rem;
-  transition: border-color 160ms var(--ease-signature),
+  transition:
+    border-color 160ms var(--ease-signature),
     background-color 160ms var(--ease-signature),
     box-shadow 160ms var(--ease-signature);
 }
@@ -434,7 +438,8 @@ button.nav-item {
   font-weight: 650;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 160ms var(--ease-signature),
+  transition:
+    background-color 160ms var(--ease-signature),
     color 160ms var(--ease-signature),
     border-color 160ms var(--ease-signature),
     opacity 160ms var(--ease-signature),
@@ -492,7 +497,8 @@ button.nav-item {
   border: 0;
   background: transparent;
   cursor: pointer;
-  transition: color 160ms var(--ease-signature),
+  transition:
+    color 160ms var(--ease-signature),
     background-color 160ms var(--ease-signature),
     transform 140ms var(--ease-signature);
 }
@@ -1483,7 +1489,8 @@ code {
   color: var(--text);
   text-align: left;
   cursor: pointer;
-  transition: background-color 160ms var(--ease-signature),
+  transition:
+    background-color 160ms var(--ease-signature),
     border-color 160ms var(--ease-signature),
     transform 140ms var(--ease-signature);
 }
@@ -1686,7 +1693,8 @@ code {
   transform: scale(0.98);
   transform-origin: top right;
   pointer-events: none;
-  transition: opacity 160ms var(--ease-signature),
+  transition:
+    opacity 160ms var(--ease-signature),
     transform 160ms var(--ease-signature);
 }
 
@@ -1772,7 +1780,8 @@ code {
   box-shadow: 0 6px 8px rgba(20, 18, 16, 0.26);
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 180ms var(--ease-signature),
+  transition:
+    opacity 180ms var(--ease-signature),
     transform 180ms var(--ease-signature);
 }
 

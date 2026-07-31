@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 import { getDb } from "./db";
 import { notes, noteTags, reminders, tags } from "./db/schema";
 import type { BackupBundle } from "./backup-import";
-import { MAX_TAGS_PER_NOTE, validateBackupBundle } from "./backup-import-validation";
+import {
+  MAX_TAGS_PER_NOTE,
+  validateBackupBundle,
+} from "./backup-import-validation";
 
 export type BackupImportResult = {
   notes: number;
@@ -71,7 +74,9 @@ export async function importBackupTransaction(
       const createdAt = parseDate(note.created_at, now);
       const updatedAt = parseDate(note.updated_at, now);
       const pinnedAt = note.pinned_at ? parseDate(note.pinned_at, now) : null;
-      const deletedAt = note.deleted_at ? parseDate(note.deleted_at, now) : null;
+      const deletedAt = note.deleted_at
+        ? parseDate(note.deleted_at, now)
+        : null;
       const dailyDate = note.daily_date ?? null;
 
       if (existingNoteIds.has(note.id)) {
@@ -113,7 +118,8 @@ export async function importBackupTransaction(
       .where(eq(reminders.userId, userId));
     const remindersByNote = new Map<string, Set<string>>();
     for (const row of existingReminders) {
-      if (!remindersByNote.has(row.noteId)) remindersByNote.set(row.noteId, new Set());
+      if (!remindersByNote.has(row.noteId))
+        remindersByNote.set(row.noteId, new Set());
       remindersByNote.get(row.noteId)!.add(row.id);
     }
 
@@ -126,7 +132,9 @@ export async function importBackupTransaction(
         const createdAt = parseDate(r.created_at, now);
         const updatedAt = parseDate(r.updated_at, now);
         const fireAt = parseDate(r.fire_at, now);
-        const completedAt = r.completed_at ? parseDate(r.completed_at, now) : null;
+        const completedAt = r.completed_at
+          ? parseDate(r.completed_at, now)
+          : null;
         const deletedAt = r.deleted_at ? parseDate(r.deleted_at, now) : null;
         const payload = {
           noteId,
@@ -173,7 +181,9 @@ export async function importBackupTransaction(
       await tx.delete(noteTags).where(eq(noteTags.noteId, noteId));
 
       for (const tagId of unique) {
-        const link = bundle.note_tags?.find((l) => l.note_id === noteId && l.tag_id === tagId);
+        const link = bundle.note_tags?.find(
+          (l) => l.note_id === noteId && l.tag_id === tagId,
+        );
         const linkId = link?.id ?? crypto.randomUUID();
         const createdAt = parseDate(link?.created_at, now);
         const updatedAt = parseDate(link?.updated_at, now);

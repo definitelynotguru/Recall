@@ -72,7 +72,8 @@ const NoteInfoPanel = dynamic(
   { ssr: false },
 );
 const MarkdownCheatSheet = dynamic(
-  () => import("@/components/MarkdownCheatSheet").then((m) => m.MarkdownCheatSheet),
+  () =>
+    import("@/components/MarkdownCheatSheet").then((m) => m.MarkdownCheatSheet),
   { ssr: false },
 );
 const RevisionHistoryDialog = dynamic(
@@ -93,7 +94,9 @@ export default function NoteDetailPage() {
   const [preview, setPreview] = useState(false);
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
+  const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [detectOpen, setDetectOpen] = useState(false);
@@ -124,12 +127,11 @@ export default function NoteDetailPage() {
   const isLocal = !user;
   const { confirm } = useConfirm();
   const { toast } = useToast();
-  const { status: saveStatus, flush, retry } = useDebouncedNoteSave(
-    id,
-    title,
-    body,
-    !isLocal,
-  );
+  const {
+    status: saveStatus,
+    flush,
+    retry,
+  } = useDebouncedNoteSave(id, title, body, !isLocal);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const lastSaveStatus = useRef(saveStatus);
   const localSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,10 +140,7 @@ export default function NoteDetailPage() {
   const allNotesLoaded = useRef(false);
   const loadGeneration = useRef(0);
 
-  const titleToIdMap = useMemo(
-    () => buildTitleToIdMap(allNotes),
-    [allNotes],
-  );
+  const titleToIdMap = useMemo(() => buildTitleToIdMap(allNotes), [allNotes]);
 
   useEffect(() => {
     if (saveStatus === "error" && lastSaveStatus.current !== "error") {
@@ -185,9 +184,7 @@ export default function NoteDetailPage() {
     };
   }, [isLocal, id, title, body]);
 
-  const handleBodyChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setBody(newValue);
 
@@ -414,7 +411,10 @@ export default function NoteDetailPage() {
       await load();
       setShowSyncBanner(true);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not delete reminder", "error");
+      toast(
+        e instanceof Error ? e.message : "Could not delete reminder",
+        "error",
+      );
     }
   };
 
@@ -449,9 +449,14 @@ export default function NoteDetailPage() {
       }
       await load();
       setShowSyncBanner(true);
-      toast(`Added ${selected.length} reminder${selected.length === 1 ? "" : "s"}`);
+      toast(
+        `Added ${selected.length} reminder${selected.length === 1 ? "" : "s"}`,
+      );
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not add reminders", "error");
+      toast(
+        e instanceof Error ? e.message : "Could not add reminders",
+        "error",
+      );
     }
   };
 
@@ -482,7 +487,9 @@ export default function NoteDetailPage() {
         body: JSON.stringify({ name }),
       });
       setNewTagName("");
-      setAllTags((tags) => [...tags, res.tag].sort((a, b) => a.name.localeCompare(b.name)));
+      setAllTags((tags) =>
+        [...tags, res.tag].sort((a, b) => a.name.localeCompare(b.name)),
+      );
       await setNoteTagIds([...selectedTagIds, res.tag.id]);
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not create tag", "error");
@@ -504,7 +511,11 @@ export default function NoteDetailPage() {
         <div className="empty-state">
           <p>{loadError}</p>
           <div className="empty-state-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => void load()}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void load()}
+            >
               Try again
             </button>
             <button
@@ -525,7 +536,11 @@ export default function NoteDetailPage() {
       {isLocal && <LocalOnlyBanner />}
 
       <div className="toolbar">
-        <button type="button" className="btn btn-secondary" onClick={() => router.back()}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => router.back()}
+        >
           <ArrowLeft size={18} />
           Back
         </button>
@@ -582,7 +597,9 @@ export default function NoteDetailPage() {
           type="button"
           className="btn btn-secondary"
           onClick={toggleArchive}
-          aria-label={noteStatus === "archived" ? "Unarchive note" : "Archive note"}
+          aria-label={
+            noteStatus === "archived" ? "Unarchive note" : "Archive note"
+          }
         >
           {noteStatus === "archived" ? (
             <ArchiveTrayIcon size={18} />
@@ -591,7 +608,12 @@ export default function NoteDetailPage() {
           )}
           {noteStatus === "archived" ? "Unarchive" : "Archive"}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={deleteNote} aria-label="Delete note">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={deleteNote}
+          aria-label="Delete note"
+        >
           <Trash size={18} />
         </button>
       </div>
@@ -612,9 +634,17 @@ export default function NoteDetailPage() {
         ) : (
           <div className="field editor-body-field">
             <label htmlFor="body">Body — Markdown</label>
-            <FloatingToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
+            <FloatingToolbar
+              value={body}
+              onChange={setBody}
+              textareaRef={bodyRef}
+            />
             <div className="md-toolbar-mobile">
-              <MarkdownToolbar value={body} onChange={setBody} textareaRef={bodyRef} />
+              <MarkdownToolbar
+                value={body}
+                onChange={setBody}
+                textareaRef={bodyRef}
+              />
             </div>
             <textarea
               id="body"
@@ -687,7 +717,11 @@ export default function NoteDetailPage() {
               autoComplete="off"
               maxLength={40}
             />
-            <button type="button" className="btn btn-secondary" onClick={createTag}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={createTag}
+            >
               Add tag
             </button>
           </div>
@@ -703,7 +737,11 @@ export default function NoteDetailPage() {
           {showSyncBanner && <SyncHintBanner />}
 
           <div className="reminder-actions-row">
-            <button type="button" className="btn btn-primary" onClick={openCreateDialog}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCreateDialog}
+            >
               Add reminder
             </button>
             <button
@@ -719,14 +757,15 @@ export default function NoteDetailPage() {
 
           <div className="section-spacing">
             {reminders.length === 0 ? (
-              <p className="empty-copy">
-                No reminders on this note yet.
-              </p>
+              <p className="empty-copy">No reminders on this note yet.</p>
             ) : (
               reminders.map((r) => (
                 <div key={r.id} className="reminder-row">
                   <div>
-                    <ReminderMeta fireAt={r.fire_at} repeatRule={r.repeat_rule} />
+                    <ReminderMeta
+                      fireAt={r.fire_at}
+                      repeatRule={r.repeat_rule}
+                    />
                   </div>
                   <div className="reminder-row-actions">
                     <button

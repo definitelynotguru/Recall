@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/definitelynotguru/Recall/security/advisories/new
+    about: Do not file public issues for vulnerabilities. See SECURITY.md.
+  - name: Contributing guide
+    url: https://github.com/definitelynotguru/Recall/blob/main/CONTRIBUTING.md
+    about: Setup and PR expectations before opening work.

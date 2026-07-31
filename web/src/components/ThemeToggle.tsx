@@ -41,7 +41,9 @@ export function ThemeToggle() {
       type="button"
       className="nav-item"
       onClick={toggle}
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={
+        theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+      }
       title={theme === "dark" ? "Light theme" : "Dark theme"}
     >
       {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}

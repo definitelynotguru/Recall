@@ -51,10 +51,7 @@ export function DialogShell({
       >
         <div className="dialog-header">
           <div>
-            <h2
-              id={titleId}
-              className="dialog-title"
-            >
+            <h2 id={titleId} className="dialog-title">
               {title}
             </h2>
             {subtitle && (
@@ -63,7 +60,12 @@ export function DialogShell({
               </p>
             )}
           </div>
-          <button type="button" className="btn-ghost dialog-close" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="btn-ghost dialog-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
         </div>

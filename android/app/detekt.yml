@@ -7,9 +7,13 @@ complexity:
   ComplexCondition:
     active: false
   CyclomaticComplexMethod:
-    active: false
+    active: true
+    threshold: 20
   TooManyFunctions:
     active: false
+  LargeClass:
+    active: true
+    threshold: 800
 
 style:
   active: true
@@ -26,7 +30,12 @@ style:
   DestructuringDeclarationWithTooManyEntries:
     active: false
   UnusedImports:
-    active: false
+    active: true
+  ForbiddenComment:
+    active: true
+    values:
+      - "FIXME:"
+      - "STOPSHIP:"
 
 empty-blocks:
   active: true
@@ -41,9 +50,18 @@ exceptions:
 naming:
   active: true
   FunctionNaming:
-    active: false
+    active: true
+    ignoreAnnotated:
+      - "Composable"
+      - "Preview"
   TopLevelPropertyNaming:
-    active: false
+    active: true
+  ClassNaming:
+    active: true
+  PackageNaming:
+    active: true
+  VariableNaming:
+    active: true
 
 potential-bugs:
   active: true

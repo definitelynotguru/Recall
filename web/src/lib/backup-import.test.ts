@@ -6,8 +6,40 @@ describe("parseBackupPreview", () => {
     const bundle = parseBackupJson(
       JSON.stringify({
         exported_at: "2026-06-01T00:00:00Z",
-        notes: [{ id: "1", title: "A", body: "", status: "active", created_at: "", updated_at: "" }],
-        reminders_by_note: { "1": [{ id: "r1", note_id: "1", fire_at: "2026-06-01T09:00:00.000Z", timezone: "UTC", intensity: "gentle", status: "active", created_at: "", updated_at: "" }, { id: "r2", note_id: "1", fire_at: "2026-06-02T09:00:00.000Z", timezone: "UTC", intensity: "gentle", status: "active", created_at: "", updated_at: "" }] },
+        notes: [
+          {
+            id: "1",
+            title: "A",
+            body: "",
+            status: "active",
+            created_at: "",
+            updated_at: "",
+          },
+        ],
+        reminders_by_note: {
+          "1": [
+            {
+              id: "r1",
+              note_id: "1",
+              fire_at: "2026-06-01T09:00:00.000Z",
+              timezone: "UTC",
+              intensity: "gentle",
+              status: "active",
+              created_at: "",
+              updated_at: "",
+            },
+            {
+              id: "r2",
+              note_id: "1",
+              fire_at: "2026-06-02T09:00:00.000Z",
+              timezone: "UTC",
+              intensity: "gentle",
+              status: "active",
+              created_at: "",
+              updated_at: "",
+            },
+          ],
+        },
         tags: [{ id: "t1", name: "work", created_at: "", updated_at: "" }],
         note_tags: [],
       }),

@@ -2,7 +2,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { db, getDb } from "@/lib/db";
 import { noteTags, tags } from "@/lib/db/schema";
-import { requireAuth, jsonResponse, errorResponse, toApiTag } from "@/lib/api-utils";
+import {
+  requireAuth,
+  jsonResponse,
+  errorResponse,
+  toApiTag,
+} from "@/lib/api-utils";
 import { and, eq, isNull } from "drizzle-orm";
 
 const patchSchema = z.object({
@@ -27,7 +32,13 @@ export async function PATCH(
   const [existing] = await db
     .select()
     .from(tags)
-    .where(and(eq(tags.id, id), eq(tags.userId, user!.userId), isNull(tags.deletedAt)))
+    .where(
+      and(
+        eq(tags.id, id),
+        eq(tags.userId, user!.userId),
+        isNull(tags.deletedAt),
+      ),
+    )
     .limit(1);
   if (!existing) return errorResponse("Tag not found", 404);
 

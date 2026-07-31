@@ -1,4 +1,3 @@
-
 import type { ApiNote } from "./api-client";
 
 const DB_NAME = "recall-local";

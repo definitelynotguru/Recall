@@ -31,19 +31,40 @@ describe("tokenize", () => {
 
 describe("scoreNote", () => {
   it("weights title above body", () => {
-    const note = { id: "1", title: "Meeting notes", body: "discussed the meeting", updated_at: "2026-01-01" };
+    const note = {
+      id: "1",
+      title: "Meeting notes",
+      body: "discussed the meeting",
+      updated_at: "2026-01-01",
+    };
     expect(scoreNote(note, "meeting")).toBeGreaterThan(1);
   });
   it("awards tag weight between title and body", () => {
-    const note = { id: "1", title: "x", body: "y", tags: ["journal"], updated_at: "2026-01-01" };
+    const note = {
+      id: "1",
+      title: "x",
+      body: "y",
+      tags: ["journal"],
+      updated_at: "2026-01-01",
+    };
     expect(scoreNote(note, "journal")).toBe(2);
   });
   it("matches with typo tolerance via levenshtein", () => {
-    const note = { id: "1", title: "reciept", body: "", updated_at: "2026-01-01" };
+    const note = {
+      id: "1",
+      title: "reciept",
+      body: "",
+      updated_at: "2026-01-01",
+    };
     expect(scoreNote(note, "receipt")).toBeGreaterThan(0);
   });
   it("returns 0 for no match", () => {
-    const note = { id: "1", title: "abc", body: "def", updated_at: "2026-01-01" };
+    const note = {
+      id: "1",
+      title: "abc",
+      body: "def",
+      updated_at: "2026-01-01",
+    };
     expect(scoreNote(note, "xyz")).toBe(0);
   });
 });
@@ -65,9 +86,27 @@ describe("makeSnippet", () => {
 describe("searchNotes", () => {
   it("filters and sorts by score then recency", () => {
     const notes = [
-      { id: "a", title: "journal entry", body: "today I wrote", updated_at: "2026-01-01", tags: [] },
-      { id: "b", title: "random", body: "my journal log", updated_at: "2026-01-02", tags: [] },
-      { id: "c", title: "nothing", body: "here", updated_at: "2026-01-03", tags: [] },
+      {
+        id: "a",
+        title: "journal entry",
+        body: "today I wrote",
+        updated_at: "2026-01-01",
+        tags: [],
+      },
+      {
+        id: "b",
+        title: "random",
+        body: "my journal log",
+        updated_at: "2026-01-02",
+        tags: [],
+      },
+      {
+        id: "c",
+        title: "nothing",
+        body: "here",
+        updated_at: "2026-01-03",
+        tags: [],
+      },
     ];
     const res = searchNotes(notes, "journal");
     expect(res.map((n) => n.id)).toEqual(["a", "b"]);

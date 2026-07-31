@@ -11,8 +11,19 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Keep functions reviewable for agents and humans.
+      complexity: ["warn", { max: 20 }],
+      "max-lines": [
+        "warn",
+        { max: 500, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

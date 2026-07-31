@@ -25,18 +25,37 @@ export type DetectedReminder = {
 };
 
 const MONTHS: Record<string, number> = {
-  january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
-  april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7,
-  august: 8, aug: 8, september: 9, sep: 9, sept: 9, october: 10, oct: 10,
-  november: 11, nov: 11, december: 12, dec: 12,
+  january: 1,
+  jan: 1,
+  february: 2,
+  feb: 2,
+  march: 3,
+  mar: 3,
+  april: 4,
+  apr: 4,
+  may: 5,
+  june: 6,
+  jun: 6,
+  july: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  october: 10,
+  oct: 10,
+  november: 11,
+  nov: 11,
+  december: 12,
+  dec: 12,
 };
 
 const YEARLY_KEYWORDS =
   /\b(birthday|b-?day|born|anniversary|every\s+year|yearly|annual)\b/i;
 const MONTHLY_KEYWORDS =
   /\b(monthly|every\s+month|each\s+month|rent\s+due|pay\s+day)\b/i;
-const WEEKLY_KEYWORDS =
-  /\b(weekly|every\s+week|each\s+week|week\s+on)\b/i;
+const WEEKLY_KEYWORDS = /\b(weekly|every\s+week|each\s+week|week\s+on)\b/i;
 const DAILY_KEYWORDS = /\b(daily|every\s+day|each\s+day|morning\s+routine)\b/i;
 
 const VERSION_LIKE = /\b\d+\.\d+(\.\d+)?\b/;
@@ -64,7 +83,8 @@ function parseTimeToken(raw: string): { hour: number; minute: number } | null {
   if (m24) {
     const h = Number(m24[1]);
     const min = Number(m24[2]);
-    if (h >= 0 && h <= 23 && min >= 0 && min <= 59) return { hour: h, minute: min };
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
+      return { hour: h, minute: min };
   }
   const m12 = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
   if (m12) {
@@ -73,10 +93,14 @@ function parseTimeToken(raw: string): { hour: number; minute: number } | null {
     const ap = m12[3].toLowerCase();
     if (h === 12) h = 0;
     if (ap === "pm") h += 12;
-    if (h >= 0 && h <= 23 && min >= 0 && min <= 59) return { hour: h, minute: min };
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
+      return { hour: h, minute: min };
   }
   const at = t.match(/^at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
-  if (at) return parseTimeToken(`${at[1]}:${at[2] ?? "00"}${at[3] ? ` ${at[3]}` : ""}`);
+  if (at)
+    return parseTimeToken(
+      `${at[1]}:${at[2] ?? "00"}${at[3] ? ` ${at[3]}` : ""}`,
+    );
   return null;
 }
 
@@ -91,13 +115,19 @@ function monthFromToken(token: string): number | null {
   return MONTHS[token.toLowerCase()] ?? null;
 }
 
-function inferRepeat(context: string, title: string): {
+function inferRepeat(
+  context: string,
+  title: string,
+): {
   repeatRule: RepeatRule;
   reason: string;
 } {
   const hay = `${title} ${context}`.toLowerCase();
   if (YEARLY_KEYWORDS.test(hay)) {
-    return { repeatRule: "yearly", reason: "Looks like a birthday or anniversary" };
+    return {
+      repeatRule: "yearly",
+      reason: "Looks like a birthday or anniversary",
+    };
   }
   if (MONTHLY_KEYWORDS.test(hay)) {
     return { repeatRule: "monthly", reason: "Repeating monthly event" };
@@ -221,18 +251,35 @@ function pushCandidate(
     priority: opts.priority,
     confidence,
     usedDefaultTime,
-    idOverride: makeId(opts.year, opts.month, opts.day, hour, minute, opts.repeatRule),
+    idOverride: makeId(
+      opts.year,
+      opts.month,
+      opts.day,
+      hour,
+      minute,
+      opts.repeatRule,
+    ),
   });
 }
 
 const WEEKDAYS: Record<string, number> = {
-  sunday: 0, sun: 0,
-  monday: 1, mon: 1,
-  tuesday: 2, tue: 2, tues: 2,
-  wednesday: 3, wed: 3,
-  thursday: 4, thu: 4, thur: 4, thurs: 4,
-  friday: 5, fri: 5,
-  saturday: 6, sat: 6,
+  sunday: 0,
+  sun: 0,
+  monday: 1,
+  mon: 1,
+  tuesday: 2,
+  tue: 2,
+  tues: 2,
+  wednesday: 3,
+  wed: 3,
+  thursday: 4,
+  thu: 4,
+  thur: 4,
+  thurs: 4,
+  friday: 5,
+  fri: 5,
+  saturday: 6,
+  sat: 6,
 };
 
 function addCalendarDays(base: Date, days: number): Date {
@@ -331,7 +378,10 @@ function scanRelativeDates(
 function formatDefaultTime(hour: number, minute: number) {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function parseTitleLine(
@@ -363,7 +413,9 @@ function parseStructuredFields(
 ) {
   const blocks = text.split(/\n{2,}/);
   for (const block of blocks) {
-    const dayM = block.match(/(?:^|\n)\s*(?:day|date)\s*[:=]\s*(\d{1,2})(?:st|nd|rd|th)?/im);
+    const dayM = block.match(
+      /(?:^|\n)\s*(?:day|date)\s*[:=]\s*(\d{1,2})(?:st|nd|rd|th)?/im,
+    );
     const monthM = block.match(
       /(?:^|\n)\s*month\s*[:=]\s*([A-Za-z]+|\d{1,2})/im,
     );
@@ -572,8 +624,7 @@ export function isDuplicateOfExisting(
   const d = new Date(detected.fireAt);
   return existing.some((e) => {
     const ex = new Date(e.fire_at);
-    const sameRepeat =
-      (detected.repeatRule ?? "") === (e.repeat_rule ?? "");
+    const sameRepeat = (detected.repeatRule ?? "") === (e.repeat_rule ?? "");
     if (detected.repeatRule === "yearly" && e.repeat_rule === "yearly") {
       return (
         d.getMonth() === ex.getMonth() &&
@@ -599,5 +650,9 @@ export function pickNextReminder<T extends { fire_at: string; status: string }>(
     .filter((r) => r.status === "active")
     .sort((a, b) => a.fire_at.localeCompare(b.fire_at));
   const now = Date.now();
-  return active.find((r) => new Date(r.fire_at).getTime() >= now) ?? active[0] ?? null;
+  return (
+    active.find((r) => new Date(r.fire_at).getTime() >= now) ??
+    active[0] ??
+    null
+  );
 }

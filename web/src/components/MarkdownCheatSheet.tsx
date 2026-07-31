@@ -68,17 +68,22 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
       >
         <div className="dialog-header">
           <div>
-            <h2
-              id="markdown-cheat-sheet-title"
-              className="dialog-title"
-            >
+            <h2 id="markdown-cheat-sheet-title" className="dialog-title">
               Markdown cheat sheet
             </h2>
-            <p id="markdown-cheat-sheet-description" className="dialog-subtitle">
+            <p
+              id="markdown-cheat-sheet-description"
+              className="dialog-subtitle"
+            >
               Syntax reference for formatting your notes
             </p>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
         </div>
@@ -86,15 +91,9 @@ export function MarkdownCheatSheet({ open, onClose }: Props) {
         <div className="cheat-sheet-grid">
           {CHEAT_SHEET_SECTIONS.map((section) => (
             <div key={section.title} className="cheat-sheet-item">
-              <h3>
-                {section.title}
-              </h3>
+              <h3>{section.title}</h3>
               <div className="cheat-sheet-content">
-                <pre
-                  className="mono cheat-sheet-code"
-                >
-                  {section.syntax}
-                </pre>
+                <pre className="mono cheat-sheet-code">{section.syntax}</pre>
                 <div>
                   <MarkdownView content={section.syntax} />
                 </div>

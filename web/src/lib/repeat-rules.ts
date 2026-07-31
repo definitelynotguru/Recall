@@ -82,8 +82,14 @@ function parseRepeatRule(raw: string | null): RepeatRule | null {
     freq: freqRaw as Frequency,
     interval,
     days: days && days.length > 0 ? days : undefined,
-    day: Number.isInteger(dayRaw) && dayRaw >= 1 && dayRaw <= 31 ? dayRaw : undefined,
-    month: Number.isInteger(monthRaw) && monthRaw >= 1 && monthRaw <= 12 ? monthRaw : undefined,
+    day:
+      Number.isInteger(dayRaw) && dayRaw >= 1 && dayRaw <= 31
+        ? dayRaw
+        : undefined,
+    month:
+      Number.isInteger(monthRaw) && monthRaw >= 1 && monthRaw <= 12
+        ? monthRaw
+        : undefined,
   };
 }
 
@@ -125,17 +131,26 @@ function addMonths(from: Date, months: number, day?: number): Date {
   const targetDay = day ?? d.getUTCDate();
   d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() + months);
-  d.setUTCDate(Math.min(targetDay, daysInMonth(d.getUTCFullYear(), d.getUTCMonth())));
+  d.setUTCDate(
+    Math.min(targetDay, daysInMonth(d.getUTCFullYear(), d.getUTCMonth())),
+  );
   return d;
 }
 
-function addYears(from: Date, years: number, month?: number, day?: number): Date {
+function addYears(
+  from: Date,
+  years: number,
+  month?: number,
+  day?: number,
+): Date {
   const d = new Date(from);
   const targetMonth = month ? month - 1 : d.getUTCMonth();
   const targetDay = day ?? d.getUTCDate();
   d.setUTCDate(1);
   d.setUTCFullYear(d.getUTCFullYear() + years, targetMonth, 1);
-  d.setUTCDate(Math.min(targetDay, daysInMonth(d.getUTCFullYear(), targetMonth)));
+  d.setUTCDate(
+    Math.min(targetDay, daysInMonth(d.getUTCFullYear(), targetMonth)),
+  );
   return d;
 }
 

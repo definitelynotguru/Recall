@@ -24,7 +24,8 @@ function fmtDate(y: number, m: number, d: number) {
 
 function parseMonth(value: string | null, fallback: Date) {
   const match = /^(\d{4})-(\d{2})$/.exec(value ?? "");
-  if (!match) return { year: fallback.getFullYear(), month: fallback.getMonth() };
+  if (!match)
+    return { year: fallback.getFullYear(), month: fallback.getMonth() };
   const month = Number(match[2]) - 1;
   if (month < 0 || month > 11) {
     return { year: fallback.getFullYear(), month: fallback.getMonth() };
@@ -61,7 +62,9 @@ function CalendarInner() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await apiFetch<{ notes: ApiNote[] }>("/notes?status=all&limit=all");
+        const res = await apiFetch<{ notes: ApiNote[] }>(
+          "/notes?status=all&limit=all",
+        );
         if (!cancelled) setNotes(res.notes);
       } catch {
         // Keep the last successful calendar data on transient failures.
@@ -80,7 +83,11 @@ function CalendarInner() {
     return set;
   }, [notes]);
 
-  const todayStr = fmtDate(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayStr = fmtDate(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
 
   const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -103,7 +110,10 @@ function CalendarInner() {
         const note = await getOrCreateDailyNote(date);
         router.push(`/notes/${note.id}`);
       } catch (e) {
-        toast(e instanceof Error ? e.message : "Could not open daily note", "error");
+        toast(
+          e instanceof Error ? e.message : "Could not open daily note",
+          "error",
+        );
       } finally {
         setBusy(false);
       }
@@ -121,7 +131,12 @@ function CalendarInner() {
           }).format(new Date(viewYear, viewMonth, 1))}
         </h1>
         <div className="calendar-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => navigateMonth(-1)} aria-label="Previous month">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => navigateMonth(-1)}
+            aria-label="Previous month"
+          >
             <CaretLeft size={20} />
           </button>
           <button
@@ -132,7 +147,12 @@ function CalendarInner() {
           >
             Today
           </button>
-          <button type="button" className="btn btn-ghost" onClick={() => navigateMonth(1)} aria-label="Next month">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => navigateMonth(1)}
+            aria-label="Next month"
+          >
             <CaretRight size={20} />
           </button>
         </div>
@@ -140,10 +160,13 @@ function CalendarInner() {
 
       <div className="calendar-grid">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="calendar-weekday">{d}</div>
+          <div key={d} className="calendar-weekday">
+            {d}
+          </div>
         ))}
         {cells.map((day, i) => {
-          if (day === null) return <div key={`e${i}`} className="calendar-cell empty" />;
+          if (day === null)
+            return <div key={`e${i}`} className="calendar-cell empty" />;
           const date = fmtDate(viewYear, viewMonth, day);
           const hasNote = dailyDates.has(date);
           const isToday = date === todayStr;
@@ -167,7 +190,8 @@ function CalendarInner() {
       </div>
 
       <p className="calendar-help">
-        Tap any day to open or create a daily note. Days with a dot already have a note.
+        Tap any day to open or create a daily note. Days with a dot already have
+        a note.
       </p>
     </div>
   );

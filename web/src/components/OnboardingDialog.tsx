@@ -80,19 +80,22 @@ export function OnboardingDialog({ open, onClose }: Props) {
         tabIndex={-1}
       >
         <div className="dialog-header">
-          <h2
-            id="onboarding-title"
-            className="dialog-title"
-          >
+          <h2 id="onboarding-title" className="dialog-title">
             Welcome to Recall
           </h2>
-          <button type="button" className="btn-ghost" onClick={dismiss} aria-label="Close">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={dismiss}
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
         </div>
 
         <p id="onboarding-description" className="dialog-copy">
-          How will you use Recall? We&apos;ll create editable starter notes you can tweak or delete.
+          How will you use Recall? We&apos;ll create editable starter notes you
+          can tweak or delete.
         </p>
 
         <div className="onboarding-options">
@@ -110,7 +113,9 @@ export function OnboardingDialog({ open, onClose }: Props) {
                   {on && <Check size={14} />}
                 </span>
                 <span>
-                  <strong className="onboarding-option-title">{opt.label}</strong>
+                  <strong className="onboarding-option-title">
+                    {opt.label}
+                  </strong>
                   <span className="onboarding-option-note">{opt.title}</span>
                 </span>
               </button>
@@ -128,7 +133,9 @@ export function OnboardingDialog({ open, onClose }: Props) {
             disabled={selected.size === 0 || creating}
             onClick={() => void createStarterNotes()}
           >
-            {creating ? "Creating…" : `Create ${selected.size} starter note${selected.size === 1 ? "" : "s"}`}
+            {creating
+              ? "Creating…"
+              : `Create ${selected.size} starter note${selected.size === 1 ? "" : "s"}`}
           </button>
         </div>
       </div>

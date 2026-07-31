@@ -63,7 +63,9 @@ function applyQuickPick(
     now.setHours(prefs.defaultReminderHour, prefs.defaultReminderMinute, 0, 0);
   }
 
-  setDate(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+  setDate(
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+  );
   setTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
 }
 
@@ -228,17 +230,19 @@ function ReminderDialogContent({
       >
         <div className="dialog-header">
           <div>
-            <h2
-              id="reminder-dialog-title"
-              className="dialog-title"
-            >
+            <h2 id="reminder-dialog-title" className="dialog-title">
               {isEdit ? "Edit reminder" : "Schedule nudge"}
             </h2>
             <p id="reminder-dialog-description" className="dialog-subtitle">
               Android delivers the notification
             </p>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
         </div>
@@ -329,11 +333,7 @@ function ReminderDialogContent({
               />
             </>
           )}
-          {repeat && (
-            <p className="field-help">
-              {formatRepeatLabel(repeat)}
-            </p>
-          )}
+          {repeat && <p className="field-help">{formatRepeatLabel(repeat)}</p>}
         </div>
         <div className="field">
           <label htmlFor="r-mode">Reminder mode</label>
@@ -361,7 +361,11 @@ function ReminderDialogContent({
             </>
           )}
         </div>
-        {error && <p className="error-text" role="alert">{error}</p>}
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
         <div className="dialog-actions">
           {isEdit && (
             <button

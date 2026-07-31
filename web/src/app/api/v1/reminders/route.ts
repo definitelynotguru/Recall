@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const statusParam = params.get("status") ?? "active";
   const limitParam = params.get("limit");
-  const limit = limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
+  const limit =
+    limitParam === "all" ? 10000 : Math.min(Number(limitParam) || 100, 500);
 
   const filters = [
     eq(reminders.userId, user!.userId),
@@ -28,7 +29,10 @@ export async function GET(request: NextRequest) {
   ];
 
   if (statusParam !== "all") {
-    const statuses = statusParam.split(",").map((s) => s.trim()).filter(Boolean);
+    const statuses = statusParam
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (statuses.length === 0 || statuses.some((s) => !VALID_STATUSES.has(s))) {
       return errorResponse("Invalid status", 400);
     }

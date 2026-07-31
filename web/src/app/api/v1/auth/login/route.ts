@@ -7,10 +7,7 @@ import {
   signAccessToken,
   createRefreshToken,
 } from "@/lib/auth";
-import {
-  errorResponse,
-  setRefreshCookie,
-} from "@/lib/api-utils";
+import { errorResponse, setRefreshCookie } from "@/lib/api-utils";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { eq, sql } from "drizzle-orm";
 
@@ -50,7 +47,9 @@ export async function POST(request: NextRequest) {
   if (user.lockedUntil && user.lockedUntil.getTime() > now) {
     const retryAfter = Math.ceil((user.lockedUntil.getTime() - now) / 1000);
     return new Response(
-      JSON.stringify({ error: "Too many failed login attempts. Try again later." }),
+      JSON.stringify({
+        error: "Too many failed login attempts. Try again later.",
+      }),
       {
         status: 429,
         headers: {

@@ -14,7 +14,7 @@ describe("sanitizeFilename", () => {
   });
 
   it("replaces illegal filesystem characters", () => {
-    expect(sanitizeFilename('a/b:c?d*e<f>g|h', "id")).toBe("a_b_c_d_e_f_g_h");
+    expect(sanitizeFilename("a/b:c?d*e<f>g|h", "id")).toBe("a_b_c_d_e_f_g_h");
   });
 
   it("trims trailing dots and spaces", () => {
@@ -47,18 +47,74 @@ describe("buildMarkdownArchive", () => {
   const bundle: BackupBundle = {
     exported_at: "2026-07-07T12:00:00.000Z",
     notes: [
-      { id: "n1", title: "First Note", body: "# Hello\n\nWorld", status: "active", pinned_at: "2026-07-01T00:00:00.000Z", created_at: "2026-07-01T00:00:00.000Z", updated_at: "2026-07-02T00:00:00.000Z", deleted_at: null } as never,
-      { id: "n2", title: "First Note", body: "second body", status: "active", pinned_at: null, created_at: "2026-07-03T00:00:00.000Z", updated_at: "2026-07-03T00:00:00.000Z", deleted_at: null } as never,
-      { id: "n3", title: "Gone", body: "deleted", status: "active", pinned_at: null, created_at: "2026-07-03T00:00:00.000Z", updated_at: "2026-07-03T00:00:00.000Z", deleted_at: "2026-07-04T00:00:00.000Z" } as never,
+      {
+        id: "n1",
+        title: "First Note",
+        body: "# Hello\n\nWorld",
+        status: "active",
+        pinned_at: "2026-07-01T00:00:00.000Z",
+        created_at: "2026-07-01T00:00:00.000Z",
+        updated_at: "2026-07-02T00:00:00.000Z",
+        deleted_at: null,
+      } as never,
+      {
+        id: "n2",
+        title: "First Note",
+        body: "second body",
+        status: "active",
+        pinned_at: null,
+        created_at: "2026-07-03T00:00:00.000Z",
+        updated_at: "2026-07-03T00:00:00.000Z",
+        deleted_at: null,
+      } as never,
+      {
+        id: "n3",
+        title: "Gone",
+        body: "deleted",
+        status: "active",
+        pinned_at: null,
+        created_at: "2026-07-03T00:00:00.000Z",
+        updated_at: "2026-07-03T00:00:00.000Z",
+        deleted_at: "2026-07-04T00:00:00.000Z",
+      } as never,
     ],
     reminders_by_note: {
-      n1: [{ id: "r1", note_id: "n1", fire_at: "2026-07-10T09:00:00.000Z", timezone: "UTC", repeat_rule: null, intensity: "gentle", reminder_mode: "once", nag_interval_minutes: null, status: "active", completed_at: null, created_at: "2026-07-01T00:00:00.000Z", updated_at: "2026-07-01T00:00:00.000Z", deleted_at: null } as never],
+      n1: [
+        {
+          id: "r1",
+          note_id: "n1",
+          fire_at: "2026-07-10T09:00:00.000Z",
+          timezone: "UTC",
+          repeat_rule: null,
+          intensity: "gentle",
+          reminder_mode: "once",
+          nag_interval_minutes: null,
+          status: "active",
+          completed_at: null,
+          created_at: "2026-07-01T00:00:00.000Z",
+          updated_at: "2026-07-01T00:00:00.000Z",
+          deleted_at: null,
+        } as never,
+      ],
     },
     tags: [
-      { id: "t1", name: "journal", created_at: "2026-07-01T00:00:00.000Z", updated_at: "2026-07-01T00:00:00.000Z", deleted_at: null } as never,
+      {
+        id: "t1",
+        name: "journal",
+        created_at: "2026-07-01T00:00:00.000Z",
+        updated_at: "2026-07-01T00:00:00.000Z",
+        deleted_at: null,
+      } as never,
     ],
     note_tags: [
-      { id: "lt1", note_id: "n1", tag_id: "t1", created_at: "2026-07-01T00:00:00.000Z", updated_at: "2026-07-01T00:00:00.000Z", deleted_at: null } as never,
+      {
+        id: "lt1",
+        note_id: "n1",
+        tag_id: "t1",
+        created_at: "2026-07-01T00:00:00.000Z",
+        updated_at: "2026-07-01T00:00:00.000Z",
+        deleted_at: null,
+      } as never,
     ],
   };
 
@@ -66,7 +122,11 @@ describe("buildMarkdownArchive", () => {
     const { bytes, meta } = buildMarkdownArchive(bundle);
     const files = unzipSync(bytes);
     const names = Object.keys(files).sort();
-    expect(names).toEqual(["metadata.json", "notes/First Note-2.md", "notes/First Note.md"]);
+    expect(names).toEqual([
+      "metadata.json",
+      "notes/First Note-2.md",
+      "notes/First Note.md",
+    ]);
     expect(strFromU8(files["notes/First Note.md"])).toBe("# Hello\n\nWorld");
     expect(strFromU8(files["notes/First Note-2.md"])).toBe("second body");
     expect(meta.notes).toHaveLength(2);
@@ -81,7 +141,9 @@ describe("buildMarkdownArchive", () => {
     expect(meta.reminders[0].note_file).toBe("notes/First Note.md");
     expect(meta.reminders[0].fire_at).toBe("2026-07-10T09:00:00.000Z");
     expect(meta.tags).toEqual([{ id: "t1", name: "journal" }]);
-    expect(meta.note_tags).toEqual([{ id: "lt1", note_id: "n1", tag_id: "t1" }]);
+    expect(meta.note_tags).toEqual([
+      { id: "lt1", note_id: "n1", tag_id: "t1" },
+    ]);
     expect(meta.app).toBe("recall");
   });
 

@@ -13,9 +13,14 @@ export function applyWrap(
   const start = s.selectionStart;
   const end = s.selectionEnd;
   const selected = s.value.slice(start, end) || placeholder;
-  const next = s.value.slice(0, start) + prefix + selected + suffix + s.value.slice(end);
+  const next =
+    s.value.slice(0, start) + prefix + selected + suffix + s.value.slice(end);
   const selStart = start + prefix.length;
-  return { value: next, selectionStart: selStart, selectionEnd: selStart + selected.length };
+  return {
+    value: next,
+    selectionStart: selStart,
+    selectionEnd: selStart + selected.length,
+  };
 }
 
 export function applyPrefixLines(s: EditorState, prefix: string): EditorState {
@@ -28,5 +33,9 @@ export function applyPrefixLines(s: EditorState, prefix: string): EditorState {
     .map((line) => (line.startsWith(prefix) ? line : prefix + line))
     .join("\n");
   const next = s.value.slice(0, lineStart) + prefixed + s.value.slice(end);
-  return { value: next, selectionStart: lineStart, selectionEnd: lineStart + prefixed.length };
+  return {
+    value: next,
+    selectionStart: lineStart,
+    selectionEnd: lineStart + prefixed.length,
+  };
 }

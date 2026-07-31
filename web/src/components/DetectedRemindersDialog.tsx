@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { Sparkle, X } from "@phosphor-icons/react";
-import {
-  DetectedReminder,
-  formatConfidenceLabel,
-} from "@/lib/reminder-detect";
+import { DetectedReminder, formatConfidenceLabel } from "@/lib/reminder-detect";
 import { formatRepeatLabel } from "@/lib/repeat-rules";
 import { formatFireAt } from "@/lib/reminder-utils";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
@@ -42,7 +39,9 @@ function DetectedRemindersDialogContent({
 }: Omit<Props, "open">) {
   const [selected, setSelected] = useState<Set<string>>(
     () =>
-      new Set(suggestions.filter((s) => s.confidence === "high").map((s) => s.id)),
+      new Set(
+        suggestions.filter((s) => s.confidence === "high").map((s) => s.id),
+      ),
   );
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
@@ -95,11 +94,16 @@ function DetectedRemindersDialogContent({
               Detected reminders
             </h2>
             <p id="detected-reminders-description" className="dialog-subtitle">
-              We read dates and times in your note and guessed smart repeats (e.g.
-              birthdays → yearly).
+              We read dates and times in your note and guessed smart repeats
+              (e.g. birthdays → yearly).
             </p>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={onClose}
+            aria-label="Close"
+          >
             <X size={20} />
           </button>
         </div>
@@ -107,10 +111,9 @@ function DetectedRemindersDialogContent({
         {suggestions.length === 0 ? (
           <p className="dialog-copy">
             No dates or times found. Try lines like{" "}
-            <code>Day: 22 · Month: October · Year: 2026</code>{" "}
-            or <code>tomorrow at 9am</code> /{" "}
-            <code>next Friday at 2pm</code>. Likely matches are
-            pre-selected; review Maybe suggestions.
+            <code>Day: 22 · Month: October · Year: 2026</code> or{" "}
+            <code>tomorrow at 9am</code> / <code>next Friday at 2pm</code>.
+            Likely matches are pre-selected; review Maybe suggestions.
           </p>
         ) : (
           <ul className="detected-reminder-list">
@@ -128,16 +131,16 @@ function DetectedRemindersDialogContent({
                       {formatFireAt(s.fireAt)}
                     </span>
                     <span className="detected-reminder-tags">
-                      <span className="chip">{formatRepeatLabel(s.repeatRule)}</span>
+                      <span className="chip">
+                        {formatRepeatLabel(s.repeatRule)}
+                      </span>
                       <span
                         className={`chip${s.confidence === "maybe" ? " confidence-maybe" : ""}`}
                       >
                         {formatConfidenceLabel(s.confidence)}
                       </span>
                     </span>
-                    <p className="detected-reminder-reason">
-                      {s.reason}
-                    </p>
+                    <p className="detected-reminder-reason">{s.reason}</p>
                   </div>
                 </label>
               </li>
@@ -145,7 +148,11 @@ function DetectedRemindersDialogContent({
           </ul>
         )}
 
-        {error && <p className="error-text" role="alert">{error}</p>}
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
 
         <div className="dialog-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>

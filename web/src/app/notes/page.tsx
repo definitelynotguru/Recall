@@ -1,10 +1,24 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArchiveBoxIcon, CalendarDots, MagnifyingGlass, Plus, PushPin, PushPinSlash } from "@phosphor-icons/react";
+import {
+  ArchiveBoxIcon,
+  CalendarDots,
+  MagnifyingGlass,
+  Plus,
+  PushPin,
+  PushPinSlash,
+} from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
@@ -71,10 +85,7 @@ function NotesContent() {
     searchParams.get("status") === "archived" ? "archived" : "active";
   const tagParam = searchParams.get("tag");
   const tagFilter =
-    tagParam &&
-    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(
-      tagParam,
-    )
+    tagParam && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(tagParam)
       ? tagParam
       : null;
   const [templates, setTemplates] = useState<ApiNote[]>([]);
@@ -127,7 +138,8 @@ function NotesContent() {
       }
     };
     document.addEventListener("pointerdown", closeOnOutsidePointer);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
   }, [showTemplateMenu]);
 
   const updateFilter = (name: "status" | "tag", value: string | null) => {
@@ -312,7 +324,10 @@ function NotesContent() {
       const note = await getOrCreateDailyNote(date);
       router.push(`/notes/${note.id}`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not open today's note", "error");
+      toast(
+        e instanceof Error ? e.message : "Could not open today's note",
+        "error",
+      );
     } finally {
       setCreating(false);
     }
@@ -513,7 +528,11 @@ function NotesContent() {
               ? "No matching notes."
               : "Your notebook is empty. Start with a single thought."}
           </p>
-          <button type="button" className="btn btn-primary" onClick={createNote}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={createNote}
+          >
             Write first note
           </button>
         </div>
@@ -550,10 +569,16 @@ function NotesContent() {
                     <h3 id={titleId}>{n.title || "Untitled"}</h3>
                     {debouncedQuery ? (
                       <p>
-                        <HighlightedSnippet body={n.body} query={debouncedQuery} />
+                        <HighlightedSnippet
+                          body={n.body}
+                          query={debouncedQuery}
+                        />
                       </p>
                     ) : (
-                      <p>{n.body.replace(/[#*_`\n]/g, " ").trim() || "Empty page"}</p>
+                      <p>
+                        {n.body.replace(/[#*_`\n]/g, " ").trim() ||
+                          "Empty page"}
+                      </p>
                     )}
                     {(tagsByNote.get(n.id)?.length ?? 0) > 0 && (
                       <div className="note-row-tags">
@@ -577,23 +602,34 @@ function NotesContent() {
                       className="btn btn-secondary"
                       onClick={() =>
                         patchNote(n.id, {
-                          pinned_at: n.pinned_at ? null : new Date().toISOString(),
+                          pinned_at: n.pinned_at
+                            ? null
+                            : new Date().toISOString(),
                         })
                       }
                       aria-label={n.pinned_at ? "Unpin note" : "Pin note"}
                       aria-pressed={Boolean(n.pinned_at)}
                     >
-                      {n.pinned_at ? <PushPinSlash size={16} /> : <PushPin size={16} />}
+                      {n.pinned_at ? (
+                        <PushPinSlash size={16} />
+                      ) : (
+                        <PushPin size={16} />
+                      )}
                     </button>
                     <button
                       type="button"
                       className="btn btn-secondary"
                       onClick={() =>
                         patchNote(n.id, {
-                          status: n.status === "archived" ? "active" : "archived",
+                          status:
+                            n.status === "archived" ? "active" : "archived",
                         })
                       }
-                      aria-label={n.status === "archived" ? "Unarchive note" : "Archive note"}
+                      aria-label={
+                        n.status === "archived"
+                          ? "Unarchive note"
+                          : "Archive note"
+                      }
                     >
                       <ArchiveBoxIcon size={16} />
                       {n.status === "archived" ? "Unarchive" : "Archive"}

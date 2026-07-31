@@ -23,9 +23,7 @@ export function Backlinks({ notes, currentTitle }: Props) {
       <ul className="backlink-list">
         {backlinks.map((note) => (
           <li key={note.id}>
-            <Link href={`/notes/${note.id}`}>
-              {note.title || "Untitled"}
-            </Link>
+            <Link href={`/notes/${note.id}`}>{note.title || "Untitled"}</Link>
           </li>
         ))}
       </ul>

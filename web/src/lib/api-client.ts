@@ -39,14 +39,19 @@ function decodeJwtExp(token: string): number | null {
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
-    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    const json = JSON.parse(
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
+    );
     return typeof json.exp === "number" ? json.exp : null;
   } catch {
     return null;
   }
 }
 
-export function tokenExpiresWithinMinutes(token: string, minutes: number): boolean {
+export function tokenExpiresWithinMinutes(
+  token: string,
+  minutes: number,
+): boolean {
   const exp = decodeJwtExp(token);
   if (!exp) return false;
   return exp * 1000 - Date.now() < minutes * 60_000;
@@ -235,7 +240,10 @@ export async function listTemplates(): Promise<ApiNote[]> {
   return res.notes;
 }
 
-export async function createTemplate(title: string, body: string): Promise<ApiNote> {
+export async function createTemplate(
+  title: string,
+  body: string,
+): Promise<ApiNote> {
   const res = await apiFetch<{ note: ApiNote }>("/notes", {
     method: "POST",
     body: JSON.stringify({

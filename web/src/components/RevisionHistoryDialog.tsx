@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowsCounterClockwise, ClockCounterClockwise } from "@phosphor-icons/react";
+import {
+  ArrowsCounterClockwise,
+  ClockCounterClockwise,
+} from "@phosphor-icons/react";
 import { DialogShell } from "@/components/DialogShell";
-import { listNoteRevisions, restoreNoteRevision, type ApiNoteRevision } from "@/lib/api-client";
+import {
+  listNoteRevisions,
+  restoreNoteRevision,
+  type ApiNoteRevision,
+} from "@/lib/api-client";
 
 type Props = {
   noteId: string;
@@ -12,7 +19,12 @@ type Props = {
   onRestored: (newNoteId: string) => void;
 };
 
-export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Props) {
+export function RevisionHistoryDialog({
+  noteId,
+  open,
+  onClose,
+  onRestored,
+}: Props) {
   const [revisions, setRevisions] = useState<ApiNoteRevision[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +40,8 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
         const revs = await listNoteRevisions(noteId);
         if (!cancelled) setRevisions(revs);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load history");
+        if (!cancelled)
+          setError(e instanceof Error ? e.message : "Could not load history");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,13 +74,11 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
       maxWidth={560}
     >
       {loading && <p className="settings-muted">Loading…</p>}
-      {!loading && error && (
-        <p className="error-text">
-          {error}
-        </p>
-      )}
+      {!loading && error && <p className="error-text">{error}</p>}
       {!loading && !error && revisions.length === 0 && (
-        <p className="settings-muted">No saved revisions yet. Earlier edits will appear here.</p>
+        <p className="settings-muted">
+          No saved revisions yet. Earlier edits will appear here.
+        </p>
       )}
       {!loading && revisions.length > 0 && (
         <ul className="detected-reminder-list revision-list">
@@ -76,7 +87,10 @@ export function RevisionHistoryDialog({ noteId, open, onClose, onRestored }: Pro
               <div className="revision-row">
                 <div className="revision-row-copy">
                   <strong className="revision-title">
-                    <ClockCounterClockwise size={14} className="revision-icon" />
+                    <ClockCounterClockwise
+                      size={14}
+                      className="revision-icon"
+                    />
                     {r.title || "Untitled"}
                   </strong>
                   <span className="timeline-meta meta-block">

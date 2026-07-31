@@ -6,12 +6,28 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("io.gitlab.arturbosch.detekt") version "1.23.7"
+    id("com.diffplug.spotless") version "7.0.3"
 }
 
 detekt {
     ignoreFailures = true
     config.setFrom("$projectDir/detekt.yml")
     buildUponDefaultConfig = true
+}
+
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint("1.5.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint("1.5.0")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }
 
 ksp {

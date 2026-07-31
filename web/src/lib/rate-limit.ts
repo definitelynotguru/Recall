@@ -30,7 +30,11 @@ function durationFromMs(windowMs: number): Duration {
 
 // Sliding-window max/size are fixed at construction, so cache one limiter per
 // (max, windowMs) combination and share a single Redis client.
-function getUpstashLimiter(redis: Redis, max: number, windowMs: number): Ratelimit {
+function getUpstashLimiter(
+  redis: Redis,
+  max: number,
+  windowMs: number,
+): Ratelimit {
   const cacheKey = `${max}:${windowMs}`;
   const cached = upstashLimiters.get(cacheKey);
   if (cached) return cached;
@@ -52,7 +56,11 @@ function pruneExpiredBuckets(now: number) {
   }
 }
 
-function inMemoryRateLimit(key: string, max: number, windowMs: number): boolean {
+function inMemoryRateLimit(
+  key: string,
+  max: number,
+  windowMs: number,
+): boolean {
   const now = Date.now();
   pruneExpiredBuckets(now);
   const bucket = buckets.get(key);

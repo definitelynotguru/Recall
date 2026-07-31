@@ -3,7 +3,14 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Clock, CalendarDots, NotePencil, PencilSimple, Trash } from "@phosphor-icons/react";
+import {
+  Check,
+  Clock,
+  CalendarDots,
+  NotePencil,
+  PencilSimple,
+  Trash,
+} from "@phosphor-icons/react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LoadError } from "@/components/LoadError";
 import { NextNudgeCard } from "@/components/NextNudgeCard";
@@ -28,7 +35,9 @@ export default function TodayPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
-  const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(null);
+  const [editingReminder, setEditingReminder] = useState<ApiReminder | null>(
+    null,
+  );
   const [actingId, setActingId] = useState<string | null>(null);
   const [dailyBusy, setDailyBusy] = useState(false);
 
@@ -39,7 +48,10 @@ export default function TodayPage() {
       const note = await getOrCreateDailyNote(date);
       router.push(`/notes/${note.id}`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not open today's note", "error");
+      toast(
+        e instanceof Error ? e.message : "Could not open today's note",
+        "error",
+      );
     } finally {
       setDailyBusy(false);
     }
@@ -82,7 +94,10 @@ export default function TodayPage() {
   const completeReminder = async (id: string) => {
     setActingId(id);
     try {
-      await apiFetch(`/reminders/${id}/complete`, { method: "POST", body: "{}" });
+      await apiFetch(`/reminders/${id}/complete`, {
+        method: "POST",
+        body: "{}",
+      });
       toast("Marked complete");
       await reload();
     } catch (e) {
@@ -99,7 +114,9 @@ export default function TodayPage() {
         method: "POST",
         body: JSON.stringify({ fire_at: snoozeFireAt(minutes) }),
       });
-      toast(`Snoozed ${minutes >= 60 ? `${minutes / 60} hour` : `${minutes} min`}`);
+      toast(
+        `Snoozed ${minutes >= 60 ? `${minutes / 60} hour` : `${minutes} min`}`,
+      );
       await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not snooze", "error");
@@ -161,14 +178,12 @@ export default function TodayPage() {
     </div>
   );
 
-  const section = (
-    title: string,
-    items: ApiReminder[],
-    overdue = false,
-  ) =>
+  const section = (title: string, items: ApiReminder[], overdue = false) =>
     items.length > 0 && (
       <div className="timeline-section">
-        <p className={`timeline-label${overdue ? " timeline-label-overdue" : ""}`}>
+        <p
+          className={`timeline-label${overdue ? " timeline-label-overdue" : ""}`}
+        >
           {title}
         </p>
         {items.map((r) => renderItem(r, overdue))}
@@ -196,7 +211,8 @@ export default function TodayPage() {
         <div className="daily-note-copy">
           <strong>Daily note</strong>
           <p>
-            Open or create today&apos;s note, generated from your Daily Journal template.
+            Open or create today&apos;s note, generated from your Daily Journal
+            template.
           </p>
         </div>
         <button

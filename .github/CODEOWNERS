@@ -1,0 +1,9 @@
+# Default owners for the whole repository.
+* @definitelynotguru
+
+# App ownership (same maintainer today; split later if the team grows).
+/web/ @definitelynotguru
+/android/ @definitelynotguru
+/shared/ @definitelynotguru
+/docs/ @definitelynotguru
+/.github/ @definitelynotguru

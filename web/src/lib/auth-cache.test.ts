@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  clearCachedUser,
-  loadCachedUser,
-  saveCachedUser,
-} from "./auth-cache";
+import { clearCachedUser, loadCachedUser, saveCachedUser } from "./auth-cache";
 
 function createStorage(): Storage {
   const values = new Map<string, string>();

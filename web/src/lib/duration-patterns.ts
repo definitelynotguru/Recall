@@ -68,7 +68,10 @@ export function scanDurationPhrases(ctx: DurationEmitContext) {
 
       const index = m.index ?? 0;
       const hay = ctx.contextAround(ctx.text, index);
-      const { repeatRule, reason: repeatReason } = ctx.inferRepeat(hay, ctx.title);
+      const { repeatRule, reason: repeatReason } = ctx.inferRepeat(
+        hay,
+        ctx.title,
+      );
       const n = rule.captureGroup != null ? m[rule.captureGroup] : "";
       const reason = rule.reason.replace("{n}", n) + ` · ${repeatReason}`;
 
@@ -97,7 +100,8 @@ function resolveTarget(
     case "plusMinutes": {
       const token = m[rule.captureGroup ?? 1];
       const n = parseCountToken(token);
-      if (n == null || n < (rule.min ?? 1) || n > (rule.max ?? 999)) return null;
+      if (n == null || n < (rule.min ?? 1) || n > (rule.max ?? 999))
+        return null;
       return new Date(refMs + n * 60_000);
     }
     case "plusSeconds":

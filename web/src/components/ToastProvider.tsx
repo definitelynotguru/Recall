@@ -21,7 +21,11 @@ type Toast = {
 };
 
 type ToastContextValue = {
-  toast: (message: string, variant?: ToastVariant, action?: ToastAction) => void;
+  toast: (
+    message: string,
+    variant?: ToastVariant,
+    action?: ToastAction,
+  ) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -40,7 +44,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = "default", action?: ToastAction) => {
+    (
+      message: string,
+      variant: ToastVariant = "default",
+      action?: ToastAction,
+    ) => {
       const id = Date.now() + Math.random();
       setToasts((prev) => [...prev, { id, message, variant, action }]);
     },

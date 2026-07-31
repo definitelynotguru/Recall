@@ -1,5 +1,15 @@
 import { noteTags, notes, reminders, tags } from "./db/schema";
-import { and, asc, eq, gt, inArray, isNotNull, isNull, or, type AnyColumn } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  type AnyColumn,
+} from "drizzle-orm";
 import {
   resolveNoteMerge,
   resolveReminderMerge,
@@ -34,19 +44,32 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 const EPOCH = new Date("1970-01-01T00:00:00.000Z");
 
-export function resolveSyncMode(lastSyncAt: string): { mode: SyncMode; since: Date } {
+export function resolveSyncMode(lastSyncAt: string): {
+  mode: SyncMode;
+  since: Date;
+} {
   const since = new Date(lastSyncAt);
-  if (Number.isNaN(since.getTime()) || since.getTime() <= EPOCH.getTime() + 1000) {
+  if (
+    Number.isNaN(since.getTime()) ||
+    since.getTime() <= EPOCH.getTime() + 1000
+  ) {
     return { mode: "full", since: EPOCH };
   }
   return { mode: "delta", since };
 }
 
-function ownedByUser(existingUserId: string | undefined, userId: string): boolean {
+function ownedByUser(
+  existingUserId: string | undefined,
+  userId: string,
+): boolean {
   return existingUserId === undefined || existingUserId === userId;
 }
 
-async function userOwnsNote(tx: Tx, userId: string, noteId: string): Promise<boolean> {
+async function userOwnsNote(
+  tx: Tx,
+  userId: string,
+  noteId: string,
+): Promise<boolean> {
   const [row] = await tx
     .select({ id: notes.id })
     .from(notes)
@@ -55,7 +78,11 @@ async function userOwnsNote(tx: Tx, userId: string, noteId: string): Promise<boo
   return Boolean(row);
 }
 
-async function userOwnsTag(tx: Tx, userId: string, tagId: string): Promise<boolean> {
+async function userOwnsTag(
+  tx: Tx,
+  userId: string,
+  tagId: string,
+): Promise<boolean> {
   const [row] = await tx
     .select({ id: tags.id })
     .from(tags)
@@ -110,7 +137,12 @@ export async function mergeNotesBatch(
   const existingRows = await tx
     .select()
     .from(notes)
-    .where(inArray(notes.id, clients.map((client) => client.id)));
+    .where(
+      inArray(
+        notes.id,
+        clients.map((client) => client.id),
+      ),
+    );
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
   for (const client of clients) {
     await mergeNote(tx, userId, client, existingById.get(client.id));
@@ -125,9 +157,7 @@ async function mergeNote(
 ): Promise<void> {
   const existing =
     existingRow ??
-    (
-      await tx.select().from(notes).where(eq(notes.id, client.id)).limit(1)
-    )[0];
+    (await tx.select().from(notes).where(eq(notes.id, client.id)).limit(1))[0];
 
   if (!ownedByUser(existing?.userId, userId)) return;
 
@@ -182,7 +212,11 @@ async function mergeReminder(
   const existing =
     existingRow ??
     (
-      await tx.select().from(reminders).where(eq(reminders.id, client.id)).limit(1)
+      await tx
+        .select()
+        .from(reminders)
+        .where(eq(reminders.id, client.id))
+        .limit(1)
     )[0];
 
   if (!ownedByUser(existing?.userId, userId)) return;
@@ -232,15 +266,24 @@ export async function mergeRemindersBatch(
   const existingRows = await tx
     .select()
     .from(reminders)
-    .where(inArray(reminders.id, clients.map((client) => client.id)));
+    .where(
+      inArray(
+        reminders.id,
+        clients.map((client) => client.id),
+      ),
+    );
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
-  const ownedNoteIds = await prefetchOwnedNoteIds(
-    tx,
-    userId,
-    [...new Set(clients.map((client) => client.note_id))],
-  );
+  const ownedNoteIds = await prefetchOwnedNoteIds(tx, userId, [
+    ...new Set(clients.map((client) => client.note_id)),
+  ]);
   for (const client of clients) {
-    await mergeReminder(tx, userId, client, existingById.get(client.id), ownedNoteIds);
+    await mergeReminder(
+      tx,
+      userId,
+      client,
+      existingById.get(client.id),
+      ownedNoteIds,
+    );
   }
 }
 
@@ -289,7 +332,12 @@ export async function mergeTagsBatch(
   const existingRows = await tx
     .select()
     .from(tags)
-    .where(inArray(tags.id, clients.map((client) => client.id)));
+    .where(
+      inArray(
+        tags.id,
+        clients.map((client) => client.id),
+      ),
+    );
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
   for (const client of clients) {
     await mergeTag(tx, userId, client, existingById.get(client.id));
@@ -306,7 +354,13 @@ async function mergeNoteTag(
 ): Promise<void> {
   const existing =
     existingRow ??
-    (await tx.select().from(noteTags).where(eq(noteTags.id, client.id)).limit(1))[0];
+    (
+      await tx
+        .select()
+        .from(noteTags)
+        .where(eq(noteTags.id, client.id))
+        .limit(1)
+    )[0];
 
   if (!ownedByUser(existing?.userId, userId)) return;
   const noteOwned = ownedNoteIds
@@ -352,18 +406,19 @@ export async function mergeNoteTagsBatch(
   const existingRows = await tx
     .select()
     .from(noteTags)
-    .where(inArray(noteTags.id, clients.map((client) => client.id)));
+    .where(
+      inArray(
+        noteTags.id,
+        clients.map((client) => client.id),
+      ),
+    );
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
-  const ownedNoteIds = await prefetchOwnedNoteIds(
-    tx,
-    userId,
-    [...new Set(clients.map((client) => client.note_id))],
-  );
-  const ownedTagIds = await prefetchOwnedTagIds(
-    tx,
-    userId,
-    [...new Set(clients.map((client) => client.tag_id))],
-  );
+  const ownedNoteIds = await prefetchOwnedNoteIds(tx, userId, [
+    ...new Set(clients.map((client) => client.note_id)),
+  ]);
+  const ownedTagIds = await prefetchOwnedTagIds(tx, userId, [
+    ...new Set(clients.map((client) => client.tag_id)),
+  ]);
   for (const client of clients) {
     await mergeNoteTag(
       tx,
@@ -439,7 +494,9 @@ export async function fetchCatalogForClient(
         tx
           .select()
           .from(reminders)
-          .where(and(eq(reminders.userId, userId), isNull(reminders.deletedAt))),
+          .where(
+            and(eq(reminders.userId, userId), isNull(reminders.deletedAt)),
+          ),
         tx
           .select()
           .from(tags)
@@ -476,7 +533,12 @@ export async function fetchCatalogForClient(
           eq(notes.userId, userId),
           isNull(notes.deletedAt),
           hasCursor
-            ? afterCursorCondition(notes.updatedAt, notes.id, cursorDate!, cursorId!)
+            ? afterCursorCondition(
+                notes.updatedAt,
+                notes.id,
+                cursorDate!,
+                cursorId!,
+              )
             : undefined,
         ),
       )
@@ -489,7 +551,12 @@ export async function fetchCatalogForClient(
           eq(reminders.userId, userId),
           isNull(reminders.deletedAt),
           hasCursor
-            ? afterCursorCondition(reminders.updatedAt, reminders.id, cursorDate!, cursorId!)
+            ? afterCursorCondition(
+                reminders.updatedAt,
+                reminders.id,
+                cursorDate!,
+                cursorId!,
+              )
             : undefined,
         ),
       )
@@ -502,7 +569,12 @@ export async function fetchCatalogForClient(
           eq(tags.userId, userId),
           isNull(tags.deletedAt),
           hasCursor
-            ? afterCursorCondition(tags.updatedAt, tags.id, cursorDate!, cursorId!)
+            ? afterCursorCondition(
+                tags.updatedAt,
+                tags.id,
+                cursorDate!,
+                cursorId!,
+              )
             : undefined,
         ),
       )
@@ -515,7 +587,12 @@ export async function fetchCatalogForClient(
           eq(noteTags.userId, userId),
           isNull(noteTags.deletedAt),
           hasCursor
-            ? afterCursorCondition(noteTags.updatedAt, noteTags.id, cursorDate!, cursorId!)
+            ? afterCursorCondition(
+                noteTags.updatedAt,
+                noteTags.id,
+                cursorDate!,
+                cursorId!,
+              )
             : undefined,
         ),
       )
@@ -545,7 +622,12 @@ export async function fetchCatalogForClient(
     tx
       .select()
       .from(notes)
-      .where(and(eq(notes.userId, userId), changedSinceClause(notes.updatedAt, notes.deletedAt, since))),
+      .where(
+        and(
+          eq(notes.userId, userId),
+          changedSinceClause(notes.updatedAt, notes.deletedAt, since),
+        ),
+      ),
     tx
       .select()
       .from(reminders)
@@ -558,7 +640,12 @@ export async function fetchCatalogForClient(
     tx
       .select()
       .from(tags)
-      .where(and(eq(tags.userId, userId), changedSinceClause(tags.updatedAt, tags.deletedAt, since))),
+      .where(
+        and(
+          eq(tags.userId, userId),
+          changedSinceClause(tags.updatedAt, tags.deletedAt, since),
+        ),
+      ),
     tx
       .select()
       .from(noteTags)

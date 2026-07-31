@@ -28,7 +28,12 @@ export function ImportPreviewDialog({
       subtitle="Merge by id — existing records will be updated"
       footer={
         <>
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={importing}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={importing}
+          >
             Cancel
           </button>
           <button
@@ -47,9 +52,7 @@ export function ImportPreviewDialog({
         <div className="hint-banner import-warning">
           <div>
             {preview.warnings.map((warning) => (
-              <p key={warning}>
-                {warning}
-              </p>
+              <p key={warning}>{warning}</p>
             ))}
           </div>
         </div>

@@ -1,4 +1,10 @@
-import { apiFetch, ApiNote, ApiNoteTag, ApiReminder, ApiTag } from "./api-client";
+import {
+  apiFetch,
+  ApiNote,
+  ApiNoteTag,
+  ApiReminder,
+  ApiTag,
+} from "./api-client";
 import { validateBackupBundle } from "./backup-import-validation";
 
 export type BackupBundle = {
@@ -42,7 +48,8 @@ export function parseBackupPreview(
     notes: activeNotes.length,
     reminders,
     tags: (bundle.tags ?? []).filter((t) => t.id && !t.deleted_at).length,
-    note_tags: (bundle.note_tags ?? []).filter((l) => l.id && !l.deleted_at).length,
+    note_tags: (bundle.note_tags ?? []).filter((l) => l.id && !l.deleted_at)
+      .length,
     newNotes,
     warnings: validateBackupBundle(bundle),
   };
