@@ -113,6 +113,20 @@ function mockReadTransaction() {
   };
 }
 
+function mockOpenRequest() {
+  const close = vi.fn();
+  const request = {
+    result: { close } as unknown as IDBDatabase,
+    error: null,
+    onupgradeneeded: null,
+    onblocked: null,
+    onsuccess: null,
+    onerror: null,
+  } as unknown as IDBOpenDBRequest;
+  vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
+  return { close, request };
+}
+
 describe("local notes", () => {
   beforeEach(deleteDatabase);
   afterEach(() => {
@@ -266,6 +280,34 @@ describe("local notes", () => {
     mocked.failRead();
 
     await expect(operation).rejects.toThrow("IndexedDB transaction failed");
+    expect(mocked.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an IndexedDB open error without closing an unopened handle", async () => {
+    const mocked = mockOpenRequest();
+    const operation = getLocalNotes();
+
+    mocked.request.onerror?.call(mocked.request, new Event("error"));
+
+    await expect(operation).rejects.toThrow("IndexedDB open failed");
+    expect(mocked.close).not.toHaveBeenCalled();
+  });
+
+  it("rejects a blocked IndexedDB open and closes only if it later opens", async () => {
+    const mocked = mockOpenRequest();
+    const operation = putLocalNote(
+      note("note", null, "2024-01-01T00:00:00.000Z"),
+    );
+
+    mocked.request.onblocked?.call(
+      mocked.request,
+      new IDBVersionChangeEvent("blocked"),
+    );
+
+    await expect(operation).rejects.toThrow("IndexedDB open blocked");
+    expect(mocked.close).not.toHaveBeenCalled();
+
+    mocked.request.onsuccess?.call(mocked.request, new Event("success"));
     expect(mocked.close).toHaveBeenCalledTimes(1);
   });
 });

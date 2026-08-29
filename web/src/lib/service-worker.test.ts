@@ -58,6 +58,29 @@ afterEach(() => {
 });
 
 describe("service worker", () => {
+  it.each([
+    {
+      name: "non-GET",
+      request: new Request("https://recall.test/api/v1/notes", {
+        method: "POST",
+      }),
+    },
+    {
+      name: "cross-origin",
+      request: new Request("https://example.com/icon.png"),
+    },
+  ])("bypasses $name requests", ({ request }) => {
+    const { cache, caches, listeners } = loadServiceWorker();
+    const respondWith = vi.fn();
+
+    listeners.get("fetch")?.({ request, respondWith } as FetchEvent as never);
+
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(caches.match).not.toHaveBeenCalled();
+    expect(caches.open).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
   it("caches the offline shell during install", async () => {
     const { cache, listeners, worker } = loadServiceWorker();
     let completion = Promise.resolve<unknown>(undefined);

@@ -7,14 +7,28 @@ const STORE_NAME = "notes";
 function openLocalDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
+    let failed = false;
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: "id" });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      if (failed) {
+        req.result.close();
+        return;
+      }
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      failed = true;
+      reject(req.error ?? new Error("IndexedDB open failed"));
+    };
+    req.onblocked = () => {
+      failed = true;
+      reject(new Error("IndexedDB open blocked"));
+    };
   });
 }
 
