@@ -1,10 +1,6 @@
 package com.notesreminders.app.data
 
 import com.google.gson.GsonBuilder
-import com.notesreminders.app.data.api.NoteDto
-import com.notesreminders.app.data.api.NoteTagDto
-import com.notesreminders.app.data.api.ReminderDto
-import com.notesreminders.app.data.api.TagDto
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -38,9 +34,16 @@ data class MarkdownReminder(
     val deleted_at: String?,
 )
 
-data class MarkdownTag(val id: String, val name: String)
+data class MarkdownTag(
+    val id: String,
+    val name: String,
+)
 
-data class MarkdownNoteTag(val id: String, val note_id: String, val tag_id: String)
+data class MarkdownNoteTag(
+    val id: String,
+    val note_id: String,
+    val tag_id: String,
+)
 
 data class MarkdownMeta(
     val app: String,
@@ -55,7 +58,10 @@ object MarkdownExport {
     private const val MAX_FILENAME = 100
     private val illegalChars = Regex("[\\\\/:*?\"<>|\\x00-\\x1f]")
 
-    fun sanitizeFilename(title: String, id: String): String {
+    fun sanitizeFilename(
+        title: String,
+        id: String,
+    ): String {
         val base = title.trim()
         val candidate = if (base.isNotEmpty()) base else id
         var cleaned = illegalChars.replace(candidate, "_")
@@ -70,7 +76,10 @@ object MarkdownExport {
         return out.trim().ifEmpty { id }
     }
 
-    fun uniqueFilename(base: String, used: MutableSet<String>): String {
+    fun uniqueFilename(
+        base: String,
+        used: MutableSet<String>,
+    ): String {
         if (used.add(base)) return base
         var n = 2
         while (!used.add("$base-$n")) n += 1
@@ -147,21 +156,26 @@ object MarkdownExport {
                 }
             }
 
-            val tagsMeta = bundle.tags.orEmpty()
-                .filter { !it.id.isNullOrEmpty() && it.deleted_at == null }
-                .map { MarkdownTag(it.id, it.name) }
-            val noteTagsMeta = bundle.note_tags.orEmpty()
-                .filter { !it.id.isNullOrEmpty() && it.deleted_at == null }
-                .map { MarkdownNoteTag(it.id, it.note_id, it.tag_id) }
+            val tagsMeta =
+                bundle.tags
+                    .orEmpty()
+                    .filter { !it.id.isNullOrEmpty() && it.deleted_at == null }
+                    .map { MarkdownTag(it.id, it.name) }
+            val noteTagsMeta =
+                bundle.note_tags
+                    .orEmpty()
+                    .filter { !it.id.isNullOrEmpty() && it.deleted_at == null }
+                    .map { MarkdownNoteTag(it.id, it.note_id, it.tag_id) }
 
-            val meta = MarkdownMeta(
-                app = "recall",
-                exported_at = bundle.exported_at,
-                notes = notesMeta,
-                reminders = remindersMeta,
-                tags = tagsMeta,
-                note_tags = noteTagsMeta,
-            )
+            val meta =
+                MarkdownMeta(
+                    app = "recall",
+                    exported_at = bundle.exported_at,
+                    notes = notesMeta,
+                    reminders = remindersMeta,
+                    tags = tagsMeta,
+                    note_tags = noteTagsMeta,
+                )
             val gson = GsonBuilder().setPrettyPrinting().create()
             zip.putNextEntry(ZipEntry("metadata.json"))
             zip.write(gson.toJson(meta).toByteArray(Charsets.UTF_8))

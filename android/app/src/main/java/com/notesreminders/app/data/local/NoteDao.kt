@@ -25,7 +25,10 @@ interface NoteDao {
             "+ CASE WHEN :query != '' AND body LIKE '%' || :query || '%' THEN 1 ELSE 0 END) DESC, " +
             "pinnedAt IS NULL ASC, pinnedAt DESC, updatedAt DESC",
     )
-    fun observeByStatusAndQuery(status: String, query: String): Flow<List<NoteEntity>>
+    fun observeByStatusAndQuery(
+        status: String,
+        query: String,
+    ): Flow<List<NoteEntity>>
 
     @Query(
         """
@@ -40,7 +43,11 @@ interface NoteDao {
             notes.pinnedAt IS NULL ASC, notes.pinnedAt DESC, notes.updatedAt DESC
         """,
     )
-    fun observeByStatusQueryAndTag(status: String, query: String, tagId: String): Flow<List<NoteEntity>>
+    fun observeByStatusQueryAndTag(
+        status: String,
+        query: String,
+        tagId: String,
+    ): Flow<List<NoteEntity>>
 
     @Query("SELECT * FROM notes WHERE deletedAt IS NULL AND isTemplate = 1 ORDER BY updatedAt DESC")
     fun observeTemplates(): Flow<List<NoteEntity>>

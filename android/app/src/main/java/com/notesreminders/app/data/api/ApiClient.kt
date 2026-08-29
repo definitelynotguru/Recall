@@ -14,52 +14,59 @@ object ApiClient {
     private val gson = GsonBuilder().serializeNulls().create()
 
     fun create(tokenStore: TokenStore): NotesApi {
-        val logging = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BASIC
-            } else {
-                HttpLoggingInterceptor.Level.NONE
+        val logging =
+            HttpLoggingInterceptor().apply {
+                level =
+                    if (BuildConfig.DEBUG) {
+                        HttpLoggingInterceptor.Level.BASIC
+                    } else {
+                        HttpLoggingInterceptor.Level.NONE
+                    }
             }
-        }
 
-        val authInterceptor = Interceptor { chain ->
-            val token = tokenStore.accessToken
-            val request = if (token != null) {
-                chain.request().newBuilder()
-                    .addHeader("Authorization", "Bearer $token")
-                    .build()
-            } else {
-                chain.request()
+        val authInterceptor =
+            Interceptor { chain ->
+                val token = tokenStore.accessToken
+                val request =
+                    if (token != null) {
+                        chain
+                            .request()
+                            .newBuilder()
+                            .addHeader("Authorization", "Bearer $token")
+                            .build()
+                    } else {
+                        chain.request()
+                    }
+                chain.proceed(request)
             }
-            chain.proceed(request)
-        }
 
-        val retrofit = Retrofit.Builder()
-            .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .client(
-                OkHttpClient.Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .addInterceptor(authInterceptor)
-                    .addInterceptor(logging)
-                    .authenticator(
-                        TokenAuthenticator(tokenStore) { body ->
-                            Retrofit.Builder()
-                                .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
-                                .addConverterFactory(GsonConverterFactory.create(gson))
-                                .build()
-                                .create(NotesApi::class.java)
-                                .refresh(body)
-                        },
-                    )
-                    .build(),
-            )
-            .build()
+        val retrofit =
+            Retrofit
+                .Builder()
+                .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .client(
+                    OkHttpClient
+                        .Builder()
+                        .connectTimeout(30, TimeUnit.SECONDS)
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .addInterceptor(authInterceptor)
+                        .addInterceptor(logging)
+                        .authenticator(
+                            TokenAuthenticator(tokenStore) { body ->
+                                Retrofit
+                                    .Builder()
+                                    .baseUrl(ensureTrailingSlash(BuildConfig.API_BASE_URL))
+                                    .addConverterFactory(GsonConverterFactory.create(gson))
+                                    .build()
+                                    .create(NotesApi::class.java)
+                                    .refresh(body)
+                            },
+                        ).build(),
+                ).build()
 
         return retrofit.create(NotesApi::class.java)
     }
 
-    private fun ensureTrailingSlash(url: String): String =
-        if (url.endsWith("/")) url else "$url/"
+    private fun ensureTrailingSlash(url: String): String = if (url.endsWith("/")) url else "$url/"
 }

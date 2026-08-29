@@ -1,5 +1,9 @@
 package com.notesreminders.app.ui.screens
 
+import android.Manifest
+import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -26,17 +30,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.notesreminders.app.BuildConfig
-import android.app.Activity
 import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.reminders.ReminderPermissions
 import com.notesreminders.app.ui.AppViewModel

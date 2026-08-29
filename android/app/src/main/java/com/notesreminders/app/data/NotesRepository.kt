@@ -1,5 +1,6 @@
 package com.notesreminders.app.data
 
+import com.google.gson.GsonBuilder
 import com.notesreminders.app.data.api.NotesApi
 import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
@@ -9,7 +10,6 @@ import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.NoteTagEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
-import com.google.gson.GsonBuilder
 import com.notesreminders.app.reminders.ReminderReconciler
 import com.notesreminders.app.sync.SyncRepository
 import kotlinx.coroutines.flow.Flow
@@ -27,17 +27,19 @@ class NotesRepository(
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
-    fun observeNotes(status: String, query: String, tagId: String? = null): Flow<List<NoteEntity>> =
-        if (tagId.isNullOrBlank()) {
-            db.noteDao().observeByStatusAndQuery(status, query)
-        } else {
-            db.noteDao().observeByStatusQueryAndTag(status, query, tagId)
-        }
+    fun observeNotes(
+        status: String,
+        query: String,
+        tagId: String? = null,
+    ): Flow<List<NoteEntity>> = if (tagId.isNullOrBlank()) {
+        db.noteDao().observeByStatusAndQuery(status, query)
+    } else {
+        db.noteDao().observeByStatusQueryAndTag(status, query, tagId)
+    }
 
     fun observeTags(): Flow<List<TagEntity>> = db.tagDao().observeAllNonDeleted()
 
-    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> =
-        db.tagDao().observeForNote(noteId)
+    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> = db.tagDao().observeForNote(noteId)
 
     fun observeHistoryReminders(): Flow<List<ReminderEntity>> = db.reminderDao().observeHistory()
 
@@ -45,28 +47,24 @@ class NotesRepository(
 
     fun observeConflicts(): Flow<List<NoteConflictEntity>> = db.noteConflictDao().observeOpen()
 
-    fun observeSyncErrors(): Flow<List<com.notesreminders.app.data.local.SyncErrorEntity>> =
-        db.syncErrorDao().observeAll()
+    fun observeSyncErrors(): Flow<List<com.notesreminders.app.data.local.SyncErrorEntity>> = db.syncErrorDao().observeAll()
 
-    fun observeHasPendingSync(): Flow<Boolean> =
-        combine(
-            db.noteDao().observeDirtyCount(),
-            db.reminderDao().observeDirtyCount(),
-            db.tagDao().observeDirtyCount(),
-            db.noteTagDao().observeDirtyCount(),
-        ) { notes, reminders, tags, noteTags ->
-            notes > 0 || reminders > 0 || tags > 0 || noteTags > 0
-        }
+    fun observeHasPendingSync(): Flow<Boolean> = combine(
+        db.noteDao().observeDirtyCount(),
+        db.reminderDao().observeDirtyCount(),
+        db.tagDao().observeDirtyCount(),
+        db.noteTagDao().observeDirtyCount(),
+    ) { notes, reminders, tags, noteTags ->
+        notes > 0 || reminders > 0 || tags > 0 || noteTags > 0
+    }
 
     suspend fun getNote(id: String): NoteEntity? = db.noteDao().getById(id)
 
     fun observeNote(id: String): Flow<NoteEntity?> = db.noteDao().observeById(id)
 
-    suspend fun getRemindersForNote(noteId: String): List<ReminderEntity> =
-        db.reminderDao().getByNoteId(noteId)
+    suspend fun getRemindersForNote(noteId: String): List<ReminderEntity> = db.reminderDao().getByNoteId(noteId)
 
-    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
-        db.reminderDao().observeByNoteId(noteId)
+    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> = db.reminderDao().observeByNoteId(noteId)
 
     suspend fun prepareForUser(userId: String) {
         val meta = db.syncMetaDao().get()
@@ -87,26 +85,33 @@ class NotesRepository(
         db.syncMetaDao().clearAll()
     }
 
-    suspend fun createNote(title: String, body: String): NoteEntity {
+    suspend fun createNote(
+        title: String,
+        body: String,
+    ): NoteEntity {
         val userId = tokenStore.userId ?: error("Not logged in")
         val now = Instant.now().toString()
-        val note = NoteEntity(
-            id = UUID.randomUUID().toString(),
-            userId = userId,
-            title = title,
-            body = body,
-            status = "active",
-            pinnedAt = null,
-            createdAt = now,
-            updatedAt = now,
-            deletedAt = null,
-            isDirty = true,
-        )
+        val note =
+            NoteEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                title = title,
+                body = body,
+                status = "active",
+                pinnedAt = null,
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+                isDirty = true,
+            )
         db.noteDao().upsert(note)
         return note
     }
 
-    suspend fun createNoteFromText(text: String, sourceTitle: String? = null): NoteEntity {
+    suspend fun createNoteFromText(
+        text: String,
+        sourceTitle: String? = null,
+    ): NoteEntity {
         val content = ShareCapture.format(text, sourceTitle)
         val note = createNote(content.title, content.body)
         for (tagName in content.tags) {
@@ -120,7 +125,11 @@ class NotesRepository(
         reconciler.reconcile()
     }
 
-    suspend fun saveNoteLocal(id: String, title: String, body: String) {
+    suspend fun saveNoteLocal(
+        id: String,
+        title: String,
+        body: String,
+    ) {
         val existing = db.noteDao().getById(id) ?: return
         if (existing.title == title && existing.body == body) return
         captureRevision(existing, "edit")
@@ -134,7 +143,10 @@ class NotesRepository(
         )
     }
 
-    private suspend fun captureRevision(note: NoteEntity, source: String) {
+    private suspend fun captureRevision(
+        note: NoteEntity,
+        source: String,
+    ) {
         captureRevision(note.id, note.title, note.body, source)
     }
 
@@ -163,8 +175,7 @@ class NotesRepository(
         db.noteRevisionDao().keepLatest(noteId, 10)
     }
 
-    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
-        db.noteRevisionDao().observeForNote(noteId, 10)
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> = db.noteRevisionDao().observeForNote(noteId, 10)
 
     suspend fun getRevision(id: String): NoteRevisionEntity? = db.noteRevisionDao().getById(id)
 
@@ -178,22 +189,26 @@ class NotesRepository(
 
     suspend fun getTemplates(): List<NoteEntity> = db.noteDao().getTemplates()
 
-    suspend fun createTemplate(title: String, body: String): NoteEntity {
+    suspend fun createTemplate(
+        title: String,
+        body: String,
+    ): NoteEntity {
         val userId = tokenStore.userId ?: error("Not logged in")
         val now = Instant.now().toString()
-        val note = NoteEntity(
-            id = UUID.randomUUID().toString(),
-            userId = userId,
-            title = title,
-            body = body,
-            status = "active",
-            pinnedAt = null,
-            isTemplate = true,
-            createdAt = now,
-            updatedAt = now,
-            deletedAt = null,
-            isDirty = true,
-        )
+        val note =
+            NoteEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                title = title,
+                body = body,
+                status = "active",
+                pinnedAt = null,
+                isTemplate = true,
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+                isDirty = true,
+            )
         db.noteDao().upsert(note)
         return note
     }
@@ -204,7 +219,12 @@ class NotesRepository(
     }
 
     suspend fun seedDefaultTemplatesIfNeeded(): Int {
-        val existingTitles = db.noteDao().getTemplates().map { it.title }.toSet()
+        val existingTitles =
+            db
+                .noteDao()
+                .getTemplates()
+                .map { it.title }
+                .toSet()
         val toCreate = Templates.DEFAULTS.filter { it.title !in existingTitles }
         for (tpl in toCreate) createTemplate(tpl.title, tpl.body)
         return toCreate.size
@@ -218,25 +238,29 @@ class NotesRepository(
         val body = Templates.expandTemplate(Templates.DEFAULTS[0].body, title)
         val userId = tokenStore.userId ?: error("Not logged in")
         val now = Instant.now().toString()
-        val note = NoteEntity(
-            id = UUID.randomUUID().toString(),
-            userId = userId,
-            title = title,
-            body = body,
-            status = "active",
-            pinnedAt = null,
-            isTemplate = false,
-            dailyDate = date,
-            createdAt = now,
-            updatedAt = now,
-            deletedAt = null,
-            isDirty = true,
-        )
+        val note =
+            NoteEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                title = title,
+                body = body,
+                status = "active",
+                pinnedAt = null,
+                isTemplate = false,
+                dailyDate = date,
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+                isDirty = true,
+            )
         db.noteDao().upsert(note)
         return note
     }
 
-    suspend fun setNotePinned(id: String, pinned: Boolean) {
+    suspend fun setNotePinned(
+        id: String,
+        pinned: Boolean,
+    ) {
         val existing = db.noteDao().getById(id) ?: return
         val now = Instant.now().toString()
         db.noteDao().upsert(
@@ -248,7 +272,10 @@ class NotesRepository(
         )
     }
 
-    suspend fun setNoteArchived(id: String, archived: Boolean) {
+    suspend fun setNoteArchived(
+        id: String,
+        archived: Boolean,
+    ) {
         val existing = db.noteDao().getById(id) ?: return
         val now = Instant.now().toString()
         db.noteDao().upsert(
@@ -265,20 +292,24 @@ class NotesRepository(
         val trimmed = name.trim()
         require(trimmed.isNotEmpty() && trimmed.length <= 40) { "Invalid tag name" }
         val now = Instant.now().toString()
-        val tag = TagEntity(
-            id = UUID.randomUUID().toString(),
-            userId = userId,
-            name = trimmed,
-            createdAt = now,
-            updatedAt = now,
-            deletedAt = null,
-            isDirty = true,
-        )
+        val tag =
+            TagEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                name = trimmed,
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+                isDirty = true,
+            )
         db.tagDao().upsert(tag)
         return tag
     }
 
-    suspend fun assignTag(noteId: String, tagId: String) {
+    suspend fun assignTag(
+        noteId: String,
+        tagId: String,
+    ) {
         val userId = tokenStore.userId ?: error("Not logged in")
         db.tagDao().getById(tagId) ?: return
         val now = Instant.now().toString()
@@ -304,7 +335,10 @@ class NotesRepository(
         }
     }
 
-    suspend fun unassignTag(noteId: String, tagId: String) {
+    suspend fun unassignTag(
+        noteId: String,
+        tagId: String,
+    ) {
         val existing = db.noteTagDao().getByNoteAndTag(noteId, tagId) ?: return
         if (existing.deletedAt != null) return
         val now = Instant.now().toString()
@@ -313,7 +347,10 @@ class NotesRepository(
         )
     }
 
-    suspend fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
+    suspend fun resolveConflict(
+        conflictId: String,
+        resolution: ConflictResolution,
+    ) {
         val conflict = db.noteConflictDao().getById(conflictId) ?: return
         val now = Instant.now().toString()
         val note = db.noteDao().getById(conflict.noteId)
@@ -355,7 +392,8 @@ class NotesRepository(
                         ),
                     )
                     runCatching { findOrCreateTag("merged:${now.substring(0, 10)}") }
-                        .getOrNull()?.let { tag -> assignTag(note.id, tag.id) }
+                        .getOrNull()
+                        ?.let { tag -> assignTag(note.id, tag.id) }
                 }
             }
         }
@@ -440,21 +478,22 @@ class NotesRepository(
     ): ReminderEntity {
         val userId = tokenStore.userId ?: error("Not logged in")
         val now = Instant.now().toString()
-        val reminder = ReminderEntity(
-            id = UUID.randomUUID().toString(),
-            userId = userId,
-            noteId = noteId,
-            fireAt = fireAtIso,
-            timezone = timezone,
-            repeatRule = repeatRule,
-            intensity = "gentle",
-            status = "active",
-            completedAt = null,
-            createdAt = now,
-            updatedAt = now,
-            deletedAt = null,
-            isDirty = true,
-        )
+        val reminder =
+            ReminderEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                noteId = noteId,
+                fireAt = fireAtIso,
+                timezone = timezone,
+                repeatRule = repeatRule,
+                intensity = "gentle",
+                status = "active",
+                completedAt = null,
+                createdAt = now,
+                updatedAt = now,
+                deletedAt = null,
+                isDirty = true,
+            )
         db.reminderDao().upsert(reminder)
         reconciler.reconcile()
         return reminder
@@ -468,13 +507,14 @@ class NotesRepository(
     ): ReminderEntity? {
         val existing = db.reminderDao().getById(id) ?: return null
         reconciler.cancelAlarm(id)
-        val updated = existing.copy(
-            fireAt = fireAtIso,
-            timezone = timezone,
-            repeatRule = repeatRule,
-            updatedAt = Instant.now().toString(),
-            isDirty = true,
-        )
+        val updated =
+            existing.copy(
+                fireAt = fireAtIso,
+                timezone = timezone,
+                repeatRule = repeatRule,
+                updatedAt = Instant.now().toString(),
+                isDirty = true,
+            )
         db.reminderDao().upsert(updated)
         reconciler.reconcile()
         return updated
@@ -509,13 +549,17 @@ class NotesRepository(
         reconciler.reconcile()
     }
 
-    private suspend fun applyCompleteLocally(reminder: ReminderEntity, now: String) {
+    private suspend fun applyCompleteLocally(
+        reminder: ReminderEntity,
+        now: String,
+    ) {
         if (reminder.repeatRule != null) {
-            val next = com.notesreminders.app.reminders.RepeatUtils.computeNextOccurrence(
-                reminder.repeatRule,
-                reminder.fireAt,
-                reminder.timezone,
-            )
+            val next =
+                com.notesreminders.app.reminders.RepeatUtils.computeNextOccurrence(
+                    reminder.repeatRule,
+                    reminder.fireAt,
+                    reminder.timezone,
+                )
             db.reminderDao().upsert(
                 reminder.copy(
                     fireAt = next,
@@ -536,12 +580,19 @@ class NotesRepository(
         }
     }
 
-    suspend fun snoozeReminder(id: String, snoozeUntilIso: String) {
+    suspend fun snoozeReminder(
+        id: String,
+        snoozeUntilIso: String,
+    ) {
         val reminder = db.reminderDao().getById(id) ?: return
         reconciler.cancelAlarm(id)
         val now = Instant.now().toString()
         try {
-            api.snoozeReminder(id, com.notesreminders.app.data.api.SnoozeRequest(snoozeUntilIso))
+            api.snoozeReminder(
+                id,
+                com.notesreminders.app.data.api
+                    .SnoozeRequest(snoozeUntilIso),
+            )
         } catch (_: Exception) {
         }
         db.reminderDao().upsert(
@@ -567,18 +618,22 @@ class NotesRepository(
 
     suspend fun retrySyncError(error: com.notesreminders.app.data.local.SyncErrorEntity) {
         when (error.entityType) {
-            "note" -> db.noteDao().getById(error.entityId)?.let {
-                db.noteDao().upsert(it.copy(isDirty = true))
-            }
-            "reminder" -> db.reminderDao().getById(error.entityId)?.let {
-                db.reminderDao().upsert(it.copy(isDirty = true))
-            }
-            "tag" -> db.tagDao().getById(error.entityId)?.let {
-                db.tagDao().upsert(it.copy(isDirty = true))
-            }
-            "note_tag" -> db.noteTagDao().getById(error.entityId)?.let {
-                db.noteTagDao().upsert(it.copy(isDirty = true))
-            }
+            "note" ->
+                db.noteDao().getById(error.entityId)?.let {
+                    db.noteDao().upsert(it.copy(isDirty = true))
+                }
+            "reminder" ->
+                db.reminderDao().getById(error.entityId)?.let {
+                    db.reminderDao().upsert(it.copy(isDirty = true))
+                }
+            "tag" ->
+                db.tagDao().getById(error.entityId)?.let {
+                    db.tagDao().upsert(it.copy(isDirty = true))
+                }
+            "note_tag" ->
+                db.noteTagDao().getById(error.entityId)?.let {
+                    db.noteTagDao().upsert(it.copy(isDirty = true))
+                }
         }
         db.syncErrorDao().deleteById(error.id)
         syncRepository.sync()

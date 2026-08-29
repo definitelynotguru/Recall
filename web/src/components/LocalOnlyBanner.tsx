@@ -29,7 +29,10 @@ export function LocalOnlyBanner({ onSignUp }: Props) {
 
   return (
     <div className="hint-banner local-only-banner">
-      <span>You&apos;re writing locally. Sign up to sync across devices.</span>
+      <span>
+        You&apos;re writing locally. Sign in for tags, reminders, backups, and
+        cross-device sync.
+      </span>
       <Link
         href="/login?mode=register"
         className="btn btn-primary"

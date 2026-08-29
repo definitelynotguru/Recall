@@ -1,9 +1,11 @@
 package com.notesreminders.app.ui
 
+import android.app.Activity
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.NotesApp
 import com.notesreminders.app.data.ConflictResolution
 import com.notesreminders.app.data.Templates
@@ -15,15 +17,13 @@ import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.NoteRevisionEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
-import android.app.Activity
-import com.notesreminders.app.BuildConfig
 import com.notesreminders.app.debug.DebugReportCollector
-import com.notesreminders.app.update.AppUpdater
 import com.notesreminders.app.reminders.DetectedReminder
 import com.notesreminders.app.sync.SyncWorker
 import com.notesreminders.app.ui.sync.SyncCoordinator
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.notesreminders.app.update.AppUpdater
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +40,9 @@ import kotlinx.coroutines.withContext
 import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
-class AppViewModel(application: Application) : AndroidViewModel(application) {
+class AppViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val app = application as NotesApp
 
     val isLoggedIn: Boolean
@@ -52,64 +54,73 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _noteQuery = MutableStateFlow("")
     val noteQuery: StateFlow<String> = _noteQuery.asStateFlow()
 
-    private val debouncedNoteQuery = _noteQuery
-        .debounce(250)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    private val debouncedNoteQuery =
+        _noteQuery
+            .debounce(250)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     private val _noteTagFilter = MutableStateFlow<String?>(null)
     val noteTagFilter: StateFlow<String?> = _noteTagFilter.asStateFlow()
 
-    val notes = combine(_noteStatus, debouncedNoteQuery, _noteTagFilter) { status, query, tagId ->
-        Triple(status, query, tagId)
-    }.flatMapLatest { (status, query, tagId) ->
-        app.notesRepository.observeNotes(status, query, tagId)
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val notes =
+        combine(_noteStatus, debouncedNoteQuery, _noteTagFilter) { status, query, tagId ->
+            Triple(status, query, tagId)
+        }.flatMapLatest { (status, query, tagId) ->
+            app.notesRepository.observeNotes(status, query, tagId)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val tags = app.notesRepository.observeTags().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val tags =
+        app.notesRepository.observeTags().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val historyReminders = app.notesRepository.observeHistoryReminders().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val historyReminders =
+        app.notesRepository.observeHistoryReminders().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val reminders = app.notesRepository.observeReminders().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val reminders =
+        app.notesRepository.observeReminders().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val conflicts = app.notesRepository.observeConflicts().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val conflicts =
+        app.notesRepository.observeConflicts().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val syncErrors = app.notesRepository.observeSyncErrors().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList(),
-    )
+    val syncErrors =
+        app.notesRepository.observeSyncErrors().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList(),
+        )
 
-    val hasPendingSync = app.notesRepository.observeHasPendingSync().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        false,
-    )
+    val hasPendingSync =
+        app.notesRepository.observeHasPendingSync().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            false,
+        )
 
-    val isOnline = app.networkMonitor.isOnline.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        app.networkMonitor.currentIsOnline(),
-    )
+    val isOnline =
+        app.networkMonitor.isOnline.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            app.networkMonitor.currentIsOnline(),
+        )
 
     val userPrefs: UserPrefs = app.userPrefs
 
@@ -140,13 +151,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(email: String, password: String, onSuccess: () -> Unit) {
+    fun login(
+        email: String,
+        password: String,
+        onSuccess: () -> Unit,
+    ) {
         viewModelScope.launch {
             _authError.value = null
             try {
-                val res = withContext(Dispatchers.IO) {
-                    app.api.login(LoginRequest(email, password))
-                }
+                val res =
+                    withContext(Dispatchers.IO) {
+                        app.api.login(LoginRequest(email, password))
+                    }
                 completeAuth(res.access_token, res.refresh_token, res.user.id, res.user.email)
                 onSuccess()
             } catch (e: Exception) {
@@ -155,13 +171,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun register(email: String, password: String, secret: String, onSuccess: () -> Unit) {
+    fun register(
+        email: String,
+        password: String,
+        secret: String,
+        onSuccess: () -> Unit,
+    ) {
         viewModelScope.launch {
             _authError.value = null
             try {
-                val res = withContext(Dispatchers.IO) {
-                    app.api.register(RegisterRequest(email, password, secret))
-                }
+                val res =
+                    withContext(Dispatchers.IO) {
+                        app.api.register(RegisterRequest(email, password, secret))
+                    }
                 completeAuth(res.access_token, res.refresh_token, res.user.id, res.user.email)
                 onSuccess()
             } catch (e: Exception) {
@@ -223,7 +245,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun downloadAndInstallUpdate(activity: Activity, onStatus: (String) -> Unit) {
+    fun downloadAndInstallUpdate(
+        activity: Activity,
+        onStatus: (String) -> Unit,
+    ) {
         app.networkMonitor.refresh()
         if (!app.networkMonitor.currentIsOnline()) {
             onStatus("Need internet to download update · tap Reconnect on the banner if you are online")
@@ -236,9 +261,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 AppUpdater.openInstallPermissionSettings(activity)
                 return@launch
             }
-            val result = withContext(Dispatchers.IO) {
-                AppUpdater.downloadLatestApk(activity)
-            }
+            val result =
+                withContext(Dispatchers.IO) {
+                    AppUpdater.downloadLatestApk(activity)
+                }
             result.fold(
                 onSuccess = { apk ->
                     onStatus("Opening installer…")
@@ -254,17 +280,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendDebugReport(onResult: (String) -> Unit) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    app.networkMonitor.refresh()
-                    app.notesRepository.reconcileAlarms()
-                    val payload = DebugReportCollector.collect(
-                        app,
-                        lastSyncHint = syncCoordinator.syncHint.value,
-                    )
-                    app.api.submitDebugReport(payload)
+            val result =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        app.networkMonitor.refresh()
+                        app.notesRepository.reconcileAlarms()
+                        val payload =
+                            DebugReportCollector.collect(
+                                app,
+                                lastSyncHint = syncCoordinator.syncHint.value,
+                            )
+                        app.api.submitDebugReport(payload)
+                    }
                 }
-            }
             onResult(
                 result.fold(
                     onSuccess = { "Report sent · id ${it.id.take(8)}…" },
@@ -276,18 +304,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun scheduleNoteSave(noteId: String, title: String, body: String) {
+    fun scheduleNoteSave(
+        noteId: String,
+        title: String,
+        body: String,
+    ) {
         noteSaveJob?.cancel()
-        noteSaveJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(500)
-            app.notesRepository.saveNoteLocal(noteId, title, body)
-            if (userPrefs.autoSyncAfterNote && app.networkMonitor.currentIsOnline()) {
-                withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
+        noteSaveJob =
+            viewModelScope.launch(Dispatchers.IO) {
+                delay(500)
+                app.notesRepository.saveNoteLocal(noteId, title, body)
+                if (userPrefs.autoSyncAfterNote && app.networkMonitor.currentIsOnline()) {
+                    withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
+                }
             }
-        }
     }
 
-    fun flushNoteSave(noteId: String, title: String, body: String) {
+    fun flushNoteSave(
+        noteId: String,
+        title: String,
+        body: String,
+    ) {
         noteSaveJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.saveNoteLocal(noteId, title, body)
@@ -303,8 +340,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun observeTemplates(): Flow<List<NoteEntity>> =
-        app.notesRepository.observeTemplates()
+    fun observeTemplates(): Flow<List<NoteEntity>> = app.notesRepository.observeTemplates()
 
     fun createTemplate(onCreated: (String) -> Unit) {
         ioLaunch {
@@ -313,7 +349,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createNoteFromTemplate(template: NoteEntity, onCreated: (String) -> Unit) {
+    fun createNoteFromTemplate(
+        template: NoteEntity,
+        onCreated: (String) -> Unit,
+    ) {
         ioLaunch {
             val note = app.notesRepository.createNoteFromTemplate(template)
             withContext(Dispatchers.Main) { onCreated(note.id) }
@@ -331,7 +370,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ioLaunch { app.notesRepository.deleteNote(template.id) }
     }
 
-    fun createStarterNotesFromSurvey(indices: List<Int>, onDone: () -> Unit) {
+    fun createStarterNotesFromSurvey(
+        indices: List<Int>,
+        onDone: () -> Unit,
+    ) {
         ioLaunch {
             for (i in indices) {
                 val t = Templates.DEFAULTS[i]
@@ -344,21 +386,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun observeDailyNotes() = app.notesRepository.observeDailyNotes()
 
     fun openToday(onOpen: (String) -> Unit) {
-        val date = java.time.LocalDate.now().toString()
+        val date =
+            java.time.LocalDate
+                .now()
+                .toString()
         ioLaunch {
             val note = app.notesRepository.getOrCreateDailyNote(date)
             withContext(Dispatchers.Main) { onOpen(note.id) }
         }
     }
 
-    fun openDailyNote(date: String, onOpen: (String) -> Unit) {
+    fun openDailyNote(
+        date: String,
+        onOpen: (String) -> Unit,
+    ) {
         ioLaunch {
             val note = app.notesRepository.getOrCreateDailyNote(date)
             withContext(Dispatchers.Main) { onOpen(note.id) }
         }
     }
 
-    fun createNoteFromText(text: String, sourceTitle: String? = null, onCreated: (String) -> Unit) {
+    fun createNoteFromText(
+        text: String,
+        sourceTitle: String? = null,
+        onCreated: (String) -> Unit,
+    ) {
         if (text.isBlank()) return
         viewModelScope.launch(Dispatchers.IO) {
             val note = app.notesRepository.createNoteFromText(text, sourceTitle)
@@ -368,50 +420,67 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun exportBackup(uri: Uri, onResult: (String) -> Unit) {
+    fun exportBackup(
+        uri: Uri,
+        onResult: (String) -> Unit,
+    ) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val json = app.notesRepository.exportBackupJson()
-                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
-                        stream.write(json.toByteArray(Charsets.UTF_8))
-                    } ?: error("Could not open backup file")
-                    "Backup exported"
+            val result =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val json = app.notesRepository.exportBackupJson()
+                        getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(json.toByteArray(Charsets.UTF_8))
+                        } ?: error("Could not open backup file")
+                        "Backup exported"
+                    }
                 }
-            }
             onResult(result.getOrElse { "Backup failed: ${it.message ?: "unknown error"}" })
         }
     }
 
-    fun exportMarkdown(uri: Uri, onResult: (String) -> Unit) {
+    fun exportMarkdown(
+        uri: Uri,
+        onResult: (String) -> Unit,
+    ) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val bytes = app.notesRepository.exportMarkdownZip()
-                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
-                        stream.write(bytes)
-                    } ?: error("Could not open export file")
-                    "Markdown export saved"
+            val result =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val bytes = app.notesRepository.exportMarkdownZip()
+                        getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(bytes)
+                        } ?: error("Could not open export file")
+                        "Markdown export saved"
+                    }
                 }
-            }
             onResult(result.getOrElse { "Export failed: ${it.message ?: "unknown error"}" })
         }
     }
 
-    fun importBackup(uri: Uri, onResult: (String) -> Unit) {
+    fun importBackup(
+        uri: Uri,
+        onResult: (String) -> Unit,
+    ) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val json = getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
-                        stream.bufferedReader(Charsets.UTF_8).readText()
-                    } ?: error("Could not open backup file")
-                    val bundle = app.notesRepository.importBackupJson(json)
-                    val noteCount = bundle.notes.orEmpty().size
-                    val reminderCount = bundle.reminders_by_note.orEmpty().values.sumOf { it.size }
-                    val tagCount = bundle.tags.orEmpty().size
-                    "Imported $noteCount notes, $reminderCount reminders, $tagCount tags · syncing…"
+            val result =
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        val json =
+                            getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+                                stream.bufferedReader(Charsets.UTF_8).readText()
+                            } ?: error("Could not open backup file")
+                        val bundle = app.notesRepository.importBackupJson(json)
+                        val noteCount = bundle.notes.orEmpty().size
+                        val reminderCount =
+                            bundle.reminders_by_note
+                                .orEmpty()
+                                .values
+                                .sumOf { it.size }
+                        val tagCount = bundle.tags.orEmpty().size
+                        "Imported $noteCount notes, $reminderCount reminders, $tagCount tags · syncing…"
+                    }
                 }
-            }
             result.onSuccess {
                 syncNow(showSuccess = false)
             }
@@ -419,26 +488,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setNoteListFilter(status: String, query: String, tagId: String? = null) {
+    fun setNoteListFilter(
+        status: String,
+        query: String,
+        tagId: String? = null,
+    ) {
         _noteStatus.value = status
         _noteQuery.value = query
         _noteTagFilter.value = tagId
     }
 
-    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> =
-        app.notesRepository.observeTagsForNote(noteId)
+    fun observeTagsForNote(noteId: String): Flow<List<TagEntity>> = app.notesRepository.observeTagsForNote(noteId)
 
-    fun observeNote(noteId: String): Flow<NoteEntity?> =
-        app.notesRepository.observeNote(noteId)
+    fun observeNote(noteId: String): Flow<NoteEntity?> = app.notesRepository.observeNote(noteId)
 
-    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> =
-        app.notesRepository.observeRevisionsForNote(noteId)
+    fun observeRevisionsForNote(noteId: String): Flow<List<NoteRevisionEntity>> = app.notesRepository.observeRevisionsForNote(noteId)
 
-    fun restoreRevision(revisionId: String, onResult: (String?) -> Unit) {
+    fun restoreRevision(
+        revisionId: String,
+        onResult: (String?) -> Unit,
+    ) {
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { app.notesRepository.restoreRevisionAsNote(revisionId) }
-            }
+            val result =
+                withContext(Dispatchers.IO) {
+                    runCatching { app.notesRepository.restoreRevisionAsNote(revisionId) }
+                }
             val newId = result.getOrNull()?.id
             if (newId != null) {
                 withContext(Dispatchers.Main) { onResult(newId) }
@@ -448,18 +522,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> =
-        app.notesRepository.observeRemindersForNote(noteId)
+    fun observeRemindersForNote(noteId: String): Flow<List<ReminderEntity>> = app.notesRepository.observeRemindersForNote(noteId)
 
-    fun assignTag(noteId: String, tagId: String) {
+    fun assignTag(
+        noteId: String,
+        tagId: String,
+    ) {
         ioLaunch { app.notesRepository.assignTag(noteId, tagId) }
     }
 
-    fun unassignTag(noteId: String, tagId: String) {
+    fun unassignTag(
+        noteId: String,
+        tagId: String,
+    ) {
         ioLaunch { app.notesRepository.unassignTag(noteId, tagId) }
     }
 
-    fun createTagAndAssign(noteId: String, name: String, onDone: () -> Unit = {}) {
+    fun createTagAndAssign(
+        noteId: String,
+        name: String,
+        onDone: () -> Unit = {},
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val tag = app.notesRepository.createTag(name)
             app.notesRepository.assignTag(noteId, tag.id)
@@ -467,15 +550,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setNotePinned(id: String, pinned: Boolean) {
+    fun setNotePinned(
+        id: String,
+        pinned: Boolean,
+    ) {
         ioLaunch { app.notesRepository.setNotePinned(id, pinned) }
     }
 
-    fun setNoteArchived(id: String, archived: Boolean) {
+    fun setNoteArchived(
+        id: String,
+        archived: Boolean,
+    ) {
         ioLaunch { app.notesRepository.setNoteArchived(id, archived) }
     }
 
-    fun resolveConflict(conflictId: String, resolution: ConflictResolution) {
+    fun resolveConflict(
+        conflictId: String,
+        resolution: ConflictResolution,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             app.notesRepository.resolveConflict(conflictId, resolution)
             withContext(Dispatchers.Main) { syncNow(showSuccess = false) }
@@ -493,7 +585,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         ioLaunch { app.notesRepository.discardSyncError(error) }
     }
 
-    fun deleteNote(id: String, onDone: () -> Unit) {
+    fun deleteNote(
+        id: String,
+        onDone: () -> Unit,
+    ) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 app.notesRepository.deleteNote(id)
@@ -571,9 +666,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun snoozeReminder(reminderId: String, hours: Long = 1) {
+    fun snoozeReminder(
+        reminderId: String,
+        hours: Long = 1,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val until = java.time.Instant.now().plusSeconds(hours * 3600).toString()
+            val until =
+                java.time.Instant
+                    .now()
+                    .plusSeconds(hours * 3600)
+                    .toString()
             app.notesRepository.snoozeReminder(reminderId, until)
             withContext(Dispatchers.Main) { syncNow(showSuccess = true) }
         }

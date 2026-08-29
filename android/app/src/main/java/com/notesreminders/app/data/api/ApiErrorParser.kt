@@ -20,14 +20,15 @@ object ApiErrorParser {
             val json = gson.fromJson(body, JsonObject::class.java)
             val base = json.get("error")?.asString ?: "HTTP $code"
             val issues = json.getAsJsonArray("issues")
-            val detail = if (issues != null && issues.size() > 0) {
-                val first = issues[0].asJsonObject
-                val path = first.get("path")?.asString ?: ""
-                val msg = first.get("message")?.asString ?: ""
-                if (path.isNotBlank()) " ($path: $msg)" else " ($msg)"
-            } else {
-                ""
-            }
+            val detail =
+                if (issues != null && issues.size() > 0) {
+                    val first = issues[0].asJsonObject
+                    val path = first.get("path")?.asString ?: ""
+                    val msg = first.get("message")?.asString ?: ""
+                    if (path.isNotBlank()) " ($path: $msg)" else " ($msg)"
+                } else {
+                    ""
+                }
             "Sync failed: $base$detail".take(220)
         } catch (_: Exception) {
             "Sync failed: HTTP $code"

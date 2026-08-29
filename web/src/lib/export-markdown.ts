@@ -1,7 +1,7 @@
 import { zipSync, strToU8 } from "fflate";
 import type { BackupBundle } from "./backup-import";
 
-export type MarkdownArchiveNote = {
+type MarkdownArchiveNote = {
   id: string;
   title: string;
   file: string;
@@ -13,7 +13,7 @@ export type MarkdownArchiveNote = {
   tags: string[];
 };
 
-export type MarkdownArchiveReminder = {
+type MarkdownArchiveReminder = {
   id: string;
   note_id: string;
   note_file: string;
@@ -30,7 +30,7 @@ export type MarkdownArchiveReminder = {
   deleted_at: string | null;
 };
 
-export type MarkdownArchiveMeta = {
+type MarkdownArchiveMeta = {
   app: string;
   exported_at: string;
   notes: MarkdownArchiveNote[];

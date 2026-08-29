@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "src/app/**/{page,layout,route,loading,error,not-found}.{ts,tsx}",
     "src/proxy.ts",
@@ -22,6 +22,7 @@
     "@tailwindcss/postcss",
     "tailwindcss",
     "eslint-config-next",
+    "esbuild",
     "drizzle-kit"
   ]
 }

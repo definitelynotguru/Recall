@@ -48,10 +48,7 @@ function decodeJwtExp(token: string): number | null {
   }
 }
 
-export function tokenExpiresWithinMinutes(
-  token: string,
-  minutes: number,
-): boolean {
+function tokenExpiresWithinMinutes(token: string, minutes: number): boolean {
   const exp = decodeJwtExp(token);
   if (!exp) return false;
   return exp * 1000 - Date.now() < minutes * 60_000;
@@ -77,6 +74,7 @@ async function performTokenRefresh(): Promise<string | null> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
+  if (res.status === 204) return null;
   if (res.status === 401 || res.status === 403) return null;
   if (!res.ok) {
     throw new Error(`Token refresh failed (${res.status})`);

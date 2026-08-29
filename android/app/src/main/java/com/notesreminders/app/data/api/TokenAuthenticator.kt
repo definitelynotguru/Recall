@@ -11,7 +11,10 @@ class TokenAuthenticator(
     private val tokenStore: TokenStore,
     private val refreshApi: suspend (RefreshRequest) -> RefreshResponse,
 ) : Authenticator {
-    override fun authenticate(route: Route?, response: Response): Request? {
+    override fun authenticate(
+        route: Route?,
+        response: Response,
+    ): Request? {
         if (responseCount(response) >= 2) return null
         val refresh = tokenStore.refreshToken ?: return null
 
@@ -20,7 +23,8 @@ class TokenAuthenticator(
                 val result = refreshApi(RefreshRequest(refresh))
                 tokenStore.accessToken = result.access_token
                 result.refresh_token?.let { tokenStore.refreshToken = it }
-                response.request.newBuilder()
+                response.request
+                    .newBuilder()
                     .header("Authorization", "Bearer ${result.access_token}")
                     .build()
             } catch (e: Exception) {

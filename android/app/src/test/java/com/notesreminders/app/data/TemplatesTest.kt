@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TemplatesTest {
-
     @Test
     fun expandTemplate_replacesDateAndTimeAndTitle() {
         val out = Templates.expandTemplate("# {{title}} at {{time}} on {{date}}", "Sprint")

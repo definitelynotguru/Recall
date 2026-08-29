@@ -18,7 +18,10 @@ interface NoteConflictDao {
     suspend fun getById(id: String): NoteConflictEntity?
 
     @Query("UPDATE note_conflicts SET resolvedAt = :resolvedAt WHERE id = :id")
-    suspend fun resolve(id: String, resolvedAt: String)
+    suspend fun resolve(
+        id: String,
+        resolvedAt: String,
+    )
 
     @Query("DELETE FROM note_conflicts")
     suspend fun clearAll()

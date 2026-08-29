@@ -27,7 +27,7 @@ const themeInitScript = `(function(){try{var t=localStorage.getItem("recall-them
 export const metadata: Metadata = {
   title: "Recall — Notes & Reminders",
   description: "Recall — personal notes with reminders on Android",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "Recall",

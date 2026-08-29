@@ -18,7 +18,6 @@ class SyncWorker(
     context: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
-
     override suspend fun doWork(): Result {
         val app = applicationContext as NotesApp
         if (!app.tokenStore.isLoggedIn()) return Result.success()
@@ -50,7 +49,10 @@ class SyncWorker(
         return Result.retry()
     }
 
-    private suspend fun recordPermanentFailure(app: NotesApp, httpStatus: Int?) {
+    private suspend fun recordPermanentFailure(
+        app: NotesApp,
+        httpStatus: Int?,
+    ) {
         val label = httpStatus?.let { "HTTP $it" } ?: "network or unknown error"
         val error = SyncErrorRecorder.buildSyncFailure("permanent sync failure ($label)")
         app.database.syncErrorDao().upsertAll(listOf(error))
@@ -61,15 +63,16 @@ class SyncWorker(
         private const val ONCE_WORK_NAME = "notes_sync_once"
         private const val MAX_RETRY_ATTEMPTS = 5
 
-        private fun networkConstraints(): Constraints =
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+        private fun networkConstraints(): Constraints = Constraints
+            .Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
 
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<SyncWorker>(30, TimeUnit.MINUTES)
-                .setConstraints(networkConstraints())
-                .build()
+            val request =
+                PeriodicWorkRequestBuilder<SyncWorker>(30, TimeUnit.MINUTES)
+                    .setConstraints(networkConstraints())
+                    .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
@@ -78,10 +81,11 @@ class SyncWorker(
         }
 
         fun runOnce(context: Context) {
-            val request = OneTimeWorkRequestBuilder<SyncWorker>()
-                .setConstraints(networkConstraints())
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
-                .build()
+            val request =
+                OneTimeWorkRequestBuilder<SyncWorker>()
+                    .setConstraints(networkConstraints())
+                    .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                    .build()
             WorkManager.getInstance(context).enqueueUniqueWork(
                 ONCE_WORK_NAME,
                 ExistingWorkPolicy.KEEP,
@@ -90,4 +94,3 @@ class SyncWorker(
         }
     }
 }
-

@@ -92,4 +92,14 @@ describe("apiFetch token refresh", () => {
     await expect(refresh).resolves.toBeNull();
     expect(getAccessToken()).toBeNull();
   });
+
+  it("treats a missing refresh session as anonymous", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
+    );
+
+    await expect(refreshAccessToken()).resolves.toBeNull();
+    expect(getAccessToken()).toBeNull();
+  });
 });

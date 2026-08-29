@@ -24,7 +24,10 @@ interface TagDao {
     suspend fun getById(id: String): TagEntity?
 
     @Query("SELECT * FROM tags WHERE userId = :userId AND name = :name AND deletedAt IS NULL LIMIT 1")
-    suspend fun getByName(userId: String, name: String): TagEntity?
+    suspend fun getByName(
+        userId: String,
+        name: String,
+    ): TagEntity?
 
     @Query(
         """

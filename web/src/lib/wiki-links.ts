@@ -1,8 +1,6 @@
-export const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
-export function extractWikiLinks(
-  body: string,
-): { target: string; display: string }[] {
+function extractWikiLinks(body: string): { target: string; display: string }[] {
   const links: { target: string; display: string }[] = [];
   let match: RegExpExecArray | null;
   const re = new RegExp(WIKI_LINK_RE.source, "g");

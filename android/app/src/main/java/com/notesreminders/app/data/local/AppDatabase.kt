@@ -22,12 +22,19 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
+
     abstract fun reminderDao(): ReminderDao
+
     abstract fun syncMetaDao(): SyncMetaDao
+
     abstract fun tagDao(): TagDao
+
     abstract fun noteTagDao(): NoteTagDao
+
     abstract fun noteConflictDao(): NoteConflictDao
+
     abstract fun syncErrorDao(): SyncErrorDao
+
     abstract fun noteRevisionDao(): NoteRevisionDao
 
     @Transaction
@@ -46,111 +53,121 @@ abstract class AppDatabase : RoomDatabase() {
     }
 
     companion object {
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE notes ADD COLUMN pinnedAt TEXT")
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_notes_status_pinned_updated " +
-                        "ON notes(status, pinnedAt, updatedAt)",
-                )
+        val MIGRATION_1_2 =
+            object : Migration(1, 2) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE notes ADD COLUMN pinnedAt TEXT")
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_notes_status_pinned_updated " +
+                            "ON notes(status, pinnedAt, updatedAt)",
+                    )
+                }
             }
-        }
-        val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS tags (" +
-                        "id TEXT NOT NULL PRIMARY KEY, " +
-                        "userId TEXT NOT NULL, " +
-                        "name TEXT NOT NULL, " +
-                        "createdAt TEXT NOT NULL, " +
-                        "updatedAt TEXT NOT NULL, " +
-                        "deletedAt TEXT, " +
-                        "isDirty INTEGER NOT NULL DEFAULT 0)",
-                )
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS note_tags (" +
-                        "id TEXT NOT NULL PRIMARY KEY, " +
-                        "userId TEXT NOT NULL, " +
-                        "noteId TEXT NOT NULL, " +
-                        "tagId TEXT NOT NULL, " +
-                        "createdAt TEXT NOT NULL, " +
-                        "updatedAt TEXT NOT NULL, " +
-                        "deletedAt TEXT, " +
-                        "isDirty INTEGER NOT NULL DEFAULT 0)",
-                )
+        val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS tags (" +
+                            "id TEXT NOT NULL PRIMARY KEY, " +
+                            "userId TEXT NOT NULL, " +
+                            "name TEXT NOT NULL, " +
+                            "createdAt TEXT NOT NULL, " +
+                            "updatedAt TEXT NOT NULL, " +
+                            "deletedAt TEXT, " +
+                            "isDirty INTEGER NOT NULL DEFAULT 0)",
+                    )
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS note_tags (" +
+                            "id TEXT NOT NULL PRIMARY KEY, " +
+                            "userId TEXT NOT NULL, " +
+                            "noteId TEXT NOT NULL, " +
+                            "tagId TEXT NOT NULL, " +
+                            "createdAt TEXT NOT NULL, " +
+                            "updatedAt TEXT NOT NULL, " +
+                            "deletedAt TEXT, " +
+                            "isDirty INTEGER NOT NULL DEFAULT 0)",
+                    )
+                }
             }
-        }
-        val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS note_conflicts (" +
-                        "id TEXT NOT NULL PRIMARY KEY, " +
-                        "noteId TEXT NOT NULL, " +
-                        "localBody TEXT NOT NULL, " +
-                        "serverBody TEXT NOT NULL, " +
-                        "serverUpdatedAt TEXT NOT NULL, " +
-                        "detectedAt TEXT NOT NULL, " +
-                        "resolvedAt TEXT)",
-                )
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS note_conflicts (" +
+                            "id TEXT NOT NULL PRIMARY KEY, " +
+                            "noteId TEXT NOT NULL, " +
+                            "localBody TEXT NOT NULL, " +
+                            "serverBody TEXT NOT NULL, " +
+                            "serverUpdatedAt TEXT NOT NULL, " +
+                            "detectedAt TEXT NOT NULL, " +
+                            "resolvedAt TEXT)",
+                    )
+                }
             }
-        }
-        val MIGRATION_4_5 = object : Migration(4, 5) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE note_conflicts ADD COLUMN localTitle TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE note_conflicts ADD COLUMN serverTitle TEXT NOT NULL DEFAULT ''")
+        val MIGRATION_4_5 =
+            object : Migration(4, 5) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE note_conflicts ADD COLUMN localTitle TEXT NOT NULL DEFAULT ''")
+                    db.execSQL("ALTER TABLE note_conflicts ADD COLUMN serverTitle TEXT NOT NULL DEFAULT ''")
+                }
             }
-        }
-        val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS sync_errors (" +
-                        "id TEXT NOT NULL PRIMARY KEY, " +
-                        "entityType TEXT NOT NULL, " +
-                        "entityId TEXT NOT NULL, " +
-                        "message TEXT NOT NULL, " +
-                        "detectedAt TEXT NOT NULL)",
-                )
+        val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS sync_errors (" +
+                            "id TEXT NOT NULL PRIMARY KEY, " +
+                            "entityType TEXT NOT NULL, " +
+                            "entityId TEXT NOT NULL, " +
+                            "message TEXT NOT NULL, " +
+                            "detectedAt TEXT NOT NULL)",
+                    )
+                }
             }
-        }
-        val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE sync_errors ADD COLUMN payload TEXT")
+        val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE sync_errors ADD COLUMN payload TEXT")
+                }
             }
-        }
-        val MIGRATION_7_8 = object : Migration(7, 8) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE reminders ADD COLUMN reminderMode TEXT NOT NULL DEFAULT 'once'")
-                db.execSQL("ALTER TABLE reminders ADD COLUMN nagIntervalMinutes INTEGER")
+        val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE reminders ADD COLUMN reminderMode TEXT NOT NULL DEFAULT 'once'")
+                    db.execSQL("ALTER TABLE reminders ADD COLUMN nagIntervalMinutes INTEGER")
+                }
             }
-        }
-        val MIGRATION_8_9 = object : Migration(8, 9) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS note_revisions (" +
-                        "id TEXT NOT NULL PRIMARY KEY, " +
-                        "noteId TEXT NOT NULL, " +
-                        "title TEXT NOT NULL, " +
-                        "body TEXT NOT NULL, " +
-                        "source TEXT NOT NULL, " +
-                        "createdAt TEXT NOT NULL)",
-                )
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_note_revisions_note_created " +
-                        "ON note_revisions(noteId, createdAt)",
-                )
+        val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS note_revisions (" +
+                            "id TEXT NOT NULL PRIMARY KEY, " +
+                            "noteId TEXT NOT NULL, " +
+                            "title TEXT NOT NULL, " +
+                            "body TEXT NOT NULL, " +
+                            "source TEXT NOT NULL, " +
+                            "createdAt TEXT NOT NULL)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_note_revisions_note_created " +
+                            "ON note_revisions(noteId, createdAt)",
+                    )
+                }
             }
-        }
-        val MIGRATION_9_10 = object : Migration(9, 10) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE notes ADD COLUMN isTemplate INTEGER NOT NULL DEFAULT 0")
+        val MIGRATION_9_10 =
+            object : Migration(9, 10) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE notes ADD COLUMN isTemplate INTEGER NOT NULL DEFAULT 0")
+                }
             }
-        }
 
-        val MIGRATION_10_11 = object : Migration(10, 11) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE notes ADD COLUMN dailyDate TEXT")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_user_daily ON notes(userId, dailyDate)")
+        val MIGRATION_10_11 =
+            object : Migration(10, 11) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE notes ADD COLUMN dailyDate TEXT")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_user_daily ON notes(userId, dailyDate)")
+                }
             }
-        }
     }
 }

@@ -9,7 +9,7 @@ export function errorResponse(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
 
-export async function getAuthUser(request: NextRequest) {
+async function getAuthUser(request: NextRequest) {
   const header = request.headers.get("authorization");
   if (!header?.startsWith("Bearer ")) {
     return null;
@@ -136,7 +136,7 @@ export function toApiNoteTag(row: {
   };
 }
 
-export const REFRESH_COOKIE = "refresh_token";
+const REFRESH_COOKIE = "refresh_token";
 
 export function setRefreshCookie(token: string) {
   const maxAge = 90 * 24 * 60 * 60;

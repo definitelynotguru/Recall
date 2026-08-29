@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const { login, register, user, loading } = useAuth();
   const router = useRouter();
-  const [sessionExpired] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("reason") ===
-        "session_expired",
-  );
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("reason") === "session_expired";
   const [mode, setMode] = useState<"login" | "register">(() =>
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("mode") === "register"
-      ? "register"
-      : "login",
+    searchParams.get("mode") === "register" ? "register" : "login",
   );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

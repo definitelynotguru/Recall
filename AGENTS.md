@@ -181,7 +181,7 @@ Forks: default CI does not need production secrets. Do not enable deploy/db-push
 | Spotless + ktlint | Android Gradle | `spotlessCheck` / `spotlessApply` |
 | Detekt | `android/app/detekt.yml` | complexity + naming |
 | pre-commit | `.pre-commit-config.yaml` | optional local hooks (secrets, large files, prettier, eslint) |
-| Dependabot | `.github/dependabot.yml` | weekly npm/gradle/actions |
+| Dependency updates | npm/Gradle/GitHub Actions manifests | Maintained manually |
 | CODEOWNERS | `.github/CODEOWNERS` | default `@definitelynotguru` |
 | Issue templates | `.github/ISSUE_TEMPLATE/` | bug + feature; priority P0–P3 |
 | Labels | `docs/ISSUE_LABELS.md` | priority / type / area |

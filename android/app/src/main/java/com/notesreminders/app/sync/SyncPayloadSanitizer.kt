@@ -94,9 +94,10 @@ object SyncPayloadSanitizer {
             reminders.add(reminder.toDto())
         }
 
-        val tags = dirtyTags
-            .filter { it.id in tagIds }
-            .map { it.toDto() }
+        val tags =
+            dirtyTags
+                .filter { it.id in tagIds }
+                .map { it.toDto() }
 
         val noteTags = mutableListOf<NoteTagDto>()
         for (noteTag in dirtyNoteTags) {

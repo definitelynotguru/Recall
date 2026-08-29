@@ -20,7 +20,10 @@ object ReminderDiagnostics {
         scheduleMethod: String,
         issues: List<String> = emptyList(),
     ) {
-        lastReconcileAt = java.time.Instant.now().toString()
+        lastReconcileAt =
+            java.time.Instant
+                .now()
+                .toString()
         activeReminderCount = active
         scheduledAlarmCount = scheduled
         skippedPastCount = skippedPast

@@ -1,7 +1,9 @@
 {
   "name": "Recall",
   "short_name": "Recall",
+  "description": "Personal notes and reminders",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#141210",
   "theme_color": "#141210",

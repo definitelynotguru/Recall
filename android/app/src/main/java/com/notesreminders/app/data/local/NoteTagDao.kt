@@ -18,7 +18,10 @@ interface NoteTagDao {
     suspend fun getAllNonDeleted(): List<NoteTagEntity>
 
     @Query("SELECT * FROM note_tags WHERE noteId = :noteId AND tagId = :tagId LIMIT 1")
-    suspend fun getByNoteAndTag(noteId: String, tagId: String): NoteTagEntity?
+    suspend fun getByNoteAndTag(
+        noteId: String,
+        tagId: String,
+    ): NoteTagEntity?
 
     @Query("SELECT * FROM note_tags WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): NoteTagEntity?

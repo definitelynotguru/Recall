@@ -29,30 +29,39 @@ import java.time.Duration
 import java.time.Instant
 
 class QuickAddWidget : GlanceAppWidget() {
-
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
+    override suspend fun provideGlance(
+        context: Context,
+        id: GlanceId,
+    ) {
         val app = context.applicationContext as NotesApp
-        val reminders = app.database.reminderDao().getActive().take(WIDGET_COUNT)
+        val reminders =
+            app.database
+                .reminderDao()
+                .getActive()
+                .take(WIDGET_COUNT)
         val noteDao = app.database.noteDao()
-        val items = reminders.map { r ->
-            val note = noteDao.getById(r.noteId)
-            WidgetReminder(
-                title = note?.title?.ifBlank { "Untitled" } ?: "Reminder",
-                relativeTime = formatRelative(r.fireAt),
-            )
-        }
+        val items =
+            reminders.map { r ->
+                val note = noteDao.getById(r.noteId)
+                WidgetReminder(
+                    title = note?.title?.ifBlank { "Untitled" } ?: "Reminder",
+                    relativeTime = formatRelative(r.fireAt),
+                )
+            }
 
         provideContent {
             GlanceTheme {
                 Column(
-                    modifier = GlanceModifier
+                    modifier =
+                    GlanceModifier
                         .fillMaxSize()
                         .padding(12.dp)
                         .background(GlanceTheme.colors.surface),
                 ) {
                     Text(
                         "Recall",
-                        style = TextStyle(
+                        style =
+                        TextStyle(
                             color = GlanceTheme.colors.primary,
                             fontWeight = FontWeight.Bold,
                         ),
@@ -70,13 +79,15 @@ class QuickAddWidget : GlanceAppWidget() {
                     } else {
                         items.forEach { item ->
                             Column(
-                                modifier = GlanceModifier
+                                modifier =
+                                GlanceModifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
                             ) {
                                 Text(
                                     item.title,
-                                    style = TextStyle(
+                                    style =
+                                    TextStyle(
                                         color = GlanceTheme.colors.onSurface,
                                         fontWeight = FontWeight.Medium,
                                     ),
@@ -91,7 +102,8 @@ class QuickAddWidget : GlanceAppWidget() {
                     Spacer(GlanceModifier.height(8.dp))
                     Text(
                         "+ New note",
-                        modifier = GlanceModifier
+                        modifier =
+                        GlanceModifier
                             .fillMaxWidth()
                             .padding(8.dp)
                             .clickable(
@@ -99,7 +111,8 @@ class QuickAddWidget : GlanceAppWidget() {
                                     actionParametersOf(QUICK_ADD_KEY to true),
                                 ),
                             ),
-                        style = TextStyle(
+                        style =
+                        TextStyle(
                             color = GlanceTheme.colors.primary,
                             fontWeight = FontWeight.Bold,
                         ),
@@ -120,21 +133,19 @@ class QuickAddWidget : GlanceAppWidget() {
             }
         }
 
-        private fun formatRelative(fireAtIso: String): String {
-            return try {
-                val fire = Instant.parse(fireAtIso)
-                val now = Instant.now()
-                val dur = Duration.between(now, fire)
-                when {
-                    dur.isNegative || dur.isZero -> "now"
-                    dur.toHours() < 1 -> "${dur.toMinutes()}m"
-                    dur.toHours() < 24 -> "${dur.toHours()}h"
-                    dur.toDays() < 30 -> "${dur.toDays()}d"
-                    else -> fireAtIso.take(10)
-                }
-            } catch (_: Exception) {
-                fireAtIso.take(10)
+        private fun formatRelative(fireAtIso: String): String = try {
+            val fire = Instant.parse(fireAtIso)
+            val now = Instant.now()
+            val dur = Duration.between(now, fire)
+            when {
+                dur.isNegative || dur.isZero -> "now"
+                dur.toHours() < 1 -> "${dur.toMinutes()}m"
+                dur.toHours() < 24 -> "${dur.toHours()}h"
+                dur.toDays() < 30 -> "${dur.toDays()}d"
+                else -> fireAtIso.take(10)
             }
+        } catch (_: Exception) {
+            fireAtIso.take(10)
         }
     }
 }

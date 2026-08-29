@@ -1,6 +1,5 @@
 package com.notesreminders.app.reminders
 
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -24,6 +23,7 @@ class DurationPatternsSyncTest {
             "plusDaysDefault" to "PLUS_DAYS_DEFAULT",
         )
 
+        @Suppress("ktlint:standard:max-line-length")
         val kotlinRules = listOf(
             RuleSpec("minutes", """\b(?:remind\s+me\s+)?(?:in|after)\s+(?:about|around|roughly)?\s*(\d{1,3}|[a-z]+)\s*(?:minute|min|mins|minutes)\b""", "PLUS_MINUTES", 1, 1, 999, 0, 0, 18, "HIGH", "Duration: in {n} minute(s)"),
             RuleSpec("halfHour", """\bin\s+(?:about\s+)?half\s+(?:an?\s+)?hour\b""", "PLUS_SECONDS", 0, 1, Int.MAX_VALUE, 1800, 0, 17, "HIGH", "Duration: half an hour"),

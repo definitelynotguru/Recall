@@ -15,12 +15,16 @@ import java.io.IOException
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseMigrationTest {
     @get:Rule
-    val helper: MigrationTestHelper = MigrationTestHelper(
-        InstrumentationRegistry.getInstrumentation(),
-        AppDatabase::class.java,
-    )
+    val helper: MigrationTestHelper =
+        MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            AppDatabase::class.java,
+        )
 
-    private fun columnsOf(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): List<String> {
+    private fun columnsOf(
+        db: androidx.sqlite.db.SupportSQLiteDatabase,
+        table: String,
+    ): List<String> {
         val cursor = db.query("PRAGMA table_info($table)")
         val cols = mutableListOf<String>()
         while (cursor.moveToNext()) {
@@ -30,7 +34,10 @@ class AppDatabaseMigrationTest {
         return cols
     }
 
-    private fun tableExists(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Boolean {
+    private fun tableExists(
+        db: androidx.sqlite.db.SupportSQLiteDatabase,
+        table: String,
+    ): Boolean {
         val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")
         val exists = cursor.moveToFirst()
         cursor.close()
@@ -254,21 +261,22 @@ class AppDatabaseMigrationTest {
             )
             close()
         }
-        val db = helper.runMigrationsAndValidate(
-            "m111",
-            11,
-            false,
-            AppDatabase.MIGRATION_1_2,
-            AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4,
-            AppDatabase.MIGRATION_4_5,
-            AppDatabase.MIGRATION_5_6,
-            AppDatabase.MIGRATION_6_7,
-            AppDatabase.MIGRATION_7_8,
-            AppDatabase.MIGRATION_8_9,
-            AppDatabase.MIGRATION_9_10,
-            AppDatabase.MIGRATION_10_11,
-        )
+        val db =
+            helper.runMigrationsAndValidate(
+                "m111",
+                11,
+                false,
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
+                AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10,
+                AppDatabase.MIGRATION_10_11,
+            )
         assertTrue(columnsOf(db, "notes").contains("pinnedAt"))
         assertTrue(columnsOf(db, "sync_errors").contains("payload"))
         assertTrue(columnsOf(db, "reminders").contains("reminderMode"))

@@ -14,19 +14,21 @@ class ReminderDetectFixturesTest {
 
     @Test
     fun sharedFixturesMatchWebExpectations() {
-        val fixtures = gson.fromJson(
-            locateSharedJson("fixtures.json").readText(),
-            JsonArray::class.java,
-        )
+        val fixtures =
+            gson.fromJson(
+                locateSharedJson("fixtures.json").readText(),
+                JsonArray::class.java,
+            )
         for (element in fixtures) {
             val fixture = gson.fromJson(element, FixtureCase::class.java)
-            val found = ReminderDetect.detect(
-                title = fixture.title,
-                body = fixture.body,
-                defaultHour = 9,
-                defaultMinute = 0,
-                referenceInstant = referenceInstant,
-            )
+            val found =
+                ReminderDetect.detect(
+                    title = fixture.title,
+                    body = fixture.body,
+                    defaultHour = 9,
+                    defaultMinute = 0,
+                    referenceInstant = referenceInstant,
+                )
             assertEquals(
                 "fixture '${fixture.title}' count",
                 fixture.expectCount,

@@ -30,7 +30,10 @@ interface SyncErrorDao {
     suspend fun upsertAll(rows: List<SyncErrorEntity>)
 
     @Query("DELETE FROM sync_errors WHERE entityId IN (:entityIds) AND entityType = :entityType")
-    suspend fun clearForEntities(entityType: String, entityIds: Collection<String>)
+    suspend fun clearForEntities(
+        entityType: String,
+        entityIds: Collection<String>,
+    )
 
     @Query("DELETE FROM sync_errors WHERE id = :id")
     suspend fun deleteById(id: String)

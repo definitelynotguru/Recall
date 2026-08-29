@@ -1,8 +1,18 @@
 // Minimal Recall service worker: navigation network-first (so HTML always
 // references the current deployment's hashed chunks), API network-first,
 // static assets stale-while-revalidate. No aggressive API caching.
-const CACHE = "recall-v2";
-const APP_SHELL = ["/", "/manifest.json", "/favicon.ico"];
+const CACHE = "recall-v3";
+const OFFLINE_URL = "/offline.html";
+const APP_SHELL = [
+  "/",
+  OFFLINE_URL,
+  "/manifest.json",
+  "/manifest.webmanifest",
+  "/favicon.ico",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -53,7 +63,11 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match(OFFLINE_URL)),
+        ),
     );
     return;
   }

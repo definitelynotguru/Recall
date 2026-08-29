@@ -20,7 +20,10 @@ class ReminderScheduleState(
     var reminderMinute by mutableStateOf(defaultMinute)
     var repeatRule by mutableStateOf("")
 
-    fun openNew(defaultHour: Int, defaultMinute: Int) {
+    fun openNew(
+        defaultHour: Int,
+        defaultMinute: Int,
+    ) {
         editingReminder = null
         val tomorrow = LocalDate.now().plusDays(1)
         reminderDate = tomorrow.toString()
@@ -47,9 +50,11 @@ class ReminderScheduleState(
 
     fun fireAtAndTimezone(): Pair<String, String> {
         val zone = ZoneId.systemDefault()
-        val local = LocalDate.parse(reminderDate)
-            .atTime(reminderHour.coerceIn(0, 23), reminderMinute.coerceIn(0, 59))
-            .atZone(zone)
+        val local =
+            LocalDate
+                .parse(reminderDate)
+                .atTime(reminderHour.coerceIn(0, 23), reminderMinute.coerceIn(0, 59))
+                .atZone(zone)
         return local.toInstant().toString() to zone.id
     }
 }

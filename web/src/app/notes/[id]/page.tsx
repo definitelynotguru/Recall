@@ -24,7 +24,13 @@ import { SyncHintBanner } from "@/components/SyncHintBanner";
 import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/ToastProvider";
-import { apiFetch, ApiNote, ApiReminder, ApiTag } from "@/lib/api-client";
+import {
+  apiFetch,
+  ApiNote,
+  ApiReminder,
+  ApiTag,
+  getOrCreateDailyNote,
+} from "@/lib/api-client";
 import {
   detectRemindersInNote,
   DetectedReminder,
@@ -34,12 +40,14 @@ import {
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
 import { loadUserPrefs } from "@/lib/user-prefs";
 import {
+  createLocalNote,
   deleteLocalNote,
   getLocalNote,
   getLocalNotes,
   putLocalNote,
 } from "@/lib/local-notes";
 import { buildTitleToIdMap } from "@/lib/wiki-links";
+import { toLocalDateString } from "@/lib/local-date";
 
 const MarkdownView = dynamic(
   () => import("@/components/MarkdownView").then((m) => m.MarkdownView),
@@ -230,6 +238,40 @@ export default function NoteDetailPage() {
   const load = useCallback(async () => {
     const generation = ++loadGeneration.current;
     try {
+      if (id === "new") {
+        if (isLocal) {
+          const note = createLocalNote();
+          note.title = "Untitled";
+          await putLocalNote(note);
+          router.replace(`/notes/${note.id}`);
+        } else {
+          const result = await apiFetch<{ note: ApiNote }>("/notes", {
+            method: "POST",
+            body: JSON.stringify({ title: "Untitled", body: "" }),
+          });
+          router.replace(`/notes/${result.note.id}`);
+        }
+        return;
+      }
+      if (id === "daily") {
+        const date = toLocalDateString();
+        if (isLocal) {
+          const existing = (await getLocalNotes()).find(
+            (note) => note.daily_date === date,
+          );
+          const note = existing ?? createLocalNote();
+          if (!existing) {
+            note.title = `Daily — ${date}`;
+            note.daily_date = date;
+            await putLocalNote(note);
+          }
+          router.replace(`/notes/${note.id}`);
+        } else {
+          const note = await getOrCreateDailyNote(date);
+          router.replace(`/notes/${note.id}`);
+        }
+        return;
+      }
       if (isLocal) {
         const [note] = await Promise.all([getLocalNote(id)]);
         if (generation !== loadGeneration.current) return;
