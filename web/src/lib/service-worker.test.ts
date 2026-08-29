@@ -77,6 +77,20 @@ describe("service worker", () => {
     expect(worker.skipWaiting).toHaveBeenCalled();
   });
 
+  it("still activates when shell caching fails", async () => {
+    const { cache, listeners, worker } = loadServiceWorker();
+    cache.addAll.mockRejectedValue(new Error("cache unavailable"));
+    let completion = Promise.resolve<unknown>(undefined);
+    listeners.get("install")?.({
+      waitUntil: (promise) => {
+        completion = promise;
+      },
+    } as InstallEvent as never);
+
+    await completion;
+    expect(worker.skipWaiting).toHaveBeenCalledTimes(1);
+  });
+
   it("removes old caches during activation", async () => {
     const { caches, listeners, worker } = loadServiceWorker();
     let completion = Promise.resolve<unknown>(undefined);
@@ -135,5 +149,55 @@ describe("service worker", () => {
 
     await expect(response).resolves.toBe(offline);
     expect(caches.match).toHaveBeenLastCalledWith("/offline.html");
+  });
+
+  it("caches successful navigation responses", async () => {
+    const network = new Response("online");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(network)),
+    );
+    const { cache, listeners } = loadServiceWorker();
+    let response = Promise.resolve(Response.error());
+    const request = {
+      method: "GET",
+      mode: "navigate",
+      url: "https://recall.test/notes",
+    } as Request;
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(network);
+    await vi.waitFor(() =>
+      expect(cache.put).toHaveBeenCalledWith(request, expect.any(Response)),
+    );
+  });
+
+  it("serves cached assets while refreshing them", async () => {
+    const cached = new Response("cached");
+    const network = new Response("fresh");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(network)),
+    );
+    const { cache, caches, listeners } = loadServiceWorker();
+    caches.match.mockResolvedValue(cached);
+    let response = Promise.resolve(Response.error());
+    const request = new Request("https://recall.test/icon-192.png");
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(cached);
+    await vi.waitFor(() =>
+      expect(cache.put).toHaveBeenCalledWith(request, expect.any(Response)),
+    );
   });
 });

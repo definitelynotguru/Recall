@@ -106,6 +106,37 @@ describe("apiFetch token refresh", () => {
     expect(getAccessToken()).toBeNull();
   });
 
+  it.each([401, 403])(
+    "treats refresh status %i as an expired session",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.resolve(new Response(null, { status }))),
+      );
+
+      await expect(refreshAccessToken()).resolves.toBeNull();
+      expect(getAccessToken()).toBeNull();
+    },
+  );
+
+  it("shares a failed refresh and retries after rejection", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(null, { status: 500 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = refreshAccessToken();
+    const concurrent = refreshAccessToken();
+    await expect(first).rejects.toThrow("Token refresh failed (500)");
+    await expect(concurrent).rejects.toThrow("Token refresh failed (500)");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(refreshAccessToken()).rejects.toThrow(
+      "Token refresh failed (500)",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("expires an authenticated request when refresh returns anonymous", async () => {
     setAccessToken("expired-token");
     const expired = vi.fn();

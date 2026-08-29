@@ -22,21 +22,42 @@ function transactionError(tx: IDBTransaction) {
   return tx.error ?? new Error("IndexedDB transaction failed");
 }
 
-async function runWrite(
-  operation: (store: IDBObjectStore) => void,
-): Promise<void> {
+async function runTransaction<T>(
+  mode: IDBTransactionMode,
+  operation: (
+    store: IDBObjectStore,
+    tx: IDBTransaction,
+    resolve: (value: T) => void,
+    reject: (reason?: unknown) => void,
+  ) => void,
+): Promise<T> {
   const db = await openLocalDB();
   try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      operation(tx.objectStore(STORE_NAME));
-      tx.oncomplete = () => resolve();
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, mode);
       tx.onerror = () => reject(transactionError(tx));
       tx.onabort = () => reject(transactionError(tx));
+      operation(tx.objectStore(STORE_NAME), tx, resolve, reject);
     });
   } finally {
     db.close();
   }
+}
+
+function runWrite(operation: (store: IDBObjectStore) => void): Promise<void> {
+  return runTransaction("readwrite", (store, tx, resolve) => {
+    operation(store);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+function runRead<T>(operation: (store: IDBObjectStore) => IDBRequest<T>) {
+  return runTransaction<T>("readonly", (store, _tx, resolve, reject) => {
+    const request = operation(store);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(request.error ?? new Error("IndexedDB transaction failed"));
+  });
 }
 
 function timestamp(value: string | null): number {
@@ -57,34 +78,14 @@ function compareLocalNotes(a: ApiNote, b: ApiNote): number {
 }
 
 export async function getLocalNotes(): Promise<ApiNote[]> {
-  const db = await openLocalDB();
-  try {
-    const notes = await new Promise<ApiNote[]>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const req = tx.objectStore(STORE_NAME).getAll();
-      req.onsuccess = () => resolve(req.result as ApiNote[]);
-      req.onerror = () =>
-        reject(req.error ?? new Error("IndexedDB read failed"));
-    });
-    return notes.sort(compareLocalNotes);
-  } finally {
-    db.close();
-  }
+  const notes = await runRead(
+    (store) => store.getAll() as IDBRequest<ApiNote[]>,
+  );
+  return notes.sort(compareLocalNotes);
 }
 
 export async function getLocalNote(id: string): Promise<ApiNote | undefined> {
-  const db = await openLocalDB();
-  try {
-    return await new Promise<ApiNote | undefined>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const req = tx.objectStore(STORE_NAME).get(id);
-      req.onsuccess = () => resolve(req.result as ApiNote | undefined);
-      req.onerror = () =>
-        reject(req.error ?? new Error("IndexedDB read failed"));
-    });
-  } finally {
-    db.close();
-  }
+  return runRead((store) => store.get(id) as IDBRequest<ApiNote | undefined>);
 }
 
 export async function putLocalNote(note: ApiNote): Promise<void> {

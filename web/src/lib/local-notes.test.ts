@@ -66,6 +66,49 @@ function mockWriteTransaction(error: DOMException | null = null) {
     complete() {
       transaction.oncomplete?.call(transaction, new Event("complete"));
     },
+    fail() {
+      transaction.onerror?.call(transaction, new Event("error"));
+    },
+    request,
+  };
+}
+
+function mockReadTransaction() {
+  const readRequest = {
+    result: [],
+    error: null,
+    onsuccess: null,
+    onerror: null,
+  } as unknown as IDBRequest<ApiNote[]>;
+  const store = {
+    getAll: vi.fn(() => readRequest),
+  } as unknown as IDBObjectStore;
+  const transaction = {
+    error: null,
+    objectStore: vi.fn(() => store),
+    oncomplete: null,
+    onerror: null,
+    onabort: null,
+  } as unknown as IDBTransaction;
+  const close = vi.fn();
+  const db = {
+    transaction: vi.fn(() => transaction),
+    close,
+  } as unknown as IDBDatabase;
+  const request = {
+    result: db,
+    error: null,
+    onupgradeneeded: null,
+    onsuccess: null,
+    onerror: null,
+  } as unknown as IDBOpenDBRequest;
+  vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
+
+  return {
+    close,
+    failRead() {
+      readRequest.onerror?.call(readRequest, new Event("error"));
+    },
     request,
   };
 }
@@ -112,6 +155,17 @@ describe("local notes", () => {
   it("sorts unpinned notes by update time rather than database key", async () => {
     await putLocalNote(note("a-older", null, "2024-01-01T00:00:00.000Z"));
     await putLocalNote(note("z-newer", null, "2024-01-02T00:00:00.000Z"));
+
+    await expect(getLocalNotes()).resolves.toMatchObject([
+      { id: "z-newer" },
+      { id: "a-older" },
+    ]);
+  });
+
+  it("uses update time to break equal pin-time ties", async () => {
+    const pinnedAt = "2024-01-03T00:00:00.000Z";
+    await putLocalNote(note("a-older", pinnedAt, "2024-01-01T00:00:00.000Z"));
+    await putLocalNote(note("z-newer", pinnedAt, "2024-01-02T00:00:00.000Z"));
 
     await expect(getLocalNotes()).resolves.toMatchObject([
       { id: "z-newer" },
@@ -182,6 +236,36 @@ describe("local notes", () => {
     mocked.abort();
 
     await expect(operation).rejects.toBe(failure);
+    expect(mocked.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a fallback error and closes after transaction failure", async () => {
+    const mocked = mockWriteTransaction();
+    const operation = deleteLocalNote("note");
+    mocked.request.onsuccess?.call(
+      mocked.request,
+      new Event("success") as Event & { target: IDBOpenDBRequest },
+    );
+    await Promise.resolve();
+
+    mocked.fail();
+
+    await expect(operation).rejects.toThrow("IndexedDB transaction failed");
+    expect(mocked.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a fallback error and closes after read failure", async () => {
+    const mocked = mockReadTransaction();
+    const operation = getLocalNotes();
+    mocked.request.onsuccess?.call(
+      mocked.request,
+      new Event("success") as Event & { target: IDBOpenDBRequest },
+    );
+    await Promise.resolve();
+
+    mocked.failRead();
+
+    await expect(operation).rejects.toThrow("IndexedDB transaction failed");
     expect(mocked.close).toHaveBeenCalledTimes(1);
   });
 });
