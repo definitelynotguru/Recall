@@ -6,7 +6,6 @@ const OFFLINE_URL = "/offline.html";
 const APP_SHELL = [
   "/",
   OFFLINE_URL,
-  "/manifest.json",
   "/manifest.webmanifest",
   "/favicon.ico",
   "/icon-192.png",
@@ -29,7 +28,9 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+        Promise.all(
+          keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -45,7 +46,9 @@ self.addEventListener("fetch", (event) => {
   // Network-first for API calls; only fall back to cache on network failure.
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request).catch(() => caches.match(request).then((cached) => cached || Response.error())),
+      fetch(request).catch(() =>
+        caches.match(request).then((cached) => cached || Response.error()),
+      ),
     );
     return;
   }

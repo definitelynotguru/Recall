@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  AUTH_SESSION_EXPIRED,
   apiFetch,
   getAccessToken,
   refreshAccessToken,
@@ -101,5 +104,73 @@ describe("apiFetch token refresh", () => {
 
     await expect(refreshAccessToken()).resolves.toBeNull();
     expect(getAccessToken()).toBeNull();
+  });
+
+  it("expires an authenticated request when refresh returns anonymous", async () => {
+    setAccessToken("expired-token");
+    const expired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED, expired);
+    const seenAuth: string[] = [];
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        if (String(input).endsWith("/auth/refresh")) {
+          return new Response(null, { status: 204 });
+        }
+        seenAuth.push(new Headers(init?.headers).get("Authorization") ?? "");
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiFetch("/test")).rejects.toThrow("Unauthorized");
+    expect(seenAuth).toEqual(["Bearer expired-token"]);
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(getAccessToken()).toBeNull();
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
+  });
+
+  it("does not dispatch expiration for an anonymous unauthorized request", async () => {
+    const expired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED, expired);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, 401))
+        .mockResolvedValueOnce(new Response(null, { status: 204 })),
+    );
+
+    await expect(apiFetch("/test")).rejects.toThrow("Unauthorized");
+    expect(expired).not.toHaveBeenCalled();
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
+  });
+
+  it("shares one anonymous refresh across concurrent unauthorized requests", async () => {
+    setAccessToken("expired-token");
+    const expired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED, expired);
+    let refreshCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        if (String(input).endsWith("/auth/refresh")) {
+          refreshCalls += 1;
+          await Promise.resolve();
+          return new Response(null, { status: 204 });
+        }
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }),
+    );
+
+    const requests = Array.from({ length: 5 }, (_, index) =>
+      apiFetch(`/test/${index}`),
+    );
+    await expect(Promise.all(requests)).rejects.toThrow("Unauthorized");
+    expect(refreshCalls).toBe(1);
+    expect(expired).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
   });
 });

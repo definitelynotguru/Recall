@@ -30,7 +30,7 @@ export function getAccessToken() {
 
 function dispatchSessionExpired(expectedToken: string | null) {
   if (typeof window === "undefined") return;
-  if (accessToken !== expectedToken) return;
+  if (!expectedToken || accessToken !== expectedToken) return;
   setAccessToken(null);
   window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED));
 }
