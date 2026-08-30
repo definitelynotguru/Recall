@@ -224,6 +224,27 @@ describe("apiFetch token refresh", () => {
     window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
   });
 
+  it("propagates refresh server errors without clearing the session", async () => {
+    setAccessToken("expired-token");
+    const expired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED, expired);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, 401))
+        .mockResolvedValueOnce(new Response(null, { status: 500 })),
+    );
+
+    await expect(apiFetch("/test")).rejects.toThrow(
+      "Token refresh failed (500)",
+    );
+    expect(expired).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe("expired-token");
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
+  });
+
   it("expires an authenticated request when refresh returns anonymous", async () => {
     setAccessToken("expired-token");
     const expired = vi.fn();

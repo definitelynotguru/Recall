@@ -90,7 +90,7 @@ self.addEventListener("fetch", (event) => {
           void cacheResponse(request, response);
           return response;
         })
-        .catch(() => cached);
+        .catch(() => cached || Response.error());
       return cached || network;
     }),
   );

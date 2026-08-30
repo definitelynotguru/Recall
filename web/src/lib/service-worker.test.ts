@@ -180,6 +180,28 @@ describe("service worker", () => {
     await expect(response).resolves.toBe(cached);
   });
 
+  it("returns a live API response without reading the cache", async () => {
+    const network = new Response('{"ok":true}', {
+      headers: { "Content-Type": "application/json" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(network)),
+    );
+    const { caches, listeners } = loadServiceWorker();
+    let response = Promise.resolve(Response.error());
+    const request = new Request("https://recall.test/api/v1/notes");
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(network);
+    expect(caches.match).not.toHaveBeenCalled();
+  });
+
   it("serves the offline page when navigation fails", async () => {
     vi.stubGlobal(
       "fetch",
@@ -304,5 +326,47 @@ describe("service worker", () => {
     await vi.waitFor(() =>
       expect(cache.put).toHaveBeenCalledWith(request, expect.any(Response)),
     );
+  });
+
+  it("returns and caches a network asset after a cache miss", async () => {
+    const network = new Response("fresh");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(network)),
+    );
+    const { cache, caches, listeners } = loadServiceWorker();
+    caches.match.mockResolvedValue(undefined);
+    let response = Promise.resolve(Response.error());
+    const request = new Request("https://recall.test/icon-192.png");
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(network);
+    await vi.waitFor(() =>
+      expect(cache.put).toHaveBeenCalledWith(request, expect.any(Response)),
+    );
+  });
+
+  it("returns an error response for an offline asset cache miss", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    const { caches, listeners } = loadServiceWorker();
+    caches.match.mockResolvedValue(undefined);
+    let response = Promise.resolve(new Response());
+    const request = new Request("https://recall.test/icon-192.png");
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toMatchObject({ status: 0 });
   });
 });
