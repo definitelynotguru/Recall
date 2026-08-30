@@ -12,17 +12,19 @@ class RepeatVectorsTest {
 
     @Test
     fun sharedRepeatVectorsMatchWeb() {
-        val vectors = gson.fromJson(
-            locateSharedJson("repeat-vectors.json").readText(),
-            JsonArray::class.java,
-        )
+        val vectors =
+            gson.fromJson(
+                locateSharedJson("repeat-vectors.json").readText(),
+                JsonArray::class.java,
+            )
         for (element in vectors) {
             val vector = gson.fromJson(element, RepeatVector::class.java)
-            val next = RepeatUtils.computeNextOccurrence(
-                repeatRule = vector.rule,
-                fireAtIso = vector.fireAt,
-                timezone = vector.timezone,
-            )
+            val next =
+                RepeatUtils.computeNextOccurrence(
+                    repeatRule = vector.rule,
+                    fireAtIso = vector.fireAt,
+                    timezone = vector.timezone,
+                )
             assertEquals(
                 vector.rule,
                 java.time.Instant.parse(vector.nextFireAt),

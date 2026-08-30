@@ -3,12 +3,12 @@ package com.notesreminders.app.ui.theme
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
-import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun recallFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(

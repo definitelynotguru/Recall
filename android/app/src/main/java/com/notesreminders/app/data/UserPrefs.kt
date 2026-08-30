@@ -3,7 +3,9 @@ package com.notesreminders.app.data
 import android.content.Context
 import androidx.core.content.edit
 
-class UserPrefs(context: Context) {
+class UserPrefs(
+    context: Context,
+) {
     private val prefs = context.getSharedPreferences("recall_prefs", Context.MODE_PRIVATE)
 
     var defaultReminderHour: Int

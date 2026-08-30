@@ -30,7 +30,7 @@ export function getAccessToken() {
 
 function dispatchSessionExpired(expectedToken: string | null) {
   if (typeof window === "undefined") return;
-  if (accessToken !== expectedToken) return;
+  if (!expectedToken || accessToken !== expectedToken) return;
   setAccessToken(null);
   window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED));
 }
@@ -48,12 +48,9 @@ function decodeJwtExp(token: string): number | null {
   }
 }
 
-export function tokenExpiresWithinMinutes(
-  token: string,
-  minutes: number,
-): boolean {
+function tokenExpiresWithinMinutes(token: string, minutes: number): boolean {
   const exp = decodeJwtExp(token);
-  if (!exp) return false;
+  if (!exp) return true;
   return exp * 1000 - Date.now() < minutes * 60_000;
 }
 
@@ -77,11 +74,12 @@ async function performTokenRefresh(): Promise<string | null> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
+  if (res.status === 204) return null;
   if (res.status === 401 || res.status === 403) return null;
   if (!res.ok) {
     throw new Error(`Token refresh failed (${res.status})`);
   }
-  const token = readAccessTokenResponse(await res.json());
+  const token = readAccessTokenResponse(await res.json().catch(() => null));
   if (!token) return null;
   if (authGeneration !== refreshGeneration) return accessToken;
   setAccessToken(token);

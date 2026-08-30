@@ -48,7 +48,5 @@ class TokenRefreshPolicyTest {
         )
     }
 
-    private fun httpError(code: Int): HttpException {
-        return HttpException(Response.error<String>(code, okhttp3.ResponseBody.create(null, "")))
-    }
+    private fun httpError(code: Int): HttpException = HttpException(Response.error<String>(code, okhttp3.ResponseBody.create(null, "")))
 }

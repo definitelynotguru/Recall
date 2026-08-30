@@ -154,13 +154,15 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TokenResponse" }
+        "204":
+          description: No refresh token was provided; the client is anonymous
         "400":
           description: Invalid request
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
         "401":
-          description: Refresh token required, invalid, or expired
+          description: Refresh token invalid or expired
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }

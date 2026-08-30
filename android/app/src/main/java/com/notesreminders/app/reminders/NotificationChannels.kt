@@ -21,32 +21,35 @@ object NotificationChannels {
             NotificationChannelGroup(GROUP_KEY, context.getString(R.string.notification_group_name)),
         )
 
-        val reminders = NotificationChannel(
-            REMINDERS,
-            context.getString(R.string.reminder_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = context.getString(R.string.reminder_channel_desc)
-            group = GROUP_KEY
-        }
+        val reminders =
+            NotificationChannel(
+                REMINDERS,
+                context.getString(R.string.reminder_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = context.getString(R.string.reminder_channel_desc)
+                group = GROUP_KEY
+            }
 
-        val syncAlerts = NotificationChannel(
-            SYNC_ALERTS,
-            context.getString(R.string.sync_channel_name),
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply {
-            description = context.getString(R.string.sync_channel_desc)
-            group = GROUP_KEY
-        }
+        val syncAlerts =
+            NotificationChannel(
+                SYNC_ALERTS,
+                context.getString(R.string.sync_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(R.string.sync_channel_desc)
+                group = GROUP_KEY
+            }
 
-        val backup = NotificationChannel(
-            BACKUP,
-            context.getString(R.string.backup_channel_name),
-            NotificationManager.IMPORTANCE_MIN,
-        ).apply {
-            description = context.getString(R.string.backup_channel_desc)
-            group = GROUP_KEY
-        }
+        val backup =
+            NotificationChannel(
+                BACKUP,
+                context.getString(R.string.backup_channel_name),
+                NotificationManager.IMPORTANCE_MIN,
+            ).apply {
+                description = context.getString(R.string.backup_channel_desc)
+                group = GROUP_KEY
+            }
 
         nm.createNotificationChannels(listOf(reminders, syncAlerts, backup))
     }

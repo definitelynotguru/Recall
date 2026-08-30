@@ -1,8 +1,25 @@
 // Minimal Recall service worker: navigation network-first (so HTML always
 // references the current deployment's hashed chunks), API network-first,
 // static assets stale-while-revalidate. No aggressive API caching.
-const CACHE = "recall-v2";
-const APP_SHELL = ["/", "/manifest.json", "/favicon.ico"];
+const CACHE = "recall-v3";
+const OFFLINE_URL = "/offline.html";
+const APP_SHELL = [
+  "/",
+  OFFLINE_URL,
+  "/manifest.webmanifest",
+  "/favicon.ico",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
+
+function cacheResponse(request, response) {
+  const copy = response.clone();
+  return caches
+    .open(CACHE)
+    .then((cache) => cache.put(request, copy))
+    .catch(() => undefined);
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -19,7 +36,9 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
+        Promise.all(
+          keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -35,7 +54,9 @@ self.addEventListener("fetch", (event) => {
   // Network-first for API calls; only fall back to cache on network failure.
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request).catch(() => caches.match(request).then((cached) => cached || Response.error())),
+      fetch(request).catch(() =>
+        caches.match(request).then((cached) => cached || Response.error()),
+      ),
     );
     return;
   }
@@ -49,11 +70,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          void cacheResponse(request, response);
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match(OFFLINE_URL)),
+        ),
     );
     return;
   }
@@ -63,11 +87,10 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          void cacheResponse(request, response);
           return response;
         })
-        .catch(() => cached);
+        .catch(() => cached || Response.error());
       return cached || network;
     }),
   );

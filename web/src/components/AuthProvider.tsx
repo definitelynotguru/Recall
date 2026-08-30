@@ -85,10 +85,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onExpired = () => {
+      const hadSession = Boolean(loadCachedUser());
       clearCachedUser();
       setUser(null);
       setStatus("anonymous");
-      router.replace("/login?reason=session_expired");
+      router.replace(hadSession ? "/login?reason=session_expired" : "/login");
     };
     window.addEventListener(AUTH_SESSION_EXPIRED, onExpired);
     return () => window.removeEventListener(AUTH_SESSION_EXPIRED, onExpired);

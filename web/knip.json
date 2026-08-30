@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "src/app/**/{page,layout,route,loading,error,not-found}.{ts,tsx}",
     "src/proxy.ts",
@@ -15,13 +15,14 @@
     "drizzle/**",
     "coverage/**",
     ".next/**",
-    "src/**/*.test.ts",
+    "src/**/*.test.{ts,tsx}",
     "src/**/*.integration.test.ts"
   ],
   "ignoreDependencies": [
     "@tailwindcss/postcss",
     "tailwindcss",
     "eslint-config-next",
+    "esbuild",
     "drizzle-kit"
   ]
 }

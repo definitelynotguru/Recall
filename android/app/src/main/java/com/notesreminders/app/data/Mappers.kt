@@ -9,7 +9,10 @@ import com.notesreminders.app.data.local.NoteTagEntity
 import com.notesreminders.app.data.local.ReminderEntity
 import com.notesreminders.app.data.local.TagEntity
 
-fun NoteDto.toEntity(userId: String, isDirty: Boolean = false) = NoteEntity(
+fun NoteDto.toEntity(
+    userId: String,
+    isDirty: Boolean = false,
+) = NoteEntity(
     id = id,
     userId = user_id ?: userId,
     title = title,
@@ -24,7 +27,10 @@ fun NoteDto.toEntity(userId: String, isDirty: Boolean = false) = NoteEntity(
     isDirty = isDirty,
 )
 
-fun ReminderDto.toEntity(userId: String, isDirty: Boolean = false) = ReminderEntity(
+fun ReminderDto.toEntity(
+    userId: String,
+    isDirty: Boolean = false,
+) = ReminderEntity(
     id = id,
     userId = user_id ?: userId,
     noteId = note_id,
@@ -42,7 +48,10 @@ fun ReminderDto.toEntity(userId: String, isDirty: Boolean = false) = ReminderEnt
     isDirty = isDirty,
 )
 
-fun TagDto.toEntity(userId: String, isDirty: Boolean = false) = TagEntity(
+fun TagDto.toEntity(
+    userId: String,
+    isDirty: Boolean = false,
+) = TagEntity(
     id = id,
     userId = user_id ?: userId,
     name = name,
@@ -52,7 +61,10 @@ fun TagDto.toEntity(userId: String, isDirty: Boolean = false) = TagEntity(
     isDirty = isDirty,
 )
 
-fun NoteTagDto.toEntity(userId: String, isDirty: Boolean = false) = NoteTagEntity(
+fun NoteTagDto.toEntity(
+    userId: String,
+    isDirty: Boolean = false,
+) = NoteTagEntity(
     id = id,
     userId = user_id ?: userId,
     noteId = note_id,

@@ -17,11 +17,13 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 object AppUpdater {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(2, TimeUnit.MINUTES)
-        .readTimeout(2, TimeUnit.MINUTES)
-        .followRedirects(true)
-        .build()
+    private val client =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(2, TimeUnit.MINUTES)
+            .readTimeout(2, TimeUnit.MINUTES)
+            .followRedirects(true)
+            .build()
 
     suspend fun downloadLatestApk(context: Context): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
@@ -46,11 +48,13 @@ object AppUpdater {
 
     /** GitHub latest release asset (public repos). */
     private fun resolveLatestReleaseApkUrl(): String? {
-        val request = Request.Builder()
-            .url("https://api.github.com/repos/definitelynotguru/Recall/releases/latest")
-            .header("Accept", "application/vnd.github+json")
-            .get()
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://api.github.com/repos/definitelynotguru/Recall/releases/latest")
+                .header("Accept", "application/vnd.github+json")
+                .get()
+                .build()
         return runCatching {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
@@ -69,8 +73,16 @@ object AppUpdater {
         }.getOrNull()
     }
 
-    private fun downloadFromUrl(context: Context, url: String): File {
-        val request = Request.Builder().url(url).get().build()
+    private fun downloadFromUrl(
+        context: Context,
+        url: String,
+    ): File {
+        val request =
+            Request
+                .Builder()
+                .url(url)
+                .get()
+                .build()
         val response = client.newCall(request).execute()
         if (!response.isSuccessful) {
             error("Download failed for $url: HTTP ${response.code}")
@@ -91,24 +103,30 @@ object AppUpdater {
 
     fun openInstallPermissionSettings(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val intent = Intent(
-            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${context.packageName}"),
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent =
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:${context.packageName}"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
     }
 
-    fun promptInstall(activity: Activity, apk: File) {
-        val uri = FileProvider.getUriForFile(
-            activity,
-            "${activity.packageName}.fileprovider",
-            apk,
-        )
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+    fun promptInstall(
+        activity: Activity,
+        apk: File,
+    ) {
+        val uri =
+            FileProvider.getUriForFile(
+                activity,
+                "${activity.packageName}.fileprovider",
+                apk,
+            )
+        val intent =
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
         activity.startActivity(intent)
     }
 }

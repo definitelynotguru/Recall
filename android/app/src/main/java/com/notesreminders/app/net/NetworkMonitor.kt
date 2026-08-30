@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class NetworkMonitor(context: Context) {
+class NetworkMonitor(
+    context: Context,
+) {
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -21,28 +23,31 @@ class NetworkMonitor(context: Context) {
 
     var onReconnect: (() -> Unit)? = null
 
-    private val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            updateState()
-        }
+    private val callback =
+        object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                updateState()
+            }
 
-        override fun onLost(network: Network) {
-            updateState()
-        }
+            override fun onLost(network: Network) {
+                updateState()
+            }
 
-        override fun onCapabilitiesChanged(
-            network: Network,
-            networkCapabilities: NetworkCapabilities,
-        ) {
-            updateState()
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities,
+            ) {
+                updateState()
+            }
         }
-    }
 
     fun start() {
         refresh()
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        val request =
+            NetworkRequest
+                .Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
         connectivityManager.registerNetworkCallback(request, callback)
     }
 
@@ -67,15 +72,18 @@ class NetworkMonitor(context: Context) {
             "monitor_online" to _isOnline.value,
             "fresh_check_online" to checkOnline(),
             "active_network_present" to (network != null),
-            "has_internet_capability" to caps?.hasCapability(
-                NetworkCapabilities.NET_CAPABILITY_INTERNET,
-            ),
-            "validated" to caps?.hasCapability(
-                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
-            ),
-            "not_suspended" to caps?.hasCapability(
-                NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED,
-            ),
+            "has_internet_capability" to
+                caps?.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                ),
+            "validated" to
+                caps?.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+                ),
+            "not_suspended" to
+                caps?.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_NOT_SUSPENDED,
+                ),
             "transport" to transportLabel(caps),
             "sdk_int" to Build.VERSION.SDK_INT,
         )

@@ -682,6 +682,20 @@ button.nav-item {
   letter-spacing: -0.018em;
 }
 
+.note-pinned-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
 .note-row-body p {
   display: -webkit-box;
   margin: 0;

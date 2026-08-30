@@ -11,14 +11,14 @@ import androidx.core.content.ContextCompat
 object ReminderPermissions {
     fun needsExactAlarmPermission(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-        val alarmManager = ContextCompat.getSystemService(context, AlarmManager::class.java)
-            ?: return false
+        val alarmManager =
+            ContextCompat.getSystemService(context, AlarmManager::class.java)
+                ?: return false
         return !alarmManager.canScheduleExactAlarms()
     }
 
-    fun exactAlarmSettingsIntent(context: Context): Intent =
-        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = Uri.parse("package:${context.packageName}")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    fun exactAlarmSettingsIntent(context: Context): Intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+        data = Uri.parse("package:${context.packageName}")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
 }

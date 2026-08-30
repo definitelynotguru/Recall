@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShareCaptureTest {
-
     @Test
     fun format_plainTextUsesFirstLineAsTitle() {
         val out = ShareCapture.format("Meeting notes\nFollow up with Sam")

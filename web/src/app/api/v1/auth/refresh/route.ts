@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const fromCookie = !body.refresh_token;
   const token = body.refresh_token ?? getRefreshFromRequest(request);
   if (!token) {
-    return errorResponse("Refresh token required", 401);
+    return new Response(null, { status: 204 });
   }
 
   // Cookie-based refresh is vulnerable to CSRF; require same-origin.

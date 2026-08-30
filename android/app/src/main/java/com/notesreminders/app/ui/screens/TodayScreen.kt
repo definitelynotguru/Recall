@@ -1,7 +1,6 @@
 package com.notesreminders.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.notesreminders.app.data.local.NoteEntity
 import com.notesreminders.app.data.local.ReminderEntity
+import com.notesreminders.app.reminders.RepeatUtils
 import com.notesreminders.app.ui.AppViewModel
 import com.notesreminders.app.ui.components.NextNudgeCard
 import com.notesreminders.app.ui.components.RecallAlertDialog
@@ -48,9 +48,8 @@ import com.notesreminders.app.ui.components.RecallPanelStyle
 import com.notesreminders.app.ui.components.RecallScreenHeader
 import com.notesreminders.app.ui.components.ReminderScheduleDialog
 import com.notesreminders.app.ui.components.formatReminderFireAt
-import com.notesreminders.app.ui.components.rememberReminderScheduleState
 import com.notesreminders.app.ui.components.pickNextReminder
-import com.notesreminders.app.reminders.RepeatUtils
+import com.notesreminders.app.ui.components.rememberReminderScheduleState
 import java.time.Instant
 import java.time.ZoneId
 

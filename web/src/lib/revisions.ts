@@ -3,13 +3,13 @@ import { db, getDb } from "./db";
 import { noteRevisions } from "./db/schema";
 import type { NoteRevision } from "./db/schema";
 
-export const MAX_REVISIONS_PER_NOTE = 10;
-export const REVISION_RETENTION_DAYS = 30;
+const MAX_REVISIONS_PER_NOTE = 10;
+const REVISION_RETENTION_DAYS = 30;
 
 type Db = ReturnType<typeof getDb>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-export function revisionChanged(
+function revisionChanged(
   existing: { title: string; body: string },
   nextTitle: string,
   nextBody: string,
@@ -39,7 +39,7 @@ export async function captureRevisionIfChanged(
   await pruneRevisions(tx, userId, noteId);
 }
 
-export async function pruneRevisions(
+async function pruneRevisions(
   tx: Tx,
   userId: string,
   noteId: string,

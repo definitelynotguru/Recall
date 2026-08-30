@@ -15,8 +15,6 @@ export type BackupImportResult = {
   warnings: string[];
 };
 
-export { validateBackupBundle };
-
 function parseDate(value: string | undefined, fallback: Date): Date {
   if (!value) return fallback;
   const d = new Date(value);

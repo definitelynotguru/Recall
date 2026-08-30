@@ -526,15 +526,19 @@ function NotesContent() {
           <p>
             {debouncedQuery || tagFilter
               ? "No matching notes."
-              : "Your notebook is empty. Start with a single thought."}
+              : status === "archived"
+                ? "No archived notes."
+                : "Your notebook is empty. Start with a single thought."}
           </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={createNote}
-          >
-            Write first note
-          </button>
+          {status === "active" && !debouncedQuery && !tagFilter && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={createNote}
+            >
+              Write first note
+            </button>
+          )}
         </div>
       ) : (
         <div className="notes-scroll" ref={listRef}>
@@ -566,7 +570,15 @@ function NotesContent() {
                     className="note-row-body"
                     aria-labelledby={titleId}
                   >
-                    <h3 id={titleId}>{n.title || "Untitled"}</h3>
+                    <h3 id={titleId}>
+                      {n.title || "Untitled"}
+                      {n.pinned_at && (
+                        <span className="note-pinned-badge">
+                          <PushPin size={12} weight="fill" />
+                          Pinned
+                        </span>
+                      )}
+                    </h3>
                     {debouncedQuery ? (
                       <p>
                         <HighlightedSnippet
@@ -575,7 +587,7 @@ function NotesContent() {
                         />
                       </p>
                     ) : (
-                      <p>
+                      <p title={n.body.replace(/[#*_`\n]/g, " ").trim()}>
                         {n.body.replace(/[#*_`\n]/g, " ").trim() ||
                           "Empty page"}
                       </p>

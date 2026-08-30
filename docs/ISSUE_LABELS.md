@@ -32,8 +32,8 @@ Prefer at least one area label when known:
 | --- | --- |
 | `web` | Next.js UI |
 | `android` | Kotlin client |
-| `javascript` | Web/TS package changes (Dependabot) |
-| `java` | Android/Gradle changes (Dependabot) |
+| `javascript` | Web/TypeScript package changes |
+| `java` | Android/Gradle package changes |
 | `ui` | Presentation / interaction |
 | `sync` | Sync protocol or offline merge |
 | `api` | `/api/v1` routes or OpenAPI |

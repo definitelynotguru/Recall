@@ -18,14 +18,15 @@ object EnvironmentDiagnostics {
         val alarmManager = ContextCompat.getSystemService(context, AlarmManager::class.java)
         val powerManager = ContextCompat.getSystemService(context, PowerManager::class.java)
 
-        val notificationPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
+        val notificationPerm =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
 
         return mapOf(
             "version_code" to BuildConfig.VERSION_CODE,
@@ -46,7 +47,7 @@ object EnvironmentDiagnostics {
             "needs_exact_alarm_settings" to ReminderPermissions.needsExactAlarmPermission(context),
             "battery_optimization_ignored" to (
                 powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
-            ),
+                ),
             "default_notification_importance" to defaultChannelImportance(context),
         )
     }

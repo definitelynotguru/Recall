@@ -1,6 +1,9 @@
 package com.notesreminders.app.data.api
 
-data class UserDto(val id: String, val email: String)
+data class UserDto(
+    val id: String,
+    val email: String,
+)
 
 data class AuthResponse(
     val access_token: String,
@@ -14,7 +17,10 @@ data class RefreshResponse(
     val user: UserDto,
 )
 
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequest(
+    val email: String,
+    val password: String,
+)
 
 data class RegisterRequest(
     val email: String,
@@ -22,7 +28,9 @@ data class RegisterRequest(
     val register_secret: String,
 )
 
-data class RefreshRequest(val refresh_token: String)
+data class RefreshRequest(
+    val refresh_token: String,
+)
 
 data class NoteDto(
     val id: String,
@@ -105,7 +113,9 @@ data class SyncPollResponse(
     val counts: SyncPollCounts,
 )
 
-data class SnoozeRequest(val fire_at: String)
+data class SnoozeRequest(
+    val fire_at: String,
+)
 
 data class DebugReportRequest(
     val device_id: String,

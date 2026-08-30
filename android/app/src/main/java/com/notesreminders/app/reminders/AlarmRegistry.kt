@@ -9,7 +9,9 @@ import org.json.JSONObject
 
 private val Context.alarmDataStore by preferencesDataStore("alarm_registry")
 
-class AlarmRegistry(private val context: Context) {
+class AlarmRegistry(
+    private val context: Context,
+) {
     private val key = stringPreferencesKey("scheduled")
 
     suspend fun load(): MutableMap<String, String> {

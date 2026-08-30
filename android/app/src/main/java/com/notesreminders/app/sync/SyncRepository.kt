@@ -8,9 +8,10 @@ import com.notesreminders.app.data.auth.TokenStore
 import com.notesreminders.app.data.local.AppDatabase
 import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.SyncMetaEntity
-import com.notesreminders.app.data.toDto
 import com.notesreminders.app.data.toEntity
 import com.notesreminders.app.reminders.ReminderReconciler
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.Instant
@@ -31,8 +32,14 @@ class SyncRepository(
 ) {
     private val appContext = context.applicationContext
     private val reconciler = ReminderReconciler(context, db.reminderDao())
+    private val syncMutex = Mutex()
 
-    suspend fun sync(): SyncOutcome {
+    suspend fun sync(): SyncOutcome =
+        syncMutex.withLock {
+            syncOnce()
+        }
+
+    private suspend fun syncOnce(): SyncOutcome {
         // Auto-purge stale dead-letter rows older than 30 days.
         val purgeBefore = Instant.now().minusSeconds(PURGE_AGE_SECONDS).toString()
         db.syncErrorDao().deleteOlderThan(purgeBefore)
@@ -54,7 +61,8 @@ class SyncRepository(
                     meta.copy(lastSyncAt = poll.server_time),
                 )
                 reconciler.reconcile()
-                com.notesreminders.app.widget.QuickAddWidget.refreshAll(appContext)
+                com.notesreminders.app.widget.QuickAddWidget
+                    .refreshAll(appContext)
                 SyncDiagnostics.lastError = null
                 return SyncOutcome(success = true)
             }
@@ -63,7 +71,8 @@ class SyncRepository(
         val result = runCatching { performSync() }
         if (result.isSuccess) {
             reconciler.reconcile()
-            com.notesreminders.app.widget.QuickAddWidget.refreshAll(appContext)
+            com.notesreminders.app.widget.QuickAddWidget
+                .refreshAll(appContext)
             SyncDiagnostics.lastError = null
             return SyncOutcome(success = true)
         }
@@ -83,17 +92,18 @@ class SyncRepository(
     private suspend fun performSync() {
         val userId = tokenStore.userId ?: error("Not logged in")
         val meta = db.syncMetaDao().get()
-        val deviceId = meta?.deviceId ?: UUID.randomUUID().toString().also { newId ->
-            if (meta == null) {
-                db.syncMetaDao().upsert(
-                    SyncMetaEntity(
-                        deviceId = newId,
-                        lastSyncAt = "1970-01-01T00:00:00Z",
-                        userId = userId,
-                    ),
-                )
+        val deviceId =
+            meta?.deviceId ?: UUID.randomUUID().toString().also { newId ->
+                if (meta == null) {
+                    db.syncMetaDao().upsert(
+                        SyncMetaEntity(
+                            deviceId = newId,
+                            lastSyncAt = "1970-01-01T00:00:00Z",
+                            userId = userId,
+                        ),
+                    )
+                }
             }
-        }
         val lastSync = meta?.lastSyncAt ?: "1970-01-01T00:00:00Z"
 
         val dirtyNotes = db.noteDao().getDirty()
@@ -102,13 +112,14 @@ class SyncRepository(
         val dirtyNoteTags = db.noteTagDao().getDirty()
         val knownNoteIds = db.noteDao().getAllIds().toSet()
 
-        val sanitized = SyncPayloadSanitizer.sanitize(
-            dirtyNotes,
-            dirtyReminders,
-            dirtyTags,
-            dirtyNoteTags,
-            knownNoteIds,
-        )
+        val sanitized =
+            SyncPayloadSanitizer.sanitize(
+                dirtyNotes,
+                dirtyReminders,
+                dirtyTags,
+                dirtyNoteTags,
+                knownNoteIds,
+            )
 
         SyncDiagnostics.lastWarnings = sanitized.warnings
         SyncDiagnostics.lastSanitizedNoteCount = sanitized.notes.size
@@ -117,16 +128,17 @@ class SyncRepository(
 
         quarantineSkippedDirtyRows(sanitized.skipped, sanitized.warnings)
 
-        val response = api.sync(
-            SyncRequest(
-                device_id = deviceId,
-                last_sync_at = lastSync,
-                notes = sanitized.notes,
-                reminders = sanitized.reminders,
-                tags = sanitized.tags,
-                note_tags = sanitized.noteTags,
-            ),
-        )
+        val response =
+            api.sync(
+                SyncRequest(
+                    device_id = deviceId,
+                    last_sync_at = lastSync,
+                    notes = sanitized.notes,
+                    reminders = sanitized.reminders,
+                    tags = sanitized.tags,
+                    note_tags = sanitized.noteTags,
+                ),
+            )
 
         val dirtyById = dirtyNotes.associateBy { it.id }
         val now = Instant.now().toString()
@@ -154,9 +166,10 @@ class SyncRepository(
             }
         }
 
-        val mergedNotes = response.notes
-            .filterNot { it.id in conflictedNoteIds }
-            .map { it.toEntity(userId, isDirty = false) }
+        val mergedNotes =
+            response.notes
+                .filterNot { it.id in conflictedNoteIds }
+                .map { it.toEntity(userId, isDirty = false) }
         val mergedReminders = response.reminders.map { it.toEntity(userId, isDirty = false) }
         val mergedTags = response.tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
         val mergedNoteTags = response.note_tags.orEmpty().map { it.toEntity(userId, isDirty = false) }
@@ -166,7 +179,8 @@ class SyncRepository(
             reminders = mergedReminders,
             tags = mergedTags,
             noteTags = mergedNoteTags,
-            syncMeta = SyncMetaEntity(
+            syncMeta =
+            SyncMetaEntity(
                 deviceId = deviceId,
                 lastSyncAt = response.server_time,
                 userId = userId,
@@ -174,17 +188,18 @@ class SyncRepository(
         )
     }
 
-    private suspend fun quarantineSkippedDirtyRows(skipped: List<SkippedRow>, warnings: List<String>) {
+    private suspend fun quarantineSkippedDirtyRows(
+        skipped: List<SkippedRow>,
+        warnings: List<String>,
+    ) {
         val errors = SyncErrorRecorder.buildErrors(skipped, warnings)
         if (errors.isNotEmpty()) {
             db.syncErrorDao().upsertAll(errors)
         }
     }
 
-    fun getDeviceId(): String {
-        return kotlinx.coroutines.runBlocking {
-            db.syncMetaDao().get()?.deviceId ?: UUID.randomUUID().toString()
-        }
+    fun getDeviceId(): String = kotlinx.coroutines.runBlocking {
+        db.syncMetaDao().get()?.deviceId ?: UUID.randomUUID().toString()
     }
 
     private companion object {
