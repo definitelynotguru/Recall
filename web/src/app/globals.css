@@ -20,6 +20,7 @@
   --code-highlight: rgba(239, 111, 46, 0.12);
   --error: #ff8b82;
   --success: #8fbc91;
+  --info: #8bc5ff;
 
   --font-sans: var(--font-manrope);
   --font-mono: var(--font-ibm-plex-mono);
@@ -57,6 +58,7 @@
   --code-highlight: rgba(239, 111, 46, 0.1);
   --error: #b42318;
   --success: #427a46;
+  --info: #2769a6;
   color-scheme: light;
 }
 
@@ -1274,6 +1276,47 @@ code {
   background: var(--raised);
 }
 
+.markdown-callout {
+  --callout-color: var(--accent-ink);
+  --callout-bg: var(--accent-soft);
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--callout-color) 45%, transparent);
+  border-radius: var(--r-sm);
+  background: var(--callout-bg);
+  color: var(--text);
+}
+
+.markdown-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--callout-color);
+}
+
+.markdown-callout-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-callout-warning,
+.markdown-callout-danger {
+  --callout-color: var(--error);
+  --callout-bg: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+.markdown-callout-tip,
+.markdown-callout-success {
+  --callout-color: var(--success);
+  --callout-bg: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.markdown-callout-info,
+.markdown-callout-question {
+  --callout-color: var(--info);
+  --callout-bg: color-mix(in srgb, var(--info) 11%, transparent);
+}
+
 .markdown-empty {
   color: var(--text-muted);
 }
@@ -1316,6 +1359,21 @@ code {
 .backlink-list a {
   display: block;
   padding: 8px 0;
+}
+
+.backlink-section-heading {
+  margin-top: 24px;
+}
+
+.backlink-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.backlink-row .btn {
+  flex: 0 0 auto;
 }
 
 .note-info-heading {

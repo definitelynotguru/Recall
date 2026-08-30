@@ -7,6 +7,7 @@ import {
   getLocalNote,
   getLocalNotes,
   putLocalNote,
+  updateLocalNote,
 } from "./local-notes";
 
 function note(id: string, pinnedAt: string | null, updatedAt: string): ApiNote {
@@ -180,6 +181,21 @@ describe("local notes", () => {
       { id: "z-newer" },
       { id: "a-older" },
     ]);
+  });
+
+  it("updates a local note inside one read-write transaction", async () => {
+    await putLocalNote(note("note", null, "2024-01-01T00:00:00.000Z"));
+
+    await expect(
+      updateLocalNote("note", (existing) => ({
+        ...existing,
+        body: "Updated",
+      })),
+    ).resolves.toMatchObject({ id: "note", body: "Updated" });
+    await expect(getLocalNote("note")).resolves.toMatchObject({
+      id: "note",
+      body: "Updated",
+    });
   });
 
   it("uses update time to break equal pin-time ties", async () => {

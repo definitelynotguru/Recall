@@ -378,6 +378,9 @@ paths:
                 type: object
                 properties:
                   note: { $ref: "#/components/schemas/Note" }
+                  linked_mention:
+                    type: boolean
+                    description: Whether `link_mention` converted an occurrence.
         "400":
           description: Invalid request (e.g. invalid `pinned_at`)
           content:
@@ -1129,6 +1132,9 @@ components:
           type: ["string", "null"]
           format: date-time
           description: Send `null` to unpin.
+        link_mention:
+          type: string
+          description: Convert the first plain-text occurrence to a wiki link atomically.
     BulkNotesResponse:
       type: object
       properties:

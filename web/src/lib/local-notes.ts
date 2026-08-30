@@ -109,6 +109,31 @@ export async function putLocalNote(note: ApiNote): Promise<void> {
   await runWrite((store) => store.put(note));
 }
 
+export async function updateLocalNote(
+  id: string,
+  update: (note: ApiNote) => ApiNote,
+): Promise<ApiNote | undefined> {
+  return withDatabase(
+    (db) =>
+      new Promise<ApiNote | undefined>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(id) as IDBRequest<ApiNote | undefined>;
+        let updated: ApiNote | undefined;
+        tx.onerror = () => reject(transactionError(tx));
+        tx.onabort = () => reject(transactionError(tx));
+        request.onerror = () =>
+          reject(request.error ?? new Error("IndexedDB transaction failed"));
+        request.onsuccess = () => {
+          if (!request.result) return;
+          updated = update(request.result);
+          store.put(updated);
+        };
+        tx.oncomplete = () => resolve(updated);
+      }),
+  );
+}
+
 export async function deleteLocalNote(id: string): Promise<void> {
   await runWrite((store) => store.delete(id));
 }
