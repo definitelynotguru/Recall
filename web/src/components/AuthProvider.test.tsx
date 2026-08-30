@@ -3,7 +3,7 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTH_SESSION_EXPIRED } from "@/lib/api-client";
-import { saveCachedUser } from "@/lib/auth-cache";
+import { loadCachedUser, saveCachedUser } from "@/lib/auth-cache";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const mocks = vi.hoisted(() => ({
@@ -58,6 +58,20 @@ describe("AuthProvider", () => {
 
     await waitFor(() => expect(mocks.refreshAccessToken).toHaveBeenCalled());
     expect(mocks.apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("clears a cached user when refresh finds no session", async () => {
+    saveCachedUser({ id: "user-id", email: "user@example.com" });
+
+    const view = render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await view.findByText("anonymous:none");
+    expect(loadCachedUser()).toBeNull();
+    expect(localStorage).toHaveLength(0);
   });
 
   it("bootstraps an authenticated session", async () => {

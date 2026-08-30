@@ -180,6 +180,22 @@ describe("apiFetch token refresh", () => {
     expect(getAccessToken()).toBe("fresh-token");
   });
 
+  it.each([
+    ["at the five-minute boundary", 300, false],
+    ["one second inside the refresh window", 299, true],
+    ["already expired", -60, true],
+  ])("%s refresh behavior is stable", async (_, seconds, shouldRefresh) => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse({ access_token: "fresh-token" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    setAccessToken(jwt(1_700_000_000 + seconds));
+
+    await expect(ensureFreshAccessToken()).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(shouldRefresh ? 1 : 0);
+  });
+
   it("reports refresh failures as not fresh", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
     vi.stubGlobal(

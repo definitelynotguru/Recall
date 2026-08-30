@@ -15,7 +15,7 @@
     "drizzle/**",
     "coverage/**",
     ".next/**",
-    "src/**/*.test.ts",
+    "src/**/*.test.{ts,tsx}",
     "src/**/*.integration.test.ts"
   ],
   "ignoreDependencies": [

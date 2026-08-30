@@ -117,6 +117,20 @@ describe("service worker", () => {
     expect(worker.skipWaiting).toHaveBeenCalledTimes(1);
   });
 
+  it("still activates when cache storage cannot open", async () => {
+    const { caches, listeners, worker } = loadServiceWorker();
+    caches.open.mockRejectedValue(new Error("cache unavailable"));
+    let completion = Promise.resolve<unknown>(undefined);
+    listeners.get("install")?.({
+      waitUntil: (promise) => {
+        completion = promise;
+      },
+    } as InstallEvent as never);
+
+    await completion;
+    expect(worker.skipWaiting).toHaveBeenCalledTimes(1);
+  });
+
   it("removes old caches during activation", async () => {
     const { caches, listeners, worker } = loadServiceWorker();
     caches.keys.mockResolvedValue([
