@@ -105,9 +105,15 @@ function mockReadTransaction() {
   vi.stubGlobal("indexedDB", { open: vi.fn(() => request) });
 
   return {
+    abort() {
+      transaction.onabort?.call(transaction, new Event("abort"));
+    },
     close,
     failRead() {
       readRequest.onerror?.call(readRequest, new Event("error"));
+    },
+    failTransaction() {
+      transaction.onerror?.call(transaction, new Event("error"));
     },
     request,
   };
@@ -294,6 +300,31 @@ describe("local notes", () => {
     await Promise.resolve();
 
     mocked.failRead();
+
+    await expect(operation).rejects.toThrow("IndexedDB transaction failed");
+    expect(mocked.close).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [
+      "error",
+      (mocked: ReturnType<typeof mockReadTransaction>) =>
+        mocked.failTransaction(),
+    ],
+    [
+      "abort",
+      (mocked: ReturnType<typeof mockReadTransaction>) => mocked.abort(),
+    ],
+  ])("closes the database after a read transaction %s", async (_, fail) => {
+    const mocked = mockReadTransaction();
+    const operation = getLocalNotes();
+    mocked.request.onsuccess?.call(
+      mocked.request,
+      new Event("success") as Event & { target: IDBOpenDBRequest },
+    );
+    await Promise.resolve();
+
+    fail(mocked);
 
     await expect(operation).rejects.toThrow("IndexedDB transaction failed");
     expect(mocked.close).toHaveBeenCalledTimes(1);

@@ -158,6 +158,28 @@ describe("service worker", () => {
     await expect(response).resolves.toMatchObject({ status: 0 });
   });
 
+  it("returns a cached API response when the network fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    const { caches, listeners } = loadServiceWorker();
+    const cached = new Response('{"ok":true}', {
+      headers: { "Content-Type": "application/json" },
+    });
+    caches.match.mockResolvedValue(cached);
+    let response = Promise.resolve(Response.error());
+    const request = new Request("https://recall.test/api/v1/notes");
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(cached);
+  });
+
   it("serves the offline page when navigation fails", async () => {
     vi.stubGlobal(
       "fetch",
@@ -234,6 +256,30 @@ describe("service worker", () => {
     await vi.waitFor(() =>
       expect(cache.put).toHaveBeenCalledWith(request, expect.any(Response)),
     );
+  });
+
+  it("returns navigation responses when cache storage rejects", async () => {
+    const network = new Response("online");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(network)),
+    );
+    const { caches, listeners } = loadServiceWorker();
+    caches.open.mockRejectedValue(new Error("cache unavailable"));
+    let response = Promise.resolve(Response.error());
+    const request = {
+      method: "GET",
+      mode: "navigate",
+      url: "https://recall.test/notes",
+    } as Request;
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(network);
   });
 
   it("serves cached assets while refreshing them", async () => {
