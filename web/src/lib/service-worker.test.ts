@@ -304,6 +304,42 @@ describe("service worker", () => {
     await expect(response).resolves.toBe(network);
   });
 
+  it.each([
+    {
+      name: "navigation",
+      request: {
+        method: "GET",
+        mode: "navigate",
+        url: "https://recall.test/notes",
+      } as Request,
+    },
+    {
+      name: "asset",
+      request: new Request("https://recall.test/icon-192.png"),
+    },
+  ])(
+    "returns the $name response when cache put rejects",
+    async ({ request }) => {
+      const network = new Response("online");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() => Promise.resolve(network)),
+      );
+      const { cache, listeners } = loadServiceWorker();
+      cache.put.mockRejectedValue(new Error("quota exceeded"));
+      let response = Promise.resolve(Response.error());
+      listeners.get("fetch")?.({
+        request,
+        respondWith: (promise) => {
+          response = promise;
+        },
+      } as FetchEvent as never);
+
+      await expect(response).resolves.toBe(network);
+      await vi.waitFor(() => expect(cache.put).toHaveBeenCalled());
+    },
+  );
+
   it("serves cached assets while refreshing them", async () => {
     const cached = new Response("cached");
     const network = new Response("fresh");

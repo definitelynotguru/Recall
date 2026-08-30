@@ -10,6 +10,8 @@ import com.notesreminders.app.data.local.NoteConflictEntity
 import com.notesreminders.app.data.local.SyncMetaEntity
 import com.notesreminders.app.data.toEntity
 import com.notesreminders.app.reminders.ReminderReconciler
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import java.io.IOException
 import java.time.Instant
@@ -30,8 +32,14 @@ class SyncRepository(
 ) {
     private val appContext = context.applicationContext
     private val reconciler = ReminderReconciler(context, db.reminderDao())
+    private val syncMutex = Mutex()
 
-    suspend fun sync(): SyncOutcome {
+    suspend fun sync(): SyncOutcome =
+        syncMutex.withLock {
+            syncOnce()
+        }
+
+    private suspend fun syncOnce(): SyncOutcome {
         // Auto-purge stale dead-letter rows older than 30 days.
         val purgeBefore = Instant.now().minusSeconds(PURGE_AGE_SECONDS).toString()
         db.syncErrorDao().deleteOlderThan(purgeBefore)

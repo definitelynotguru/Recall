@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "./AuthProvider";
 
 const mocks = vi.hoisted(() => ({
   apiFetch: vi.fn(),
+  ensureFreshAccessToken: vi.fn(),
+  getAccessToken: vi.fn<() => string | null>(() => null),
   refreshAccessToken: vi.fn<() => Promise<string | null>>(() =>
     Promise.resolve(null),
   ),
@@ -23,8 +25,8 @@ vi.mock("@/lib/api-client", async (importOriginal) => {
   return {
     ...actual,
     apiFetch: mocks.apiFetch,
-    ensureFreshAccessToken: vi.fn(),
-    getAccessToken: vi.fn(() => null),
+    ensureFreshAccessToken: mocks.ensureFreshAccessToken,
+    getAccessToken: mocks.getAccessToken,
     refreshAccessToken: mocks.refreshAccessToken,
     setAccessToken: vi.fn(),
   };
@@ -43,6 +45,8 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     localStorage.clear();
     mocks.apiFetch.mockReset();
+    mocks.ensureFreshAccessToken.mockReset();
+    mocks.getAccessToken.mockReset().mockReturnValue(null);
     mocks.refreshAccessToken.mockReset().mockResolvedValue(null);
     mocks.replace.mockReset();
   });
@@ -83,6 +87,48 @@ describe("AuthProvider", () => {
 
     await view.findByText("offline:user@example.com");
     expect(mocks.apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("retries bootstrap when an offline session comes online", async () => {
+    saveCachedUser({ id: "user-id", email: "user@example.com" });
+    mocks.refreshAccessToken
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(null);
+
+    const view = render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+    await view.findByText("offline:user@example.com");
+
+    window.dispatchEvent(new Event("online"));
+
+    await view.findByText("anonymous:none");
+    expect(mocks.refreshAccessToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes an authenticated session on the interval", async () => {
+    const user = { id: "user-id", email: "user@example.com" };
+    mocks.refreshAccessToken.mockResolvedValueOnce("access-token");
+    mocks.apiFetch.mockResolvedValueOnce({ user });
+    mocks.getAccessToken.mockReturnValue("access-token");
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+    const view = render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+    await view.findByText("authenticated:user@example.com");
+
+    const callback = setIntervalSpy.mock.calls.find(
+      ([, delay]) => delay === 60_000,
+    )?.[0];
+    expect(callback).toBeTypeOf("function");
+    if (typeof callback === "function") callback();
+
+    expect(mocks.ensureFreshAccessToken).toHaveBeenCalledTimes(1);
   });
 
   it("redirects anonymous expiration without a session-expired reason", async () => {
