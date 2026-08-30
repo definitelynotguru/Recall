@@ -13,6 +13,14 @@ const APP_SHELL = [
   "/icon-maskable-512.png",
 ];
 
+function cacheResponse(request, response) {
+  const copy = response.clone();
+  return caches
+    .open(CACHE)
+    .then((cache) => cache.put(request, copy))
+    .catch(() => undefined);
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -62,8 +70,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          void cacheResponse(request, response);
           return response;
         })
         .catch(() =>
@@ -80,8 +87,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          void cacheResponse(request, response);
           return response;
         })
         .catch(() => cached);

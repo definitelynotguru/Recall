@@ -91,12 +91,15 @@ describe("service worker", () => {
     } as InstallEvent as never);
 
     await completion;
-    expect(cache.addAll).toHaveBeenCalledWith(
-      expect.arrayContaining(["/offline.html", "/manifest.webmanifest"]),
-    );
-    expect(cache.addAll).not.toHaveBeenCalledWith(
-      expect.arrayContaining(["/manifest.json"]),
-    );
+    expect(cache.addAll).toHaveBeenCalledWith([
+      "/",
+      "/offline.html",
+      "/manifest.webmanifest",
+      "/favicon.ico",
+      "/icon-192.png",
+      "/icon-512.png",
+      "/icon-maskable-512.png",
+    ]);
     expect(worker.skipWaiting).toHaveBeenCalled();
   });
 
@@ -116,6 +119,12 @@ describe("service worker", () => {
 
   it("removes old caches during activation", async () => {
     const { caches, listeners, worker } = loadServiceWorker();
+    caches.keys.mockResolvedValue([
+      "recall-v1",
+      "recall-v2",
+      "recall-v3",
+      "other",
+    ]);
     let completion = Promise.resolve<unknown>(undefined);
     listeners.get("activate")?.({
       waitUntil: (promise) => {
@@ -124,7 +133,9 @@ describe("service worker", () => {
     } as InstallEvent as never);
 
     await completion;
+    expect(caches.delete).toHaveBeenCalledWith("recall-v1");
     expect(caches.delete).toHaveBeenCalledWith("recall-v2");
+    expect(caches.delete).toHaveBeenCalledWith("other");
     expect(caches.delete).not.toHaveBeenCalledWith("recall-v3");
     expect(worker.clients.claim).toHaveBeenCalled();
   });
@@ -172,6 +183,31 @@ describe("service worker", () => {
 
     await expect(response).resolves.toBe(offline);
     expect(caches.match).toHaveBeenLastCalledWith("/offline.html");
+  });
+
+  it("prefers a cached navigation response to the offline page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    const { caches, listeners } = loadServiceWorker();
+    const cached = new Response("cached route");
+    caches.match.mockResolvedValueOnce(cached);
+    let response = Promise.resolve(Response.error());
+    const request = {
+      method: "GET",
+      mode: "navigate",
+      url: "https://recall.test/notes",
+    } as Request;
+    listeners.get("fetch")?.({
+      request,
+      respondWith: (promise) => {
+        response = promise;
+      },
+    } as FetchEvent as never);
+
+    await expect(response).resolves.toBe(cached);
+    expect(caches.match).toHaveBeenCalledTimes(1);
   });
 
   it("caches successful navigation responses", async () => {

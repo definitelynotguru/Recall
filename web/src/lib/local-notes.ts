@@ -36,42 +36,45 @@ function transactionError(tx: IDBTransaction) {
   return tx.error ?? new Error("IndexedDB transaction failed");
 }
 
-async function runTransaction<T>(
-  mode: IDBTransactionMode,
-  operation: (
-    store: IDBObjectStore,
-    tx: IDBTransaction,
-    resolve: (value: T) => void,
-    reject: (reason?: unknown) => void,
-  ) => void,
+async function withDatabase<T>(
+  operation: (db: IDBDatabase) => Promise<T>,
 ): Promise<T> {
   const db = await openLocalDB();
   try {
-    return await new Promise<T>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, mode);
-      tx.onerror = () => reject(transactionError(tx));
-      tx.onabort = () => reject(transactionError(tx));
-      operation(tx.objectStore(STORE_NAME), tx, resolve, reject);
-    });
+    return await operation(db);
   } finally {
     db.close();
   }
 }
 
 function runWrite(operation: (store: IDBObjectStore) => void): Promise<void> {
-  return runTransaction("readwrite", (store, tx, resolve) => {
-    operation(store);
-    tx.oncomplete = () => resolve();
-  });
+  return withDatabase(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.onerror = () => reject(transactionError(tx));
+        tx.onabort = () => reject(transactionError(tx));
+        operation(tx.objectStore(STORE_NAME));
+        tx.oncomplete = () => resolve();
+      }),
+  );
 }
 
-function runRead<T>(operation: (store: IDBObjectStore) => IDBRequest<T>) {
-  return runTransaction<T>("readonly", (store, _tx, resolve, reject) => {
-    const request = operation(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () =>
-      reject(request.error ?? new Error("IndexedDB transaction failed"));
-  });
+function runRead<T>(
+  operation: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  return withDatabase(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const request = operation(tx.objectStore(STORE_NAME));
+        tx.onerror = () => reject(transactionError(tx));
+        tx.onabort = () => reject(transactionError(tx));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () =>
+          reject(request.error ?? new Error("IndexedDB transaction failed"));
+      }),
+  );
 }
 
 function timestamp(value: string | null): number {

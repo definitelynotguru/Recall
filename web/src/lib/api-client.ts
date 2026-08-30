@@ -50,7 +50,7 @@ function decodeJwtExp(token: string): number | null {
 
 function tokenExpiresWithinMinutes(token: string, minutes: number): boolean {
   const exp = decodeJwtExp(token);
-  if (!exp) return false;
+  if (!exp) return true;
   return exp * 1000 - Date.now() < minutes * 60_000;
 }
 
@@ -79,7 +79,7 @@ async function performTokenRefresh(): Promise<string | null> {
   if (!res.ok) {
     throw new Error(`Token refresh failed (${res.status})`);
   }
-  const token = readAccessTokenResponse(await res.json());
+  const token = readAccessTokenResponse(await res.json().catch(() => null));
   if (!token) return null;
   if (authGeneration !== refreshGeneration) return accessToken;
   setAccessToken(token);

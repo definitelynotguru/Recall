@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AUTH_SESSION_EXPIRED,
   apiFetch,
+  ensureFreshAccessToken,
   getAccessToken,
   refreshAccessToken,
   setAccessToken,
@@ -14,6 +15,11 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function jwt(exp?: number) {
+  const payload = exp === undefined ? {} : { exp };
+  return `e30.${btoa(JSON.stringify(payload))}.signature`;
 }
 
 describe("apiFetch token refresh", () => {
@@ -135,6 +141,87 @@ describe("apiFetch token refresh", () => {
       "Token refresh failed (500)",
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports missing and malformed access tokens as not fresh", async () => {
+    await expect(ensureFreshAccessToken()).resolves.toBe(false);
+
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response(null, { status: 204 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    for (const token of ["malformed", jwt()]) {
+      setAccessToken(token);
+      await expect(ensureFreshAccessToken()).resolves.toBe(false);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps access tokens outside the refresh window", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    setAccessToken(jwt(1_700_000_000 + 10 * 60));
+
+    await expect(ensureFreshAccessToken()).resolves.toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes access tokens expiring within five minutes", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(jsonResponse({ access_token: "fresh-token" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    setAccessToken(jwt(1_700_000_000 + 4 * 60));
+
+    await expect(ensureFreshAccessToken()).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getAccessToken()).toBe("fresh-token");
+  });
+
+  it("reports refresh failures as not fresh", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(null, { status: 500 }))),
+    );
+    setAccessToken(jwt(1_700_000_000 + 4 * 60));
+
+    await expect(ensureFreshAccessToken()).resolves.toBe(false);
+  });
+
+  it.each([
+    ["missing access token", jsonResponse({})],
+    ["non-string access token", jsonResponse({ access_token: 42 })],
+    ["malformed JSON", new Response("{", { status: 200 })],
+  ])("treats a 200 refresh with %s as anonymous", async (_, response) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(response)),
+    );
+
+    await expect(refreshAccessToken()).resolves.toBeNull();
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it("expires an authenticated request after an invalid refresh payload", async () => {
+    setAccessToken("expired-token");
+    const expired = vi.fn();
+    window.addEventListener(AUTH_SESSION_EXPIRED, expired);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, 401))
+        .mockResolvedValueOnce(jsonResponse({})),
+    );
+
+    await expect(apiFetch("/test")).rejects.toThrow("Unauthorized");
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(getAccessToken()).toBeNull();
+
+    window.removeEventListener(AUTH_SESSION_EXPIRED, expired);
   });
 
   it("expires an authenticated request when refresh returns anonymous", async () => {

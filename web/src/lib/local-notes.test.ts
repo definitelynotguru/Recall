@@ -187,6 +187,22 @@ describe("local notes", () => {
     ]);
   });
 
+  it("sorts invalid update times as oldest without breaking pinned-first", async () => {
+    await putLocalNote(
+      note("unpinned-valid", null, "2024-01-01T00:00:00.000Z"),
+    );
+    await putLocalNote(note("unpinned-invalid", null, "not-a-date"));
+    await putLocalNote(
+      note("pinned-invalid", "2024-01-01T00:00:00.000Z", "not-a-date"),
+    );
+
+    await expect(getLocalNotes()).resolves.toMatchObject([
+      { id: "pinned-invalid" },
+      { id: "unpinned-valid" },
+      { id: "unpinned-invalid" },
+    ]);
+  });
+
   it("commits puts, deletes, and clears before resolving", async () => {
     const first = note("first", null, "2024-01-01T00:00:00.000Z");
     const second = note("second", null, "2024-01-02T00:00:00.000Z");
