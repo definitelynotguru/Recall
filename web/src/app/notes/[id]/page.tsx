@@ -11,6 +11,8 @@ import {
   Eye,
   Info,
   PencilSimple,
+  PushPin,
+  PushPinSlash,
   Question,
   Sparkle,
   Trash,
@@ -38,6 +40,7 @@ import {
   pickNextReminder,
 } from "@/lib/reminder-detect";
 import { useDebouncedNoteSave } from "@/hooks/useDebouncedNoteSave";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { loadUserPrefs } from "@/lib/user-prefs";
 import {
   createLocalNote,
@@ -45,8 +48,9 @@ import {
   getLocalNote,
   getLocalNotes,
   putLocalNote,
+  updateLocalNote,
 } from "@/lib/local-notes";
-import { buildTitleToIdMap } from "@/lib/wiki-links";
+import { buildTitleToIdMap, linkFirstUnlinkedMention } from "@/lib/wiki-links";
 import { toLocalDateString } from "@/lib/local-date";
 
 const MarkdownView = dynamic(
@@ -99,6 +103,7 @@ export default function NoteDetailPage() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [noteStatus, setNoteStatus] = useState<"active" | "archived">("active");
+  const [pinnedAt, setPinnedAt] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [reminders, setReminders] = useState<ApiReminder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -176,14 +181,12 @@ export default function NoteDetailPage() {
     if (localSaveTimer.current) clearTimeout(localSaveTimer.current);
     localSaveTimer.current = setTimeout(() => {
       void (async () => {
-        const existing = await getLocalNote(id);
-        if (!existing) return;
-        await putLocalNote({
+        await updateLocalNote(id, (existing) => ({
           ...existing,
           title,
           body,
           updated_at: new Date().toISOString(),
-        });
+        }));
         setLocalSaveStatus("saved");
       })();
     }, 700);
@@ -283,6 +286,7 @@ export default function NoteDetailPage() {
         setTitle(note.title);
         setBody(note.body);
         setNoteStatus(note.status === "archived" ? "archived" : "active");
+        setPinnedAt(note.pinned_at);
         setCreatedAt(note.created_at);
         setUpdatedAt(note.updated_at);
         setReminders([]);
@@ -298,6 +302,7 @@ export default function NoteDetailPage() {
       setTitle(noteRes.note.title);
       setBody(noteRes.note.body);
       setNoteStatus(noteRes.note.status === "archived" ? "archived" : "active");
+      setPinnedAt(noteRes.note.pinned_at);
       setCreatedAt(noteRes.note.created_at);
       setUpdatedAt(noteRes.note.updated_at);
       setReminders(noteRes.reminders.filter((r) => r.status === "active"));
@@ -429,6 +434,52 @@ export default function NoteDetailPage() {
     }
   };
 
+  const togglePin = async () => {
+    const next = pinnedAt ? null : new Date().toISOString();
+    try {
+      if (isLocal) {
+        if (localSaveTimer.current) clearTimeout(localSaveTimer.current);
+        const updated = await updateLocalNote(id, (existing) => ({
+          ...existing,
+          title,
+          body,
+          pinned_at: next,
+          updated_at: new Date().toISOString(),
+        }));
+        if (!updated) return;
+      } else {
+        if (!(await flush())) return;
+        await apiFetch(`/notes/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ pinned_at: next }),
+        });
+      }
+      setPinnedAt(next);
+      toast(next ? "Note pinned" : "Note unpinned");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not update note",
+        "error",
+      );
+    }
+  };
+
+  const saveAndClose = async () => {
+    if (isLocal) {
+      if (localSaveTimer.current) clearTimeout(localSaveTimer.current);
+      const updated = await updateLocalNote(id, (existing) => ({
+        ...existing,
+        title,
+        body,
+        updated_at: new Date().toISOString(),
+      }));
+      if (!updated) return;
+      router.push("/notes");
+      return;
+    }
+    if (await flush()) router.push("/notes");
+  };
+
   const openCreateDialog = () => {
     setEditingReminder(null);
     setDialogOpen(true);
@@ -538,6 +589,59 @@ export default function NoteDetailPage() {
     }
   };
 
+  const linkMention = async (note: {
+    id: string;
+    title: string;
+    body: string;
+  }) => {
+    try {
+      let sourceBody: string;
+      if (isLocal) {
+        let linked = false;
+        const updated = await updateLocalNote(note.id, (existing) => {
+          const nextBody = linkFirstUnlinkedMention(existing.body, title);
+          linked = nextBody !== existing.body;
+          return linked
+            ? {
+                ...existing,
+                body: nextBody,
+                updated_at: new Date().toISOString(),
+              }
+            : existing;
+        });
+        if (!updated || !linked) return;
+        sourceBody = updated.body;
+      } else {
+        const response = await apiFetch<{
+          note: ApiNote;
+          linked_mention: boolean;
+        }>(`/notes/${note.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ link_mention: title }),
+        });
+        if (!response.linked_mention) return;
+        sourceBody = response.note.body;
+      }
+      setAllNotes((items) =>
+        items.map((item) =>
+          item.id === note.id ? { ...item, body: sourceBody } : item,
+        ),
+      );
+      toast("Mention linked");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not link mention",
+        "error",
+      );
+    }
+  };
+
+  useKeyboardShortcuts({
+    onSaveAndClose: loading ? undefined : saveAndClose,
+    onTogglePreview: loading ? undefined : () => setPreview((value) => !value),
+    onTogglePin: loading ? undefined : togglePin,
+  });
+
   if (authLoading || loading) {
     return (
       <RequireAuth allowLocal>
@@ -581,7 +685,9 @@ export default function NoteDetailPage() {
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => router.back()}
+          onClick={() => void saveAndClose()}
+          aria-keyshortcuts="Meta+Enter Control+Enter"
+          title="Save and close (Ctrl/⌘ Enter)"
         >
           <ArrowLeft size={18} />
           Back
@@ -591,9 +697,22 @@ export default function NoteDetailPage() {
           className="btn btn-secondary"
           onClick={() => setPreview(!preview)}
           aria-pressed={preview}
+          aria-keyshortcuts="Meta+E Control+E"
+          title={`${preview ? "Edit" : "Preview"} (Ctrl/⌘ E)`}
         >
           <Eye size={18} />
           {preview ? "Edit" : "Preview"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={togglePin}
+          aria-label={pinnedAt ? "Unpin note" : "Pin note"}
+          aria-pressed={Boolean(pinnedAt)}
+          aria-keyshortcuts="Meta+Shift+P Control+Shift+P"
+          title={`${pinnedAt ? "Unpin" : "Pin"} note (Ctrl/⌘ Shift P)`}
+        >
+          {pinnedAt ? <PushPinSlash size={18} /> : <PushPin size={18} />}
         </button>
         <button
           type="button"
@@ -716,7 +835,12 @@ export default function NoteDetailPage() {
         )}
       </div>
 
-      <Backlinks notes={allNotes} currentTitle={title} />
+      <Backlinks
+        notes={allNotes}
+        currentId={id}
+        currentTitle={title}
+        onLinkMention={linkMention}
+      />
 
       {showInfo && (
         <NoteInfoPanel

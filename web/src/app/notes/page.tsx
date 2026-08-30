@@ -25,6 +25,7 @@ import { LocalOnlyBanner } from "@/components/LocalOnlyBanner";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/ToastProvider";
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { apiFetch, ApiNote, ApiNoteTag, ApiTag } from "@/lib/api-client";
 import { listTemplates, getOrCreateDailyNote } from "@/lib/api-client";
 import { expandTemplate } from "@/lib/templates";
@@ -72,7 +73,7 @@ function NotesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isLocal = !user;
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [allTags, setAllTags] = useState<ApiTag[]>([]);
@@ -93,6 +94,7 @@ function NotesContent() {
   const [templateMenuMounted, setTemplateMenuMounted] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const templateTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -383,6 +385,11 @@ function NotesContent() {
     }
   };
 
+  useKeyboardShortcuts({
+    onNewNote: authLoading ? undefined : createNote,
+    onSearch: () => searchInputRef.current?.focus(),
+  });
+
   return (
     <RequireAuth allowLocal>
       {isLocal && <LocalOnlyBanner />}
@@ -398,10 +405,12 @@ function NotesContent() {
           <div className="input-with-icon">
             <MagnifyingGlass size={18} />
             <input
+              ref={searchInputRef}
               id="notes-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search title or body"
+              aria-keyshortcuts="Meta+K Control+K"
             />
           </div>
         </div>
@@ -428,6 +437,8 @@ function NotesContent() {
           className="btn btn-primary"
           onClick={createNote}
           disabled={creating}
+          aria-keyshortcuts="Meta+N Control+N"
+          title="New note (Ctrl/⌘ N)"
         >
           <Plus size={18} weight="bold" />
           {creating ? "Creating…" : "New note"}

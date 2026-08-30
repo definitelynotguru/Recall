@@ -14,6 +14,7 @@ export function useDebouncedNoteSave(
   const [status, setStatus] = useState<SaveStatus>("idle");
   const latest = useRef({ title, body });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlight = useRef<Promise<boolean> | null>(null);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -22,19 +23,31 @@ export function useDebouncedNoteSave(
 
   const flush = useCallback(async () => {
     if (!noteId || !enabled) return false;
-    const { title: t, body: b } = latest.current;
-    setStatus("saving");
-    try {
-      await apiFetch(`/notes/${noteId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title: t, body: b }),
-      });
-      setStatus("saved");
-      return true;
-    } catch {
-      setStatus("error");
-      return false;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
     }
+    const previous = inFlight.current;
+    const request = (async () => {
+      if (previous) await previous;
+      const { title: t, body: b } = latest.current;
+      setStatus("saving");
+      try {
+        await apiFetch(`/notes/${noteId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ title: t, body: b }),
+        });
+        setStatus("saved");
+        return true;
+      } catch {
+        setStatus("error");
+        return false;
+      }
+    })();
+    inFlight.current = request;
+    const result = await request;
+    if (inFlight.current === request) inFlight.current = null;
+    return result;
   }, [noteId, enabled]);
 
   useEffect(() => {

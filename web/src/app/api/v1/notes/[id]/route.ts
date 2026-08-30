@@ -11,12 +11,14 @@ import {
 } from "@/lib/api-utils";
 import { eq, and, isNull } from "drizzle-orm";
 import { captureRevisionIfChanged } from "@/lib/revisions";
+import { linkFirstUnlinkedMention } from "@/lib/wiki-links";
 
 const patchSchema = z.object({
   title: z.string().optional(),
   body: z.string().optional(),
   status: z.enum(["active", "archived"]).optional(),
   pinned_at: z.string().nullable().optional(),
+  link_mention: z.string().min(1).optional(),
 });
 
 export async function GET(
@@ -73,34 +75,49 @@ export async function PATCH(
     return errorResponse("Invalid request", 400);
   }
 
-  const [existing] = await db
-    .select()
-    .from(notes)
-    .where(
-      and(
-        eq(notes.id, id),
-        eq(notes.userId, user!.userId),
-        isNull(notes.deletedAt),
-      ),
-    )
-    .limit(1);
-
-  if (!existing) return errorResponse("Note not found", 404);
-
   const now = new Date();
-  const nextTitle = body.title ?? existing.title;
-  const nextBody = body.body ?? existing.body;
-  const pinnedAt =
+  const requestedPinnedAt =
     body.pinned_at === undefined
-      ? existing.pinnedAt
+      ? undefined
       : body.pinned_at
         ? new Date(body.pinned_at)
         : null;
-  if (pinnedAt && Number.isNaN(pinnedAt.getTime())) {
+  if (requestedPinnedAt && Number.isNaN(requestedPinnedAt.getTime())) {
     return errorResponse("Invalid pinned_at", 400);
   }
 
-  const [row] = await getDb().transaction(async (tx) => {
+  const result = await getDb().transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(notes)
+      .where(
+        and(
+          eq(notes.id, id),
+          eq(notes.userId, user!.userId),
+          isNull(notes.deletedAt),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (!existing) return undefined;
+
+    const nextTitle = body.title ?? existing.title;
+    const nextBody = body.link_mention
+      ? linkFirstUnlinkedMention(existing.body, body.link_mention)
+      : (body.body ?? existing.body);
+    const linkedMention = Boolean(
+      body.link_mention && nextBody !== existing.body,
+    );
+    if (
+      body.link_mention &&
+      !linkedMention &&
+      body.title === undefined &&
+      body.body === undefined &&
+      body.status === undefined &&
+      body.pinned_at === undefined
+    ) {
+      return { row: existing, linkedMention };
+    }
     await captureRevisionIfChanged(
       tx,
       user!.userId,
@@ -116,15 +133,26 @@ export async function PATCH(
         title: nextTitle,
         body: nextBody,
         status: body.status ?? existing.status,
-        pinnedAt,
+        pinnedAt:
+          body.pinned_at === undefined ? existing.pinnedAt : requestedPinnedAt,
         updatedAt: now,
       })
-      .where(eq(notes.id, id))
+      .where(
+        and(
+          eq(notes.id, id),
+          eq(notes.userId, user!.userId),
+          isNull(notes.deletedAt),
+        ),
+      )
       .returning();
-    return [updated];
+    return { row: updated, linkedMention };
   });
 
-  return jsonResponse({ note: toApiNote(row) });
+  if (!result) return errorResponse("Note not found", 404);
+  return jsonResponse({
+    note: toApiNote(result.row),
+    linked_mention: result.linkedMention,
+  });
 }
 
 export async function DELETE(
